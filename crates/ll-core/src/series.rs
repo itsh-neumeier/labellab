@@ -166,6 +166,7 @@ pub fn apply(label: &Label, data: &DataSet, number: usize) -> Label {
                     *path = f(p).into();
                 }
             }
+            Element::Symbol { name, .. } => *name = f(name),
         }
     }
     out
@@ -193,6 +194,7 @@ pub fn placeholders(label: &Label) -> Vec<String> {
             Element::Text { text, .. } => scan(text),
             Element::Qr { data } | Element::Barcode { data, .. } => scan(data),
             Element::Image { path, .. } => scan(&path.to_string_lossy()),
+            Element::Symbol { name, .. } => scan(name),
         }
     }
     names

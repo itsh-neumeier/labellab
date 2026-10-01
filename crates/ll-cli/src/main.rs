@@ -86,11 +86,14 @@ enum Command {
         /// Barcode-Symbologie (nur mit --barcode).
         #[arg(long, value_enum, default_value = "code128")]
         barcode_type: BarcodeType,
-        /// Bilddatei (PNG/JPEG/BMP) statt Text drucken, skaliert auf die
-        /// Bandbreite, Floyd-Steinberg-gedithert.
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
+        /// Bilddatei (PNG/JPEG/BMP/SVG) statt Text drucken, skaliert auf
+        /// die Bandbreite, Floyd-Steinberg-gedithert.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "symbol"])]
         image: Option<String>,
-        /// Bild invertieren (nur mit --image).
+        /// Mitgeliefertes Symbol statt Text drucken (siehe `labellab symbols`).
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
+        symbol: Option<String>,
+        /// Bild/Symbol invertieren (nur mit --image/--symbol).
         #[arg(long)]
         invert: bool,
         /// Rahmen um das ganze Label zeichnen.
@@ -101,7 +104,7 @@ enum Command {
         #[arg(long, default_value_t = ll_core::print::PrintOptions::default().margin_dots)]
         margin: u16,
         /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
         template: Option<String>,
         /// CSV-Datei für Serien: Platzhalter `{{Spalte}}` und `{{#}}` (Nummer)
         /// in der Vorlage werden je Datensatz ersetzt, ein Label pro Datensatz.
@@ -147,18 +150,21 @@ enum Command {
         /// Barcode-Symbologie (nur mit --barcode).
         #[arg(long, value_enum, default_value = "code128")]
         barcode_type: BarcodeType,
-        /// Bilddatei (PNG/JPEG/BMP) statt Text rendern, skaliert auf die
-        /// Bandbreite, Floyd-Steinberg-gedithert.
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
+        /// Bilddatei (PNG/JPEG/BMP/SVG) statt Text rendern, skaliert auf
+        /// die Bandbreite, Floyd-Steinberg-gedithert.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "symbol"])]
         image: Option<String>,
-        /// Bild invertieren (nur mit --image).
+        /// Mitgeliefertes Symbol statt Text rendern (siehe `labellab symbols`).
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
+        symbol: Option<String>,
+        /// Bild/Symbol invertieren (nur mit --image/--symbol).
         #[arg(long)]
         invert: bool,
         /// Rahmen um das ganze Label zeichnen.
         #[arg(long)]
         frame: bool,
         /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
         template: Option<String>,
         /// CSV-Datei: Platzhalter mit Datensatz `--row` füllen.
         #[arg(long, requires = "template")]
@@ -175,6 +181,8 @@ enum Command {
         #[arg(long, default_value = DEFAULT_MODEL)]
         model: String,
     },
+    /// Mitgelieferte Symbole auflisten (für `print --symbol`/`render --symbol`).
+    Symbols,
 }
 
 #[tokio::main]
@@ -207,6 +215,7 @@ async fn main() -> anyhow::Result<()> {
             barcode,
             barcode_type,
             image,
+            symbol,
             invert,
             frame,
             margin,
@@ -229,6 +238,7 @@ async fn main() -> anyhow::Result<()> {
                     barcode,
                     barcode_type,
                     image,
+                    symbol,
                     invert,
                     template,
                 },
@@ -256,6 +266,7 @@ async fn main() -> anyhow::Result<()> {
             barcode,
             barcode_type,
             image,
+            symbol,
             invert,
             frame,
             template,
@@ -271,6 +282,7 @@ async fn main() -> anyhow::Result<()> {
                 barcode,
                 barcode_type,
                 image,
+                symbol,
                 invert,
                 template,
             },
@@ -280,6 +292,13 @@ async fn main() -> anyhow::Result<()> {
             width,
             model,
         ),
+        Command::Symbols => {
+            println!("Mitgelieferte Symbole:");
+            for name in ll_render::SYMBOL_NAMES {
+                println!("  {name}");
+            }
+            Ok(())
+        }
     }
 }
 
@@ -415,7 +434,7 @@ fn print_status(status: &StatusBlock, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// `text`/`--qr`/`--barcode`(`-type`)/`--image`/`--template` from
+/// `text`/`--qr`/`--barcode`(`-type`)/`--image`/`--symbol`/`--template` from
 /// `print`/`render`, grouped so those commands don't need seven separate
 /// parameters each (`clap`'s `conflicts_with_all` keeps more than one of
 /// them from being set at once).
@@ -425,6 +444,7 @@ struct ContentArgs {
     barcode: Option<String>,
     barcode_type: BarcodeType,
     image: Option<String>,
+    symbol: Option<String>,
     invert: bool,
     template: Option<String>,
 }
@@ -435,24 +455,40 @@ impl ContentArgs {
     fn into_label(self) -> anyhow::Result<Option<(Label, String)>> {
         let single = |element, desc: &str| Some((Label::single(element), desc.to_owned()));
         Ok(
-            match (self.text, self.qr, self.barcode, self.image, self.template) {
-                (Some(t), None, None, None, None) => single(Element::text(t.clone()), &t),
-                (None, Some(q), None, None, None) => single(Element::Qr { data: q.clone() }, &q),
-                (None, None, Some(b), None, None) => single(
+            match (
+                self.text,
+                self.qr,
+                self.barcode,
+                self.image,
+                self.symbol,
+                self.template,
+            ) {
+                (Some(t), None, None, None, None, None) => single(Element::text(t.clone()), &t),
+                (None, Some(q), None, None, None, None) => {
+                    single(Element::Qr { data: q.clone() }, &q)
+                }
+                (None, None, Some(b), None, None, None) => single(
                     Element::Barcode {
                         symbology: self.barcode_type.into(),
                         data: b.clone(),
                     },
                     &b,
                 ),
-                (None, None, None, Some(i), None) => single(
+                (None, None, None, Some(i), None, None) => single(
                     Element::Image {
                         path: i.clone().into(),
                         invert: self.invert,
                     },
                     &i,
                 ),
-                (None, None, None, None, Some(t)) => {
+                (None, None, None, None, Some(name), None) => single(
+                    Element::Symbol {
+                        name: name.clone(),
+                        invert: self.invert,
+                    },
+                    &name,
+                ),
+                (None, None, None, None, None, Some(t)) => {
                     Some((Label::load(std::path::Path::new(&t))?, t))
                 }
                 _ => None,
@@ -519,7 +555,7 @@ async fn print(
 ) -> anyhow::Result<()> {
     let Some((label, description)) = content_args.into_label()? else {
         eprintln!(
-            "Bitte Text, --qr, --barcode, --image oder --template angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
+            "Bitte Text, --qr, --barcode, --image, --symbol oder --template angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
         );
         std::process::exit(1);
     };
@@ -566,7 +602,7 @@ fn render(
 ) -> anyhow::Result<()> {
     let Some((mut label, _)) = content_args.into_label()? else {
         eprintln!(
-            "Bitte Text, --qr, --barcode, --image oder --template angeben: labellab render \"Text\" -o datei.png"
+            "Bitte Text, --qr, --barcode, --image, --symbol oder --template angeben: labellab render \"Text\" -o datei.png"
         );
         std::process::exit(1);
     };

@@ -154,6 +154,12 @@ pub enum Element {
         #[serde(default)]
         invert: bool,
     },
+    /// A bundled symbol by name, see `ll_render::SYMBOL_NAMES`.
+    Symbol {
+        name: String,
+        #[serde(default)]
+        invert: bool,
+    },
 }
 
 impl Element {
@@ -382,6 +388,9 @@ fn render_flow_element(
         Element::Image { path, invert } => {
             ll_render::render_image(path, head, pins, offset, *invert)?
         }
+        Element::Symbol { name, invert } => {
+            ll_render::render_symbol(name, head, pins, offset, *invert)?
+        }
     })
 }
 
@@ -412,6 +421,7 @@ fn render_boxed_element(
         Element::Qr { data } => boxed::qr_in_box(data, w, h, QrErrorCorrection::Medium)?,
         Element::Barcode { symbology, data } => boxed::barcode_in_box(*symbology, data, w, h)?,
         Element::Image { path, invert } => boxed::image_in_box(path, w, h, *invert)?,
+        Element::Symbol { name, invert } => boxed::symbol_in_box(name, w, h, *invert)?,
     })
 }
 

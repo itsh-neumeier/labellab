@@ -14,8 +14,10 @@
   Kettendruck („Fortlaufend“), Fortschritt beim Drucken. Details: ADR-014/016/017/018.
 - **M7 teilweise vorgezogen:** CSV-Serien und Kettendruck fertig (Kettendruck hardware-offen);
   Kabelfahne/-wickel, Patchpanel, Nummernfolgen `{n:03}` fehlen.
-- **M5:** nur Symbolbibliothek offen — Entscheidung steht: Tabler Icons (MIT) + selbst
-  gezeichnete Warnzeichen im Stil DIN EN ISO 7010.
+- **M5 code-vollständig:** Symbolbibliothek (10 Material-Symbols-Icons, Apache-2.0, ADR-019)
+  parallel auf `main` entstanden und beim Merge übernommen, auch als Label-Element im Editor
+  nutzbar (`type: symbol`). **Offen:** Abgleich mit der Nutzerwahl in dieser Session — Tabler
+  Icons (MIT) + selbst gezeichnete Warnzeichen im Stil DIN EN ISO 7010 (ergänzen oder ersetzen?).
 - **Wichtigster Hardware-Befund zuletzt:** Vorschnitt per Leerseite ergab 3 Schnitte → entfernt;
   der Drucker schneidet bei Auto-Cut den Vorlauf vermutlich selbst (Bestätigung offen).
 - **Offen/ungetestet am Gerät:** Kettendruck, Mehrband-Streifen, Farberkennung anderer Bänder,
@@ -37,19 +39,20 @@
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
   App, BlueZ (Linux) fehlen noch. **USB-Transport (`nusb`, ADR-013) fertig** (Code + Unit-Tests
   grün, CLI `--usb`), noch nicht gegen echten Drucker getestet.
-- [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
-  **Teilstand:** echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt +
-  gescannt). 6 Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010,
-  `ll_render::Symbology`, CLI `--barcode-type`) — Code128 gedruckt (Scan-Lesbarkeit offen),
-  Rest nur PNG-Vorschau. Bildimport (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`,
-  ADR-011) und Rahmen (`ll_render::frame::draw_border`, `--frame`-Flag) fertig, **noch nicht
-  auf Band gedruckt**. SVG-Import (`resvg`/`usvg`/`tiny-skia`, ADR-012) über denselben
-  `--image`-Pfad (an `.svg`-Endung erkannt) neu dazu. `ll_render::png` + CLI
-  `render ["Text"|--qr|--barcode [--barcode-type]|--image <datei>] [--frame] -o x.png
-  --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_barcode`/`print_image` teilen
-  sich die Protokoll-Sequenz (heute `ll-core::print::print_labels`/`send_page`). Seitdem
-  ergänzt: Box-Rendering (`ll_render::boxed`), Systemschriften (`ll_render::fonts`).
-  Noch offen: Symbolbibliothek (Tabler Icons MIT + eigene Warnzeichen, Entscheidung steht).
+- [x] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
+  Echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt + gescannt). 6
+  Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010, `ll_render::Symbology`,
+  CLI `--barcode-type`) — Code128 gedruckt (Scan-Lesbarkeit offen), Rest nur PNG-Vorschau.
+  Bildimport inkl. SVG (PNG/JPEG/BMP/SVG, Floyd-Steinberg-Dithering, `--invert`, ADR-011/012)
+  und Rahmen (`ll_render::frame::draw_border`, `--frame`) fertig, noch nicht auf Band gedruckt.
+  Symbolbibliothek (10 Material-Symbols-Icons, Apache-2.0, `ll_render::symbols`, ADR-019, CLI
+  `--symbol <name>` + `labellab symbols`-Listenbefehl) neu, ebenfalls nur PNG-Vorschau. Alle
+  fünf Inhaltsarten (`text`/`--qr`/`--barcode`/`--image`/`--symbol`) teilen sich dieselbe
+  `ContentArgs`-CLI-Struktur und denselben Druckpfad (`ll-core::print::print_labels`;
+  `print_text`/`print_qr`/`print_barcode`/`print_image`/`print_symbol`). **M5 ist damit code-seitig vollständig** — offene
+  Hardware-Tests siehe unten, kein offener Code-Teil mehr.
+  Seit dem Merge (2026-10-01) außerdem: Box-Rendering (`ll_render::boxed`, inkl.
+  `symbol_in_box`), Systemschriften (`ll_render::fonts`), Symbole als `.llabel`-Element.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
   **Teilstand (2026-10-01):** `ll_core::label` (Elemente nacheinander entlang des Bandes,
   Abstand/Rand/Mindestlänge/Rahmen, `.llabel`-JSON v1, `render_label` = einziger Renderpfad für
@@ -62,9 +65,10 @@
   Hilfslinien, Pfeiltasten, X/Y/B/H-Felder, Duplizieren), Text mehrzeilig mit Größe in pt oder
   auto und Ausrichtung, `.llabel` v2. Nutzer hat aus der Windows-GUI gedruckt („Gedruckt.“),
   aber die Vorschau war dort leer → behoben (Base64-Vorschau), **noch nicht erneut unter
-  Windows bestätigt**. **Fehlt:** fett/kursiv/Schriftwahl, Rotation, Warnung bei
-  überlaufendem Text, Symbole (M5), zuletzt verwendete Labels, verständliche Fehlertexte für
-  Statusbits.
+  Windows bestätigt** (inzwischen bestätigt). Seitdem: Schriftwahl + fett/kursiv, CSV-Serien,
+  Bandfarben, glatte Vorschau, Mehrband (ADR-017/018). **Fehlt:** Symbol-Auswahl in der GUI,
+  Rotation, Warnung bei überlaufendem Text, zuletzt verwendete Labels, verständliche
+  Fehlertexte für Statusbits.
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
   **Teilstand:** CSV-Serien (`ll_core::series`, `{{Spalte}}`/`{{#}}`, Bereich, GUI + CLI
   `--csv/--rows`, ADR-017) und Kettendruck (`PrintOptions::chain`, `--chain`, ADR-018) fertig.
@@ -92,9 +96,10 @@
    keine auf echtem Band gedruckt.
 3a. **Hardware-Test SVG:** `labellab print --image icon.svg --bt` — bisher nur PNG-Vorschau
     (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
-4. Symbolbibliothek (Nutzerentscheidung steht): **Tabler Icons (MIT)** für Elektro/IT +
-   selbst gezeichnete Warnzeichen im Stil DIN EN ISO 7010 (keine ISO-Originalgrafiken). Als
-   neues Element `{"type": "symbol", "name": ...}` in `ll_core::label` + Auswahl in der GUI.
+4. Symbole: Material Symbols (ADR-019) ist im Code; mit Nutzer klären, ob Tabler Icons (MIT) +
+   eigene Warnzeichen im Stil DIN EN ISO 7010 ergänzt werden. GUI-Auswahl für das Element
+   `{"type": "symbol", "name": ...}` fehlt noch (Backend/Renderer fertig). Hardware-Test:
+   `labellab print --symbol warning --bt` (Liste: `labellab symbols`).
 4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64-portable“ des
     Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
     Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
@@ -166,6 +171,8 @@
 - [ ] Bandfarben-Erkennung jenseits von Weiß/Schwarz (z. B. Gelb `06`, Transparent `03`).
 - [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
   bisher nur PNG-Vorschau.
+- [ ] M5: Symbolbibliothek (`labellab print --symbol <name> --bt`, Namen via `labellab
+  symbols`) gegen echten Drucker testen — bisher nur PNG-Vorschau.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -203,6 +210,13 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, Merge nach `main`
+- Branch `claude/modest-euler-hx5zk9` mit `main` zusammengeführt; dort war parallel die
+  Symbolbibliothek (Material Symbols) entstanden. Konflikte gelöst: deren ADR-013 → ADR-019
+  (013 = `nusb`), `print_symbol` und CLI `--symbol` auf den neuen Label-/Druckpfad umgestellt,
+  `Element::Symbol` + `boxed::symbol_in_box` ergänzt (Symbole in Vorlagen/Serien nutzbar).
+  106 Tests grün.
+
 ### 2026-10-01 – Claude Code, Mehrband, Kettendruck, Bandfarben, glatte Vorschau (ADR-018)
 - Nutzer-Screenshot: BT-Name „PT-P710BT5265“ wird angezeigt, Serie mit 2 Labels gedruckt.
   Hardware-Befund: Vorschnitt per Leerseite → 3 Schnitte → entfernt.
@@ -307,6 +321,35 @@
 - Nutzerentscheidung Symbolbibliothek: **Tabler Icons (MIT)** für Elektro/IT, dazu eigene,
   selbst gezeichnete Warnzeichen-Rahmen im Stil DIN EN ISO 7010 (offizielle ISO-Grafiken nicht
   übernommen, Urheberrecht).
+### 2026-10-01 – Claude Code (Sonnet 5), M5 fertig – Symbolbibliothek
+- Nutzer wollte Material Symbols **und** eigene SVGs nutzen können — eigene SVGs liefen schon
+  über `--image icon.svg` (SVG-Import, siehe vorheriger Eintrag). Für die Bibliothek: keine
+  geratenen Download-URLs (Projektregel) — stattdessen npm-Paket `@material-symbols/svg-400`
+  (Apache-2.0, deps: keine) als verifizierte Quelle genutzt (`npm view`/`npm pack`,
+  Tarball-Inhalt lokal geprüft, kein Rohpfad-Raten nötig).
+- 10 Icons kuratiert und nach `crates/ll-render/assets/symbols/*.svg` kopiert (Attribution in
+  `assets/symbols/NOTICE.md`): `network`, `wifi`, `power`, `warning`, `arrow-up/-down/-left/
+  -right`, `fire`, `fire-extinguisher`. Kein elektrisches Erdungssymbol — Material Symbols ist
+  ein allgemeines UI-Set, kein Satz elektrotechnischer Schaltzeichen (ADR-019).
+- `ll-render::symbols`: Makro bettet die SVGs per `include_bytes!` ein (`SYMBOL_NAMES`,
+  `symbol_svg()`, `render_symbol()`). `ll-render::picture` dafür refaktoriert:
+  `render_svg_to_gray()` nimmt jetzt Bytes statt eines Pfads, neue öffentliche
+  `render_svg_bytes()` als gemeinsamer Einstieg für Datei-SVGs und eingebettete Symbole.
+- `ll-core::print`: neues `print_symbol()`, teilt sich die Protokoll-Sequenz mit den anderen
+  vier `print_*`-Funktionen.
+- `ll-cli`: `--symbol <name>` auf `print`/`render` (schließt sich mit
+  `text`/`--qr`/`--barcode`/`--image` aus), neuer `labellab symbols`-Befehl listet die
+  verfügbaren Namen. `Content`-Enum um `Symbol`-Variante erweitert.
+- Visuell per Wegwerf-Beispiel geprüft: network/power/warning/fire sehen alle sauber und
+  korrekt erkennbar aus, danach entfernt.
+- 2 neue Tests in `ll-render` (alle 10 Symbole rendern Tinte, unbekannter Name gibt Fehler
+  statt Panic) + 1 in `ll-core` (`print_symbol` sendet Raster-Modus + Feed). 62 Unit-Tests
+  insgesamt (vorher 59).
+- **M5 ist damit code-seitig vollständig** (Schriften, Rahmen, QR, 6 Barcode-Symbologien,
+  Bilder inkl. SVG, Symbolbibliothek). Offene Hardware-Tests für mehrere Teile bleiben (siehe
+  „Hardware-Tests offen“) — nur Schriften und QR sind bisher tatsächlich gedruckt/verifiziert.
+- Session endet hier auf Nutzerwunsch (Handoff an Cloud-Session nach Nutzungslimit).
+  Release-Build erneuert, gepusht.
 
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – SVG-Import
 - `ll-render::picture`: `render_image()` erkennt `.svg` an der Dateiendung (case-insensitiv)

@@ -15,7 +15,7 @@ use fontdue::Font;
 use serde::{Deserialize, Serialize};
 
 use crate::linear_barcode::encode_modules;
-use crate::picture::{floyd_steinberg_dither, load_gray};
+use crate::picture::{floyd_steinberg_dither, load_gray, render_svg_to_gray};
 use crate::{render_qr, Bitmap, Face, QrErrorCorrection, RenderError, Symbology};
 
 /// Alpha threshold (0-255) above which a rasterized pixel counts as ink.
@@ -256,7 +256,32 @@ pub fn image_in_box(
     box_h: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    let gray = load_gray(path, box_h)?;
+    gray_in_box(&load_gray(path, box_h)?, box_w, box_h, invert)
+}
+
+/// Renders a bundled symbol (see [`crate::symbols`]) fitted into the box
+/// like [`image_in_box`].
+pub fn symbol_in_box(
+    name: &str,
+    box_w: u32,
+    box_h: u16,
+    invert: bool,
+) -> Result<Bitmap, RenderError> {
+    let data = crate::symbols::symbol_svg(name).ok_or_else(|| {
+        RenderError::Image(format!(
+            "unknown symbol '{name}', available: {}",
+            crate::SYMBOL_NAMES.join(", ")
+        ))
+    })?;
+    gray_in_box(&render_svg_to_gray(data, box_h)?, box_w, box_h, invert)
+}
+
+fn gray_in_box(
+    gray: &image::GrayImage,
+    box_w: u32,
+    box_h: u16,
+    invert: bool,
+) -> Result<Bitmap, RenderError> {
     let (src_w, src_h) = gray.dimensions();
     let mut out = Bitmap::new(box_h, box_w);
     if src_w == 0 || src_h == 0 || box_w == 0 || box_h == 0 {
@@ -266,7 +291,7 @@ pub fn image_in_box(
     let new_w = ((src_w as f32 * scale).round() as u32).clamp(1, box_w);
     let new_h = ((src_h as f32 * scale).round() as u32).clamp(1, box_h as u32);
     let resized =
-        image::imageops::resize(&gray, new_w, new_h, image::imageops::FilterType::Triangle);
+        image::imageops::resize(gray, new_w, new_h, image::imageops::FilterType::Triangle);
     let bits = floyd_steinberg_dither(&resized, invert);
 
     let line_off = (box_w - new_w) / 2;
@@ -375,6 +400,14 @@ mod tests {
         let bmp = qr_in_box("hello", 200, 60, QrErrorCorrection::Medium).unwrap();
         let (l0, l1) = line_extent(&bmp).unwrap();
         assert!(l0 > 60 && l1 < 140, "centered along the length: {l0}..{l1}");
+    }
+
+    #[test]
+    fn symbol_fits_box_and_unknown_errors() {
+        let bmp = symbol_in_box("warning", 200, 60, false).unwrap();
+        assert_eq!((bmp.width_pins(), bmp.height_dots()), (60, 200));
+        assert!(pin_extent(&bmp).is_some());
+        assert!(symbol_in_box("nope", 10, 10, false).is_err());
     }
 
     #[test]

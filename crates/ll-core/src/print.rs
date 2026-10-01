@@ -5,9 +5,9 @@
 //!
 //! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
 //! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
-//! denselben Renderpfad"): everything goes through [`print_label`] and
-//! `crate::label::render_label`; `print_text`/`print_qr`/`print_barcode`/
-//! `print_image` are one-element shortcuts.
+//! denselben Renderpfad"): everything goes through [`print_labels`] and
+//! `crate::label::render_label_pages`; `print_text`/`print_qr`/
+//! `print_barcode`/`print_image`/`print_symbol` are one-element shortcuts.
 
 use std::path::Path;
 use std::time::Duration;
@@ -213,6 +213,22 @@ pub async fn print_image(
 ) -> Result<(), CoreError> {
     let label = Label::single(Element::Image {
         path: path.into(),
+        invert,
+    });
+    print_label(transport, model, &label, options).await
+}
+
+/// Prints the bundled symbol `name` (see `ll_render::SYMBOL_NAMES`), see
+/// [`print_label`].
+pub async fn print_symbol(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+    name: &str,
+    invert: bool,
+    options: &PrintOptions,
+) -> Result<(), CoreError> {
+    let label = Label::single(Element::Symbol {
+        name: name.into(),
         invert,
     });
     print_label(transport, model, &label, options).await
@@ -620,5 +636,25 @@ mod tests {
             find_subsequence(written, &[0x1B, 0x69, 0x64, 100, 0]).is_some(),
             "margin(100) missing"
         );
+    }
+
+    #[tokio::test]
+    async fn print_symbol_sends_raster_mode_and_feed() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+
+        print_symbol(
+            &mut transport,
+            p710bt(),
+            "warning",
+            false,
+            &PrintOptions::default(),
+        )
+        .await
+        .unwrap();
+
+        let written = transport.written();
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());
+        assert_eq!(*written.last().unwrap(), 0x1A);
     }
 }

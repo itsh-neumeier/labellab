@@ -51,6 +51,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Gerätesuche zeigt den Bluetooth-Gerätenamen statt „SPP SERVER“, erkennt den Drucker, wählt ihn
   aus und liest den Bandstatus automatisch
 - Druckknopf zeigt „Wird gedruckt … n/m“ und ist während der Übertragung gesperrt
+- Symbole aus der mitgelieferten Bibliothek auch in Vorlagen und Serien (`{"type": "symbol"}`)
 - Vorlagenformat `.llabel` Version 2 (Boxen, Textgröße/-ausrichtung); Version 1 wird weiter gelesen
 - Windows: portable `LabelLab.exe` (ohne Installation startbar) und `labellab.exe` werden bei
   jedem Push automatisch gebaut (GitHub Actions, Artefakt `LabelLab-windows-x64-portable`)
@@ -60,8 +61,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   <code128|ean13|ean8|upca|code39|itf>` auf `print`/`render`. Nur PNG-Vorschau geprüft, noch
   nicht auf Band gedruckt.
 - M5 (Teil): SVG-Import über denselben `--image`-Pfad (`resvg`/`usvg`/`tiny-skia`, an `.svg`-
-  Endung erkannt). Nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt. Symbolbibliothek
-  noch offen — letztes fehlendes M5-Teil.
+  Endung erkannt). Nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt.
+- M5: Symbolbibliothek — 10 eingebettete Material-Symbols-Icons (Apache-2.0: `network`, `wifi`,
+  `power`, `warning`, `arrow-up/-down/-left/-right`, `fire`, `fire-extinguisher`) über
+  `--symbol <name>` auf `print`/`render`, `labellab symbols` listet verfügbare Namen. Eigene
+  SVGs bleiben unabhängig davon über `--image` nutzbar. **M5 damit code-seitig vollständig**;
+  nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt.
 
 ### Behoben
 - Vorschau blieb in der Windows-Oberfläche leer
