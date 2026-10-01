@@ -88,6 +88,10 @@ enum Command {
         /// Rahmen um das ganze Label zeichnen.
         #[arg(long)]
         frame: bool,
+        /// Leervorschub vor dem Schnitt, in Druckpunkten (180 dpi). `0`
+        /// schneidet direkt am letzten bedruckten Punkt.
+        #[arg(long, default_value_t = ll_core::print::PrintOptions::default().margin_dots)]
+        margin: u16,
         #[arg(long)]
         template: Option<String>,
         #[arg(long)]
@@ -164,6 +168,7 @@ async fn main() -> anyhow::Result<()> {
             image,
             invert,
             frame,
+            margin,
             template,
             csv,
             cut,
@@ -186,8 +191,11 @@ async fn main() -> anyhow::Result<()> {
                     image,
                     invert,
                 },
-                frame,
-                cut,
+                ll_core::print::PrintOptions {
+                    frame,
+                    auto_cut: cut,
+                    margin_dots: margin,
+                },
                 copies,
                 ConnectOpts { device, bt, baud },
                 model,
@@ -380,8 +388,7 @@ impl Content {
 
 async fn print(
     content_args: ContentArgs,
-    frame: bool,
-    cut: bool,
+    options: ll_core::print::PrintOptions,
     copies: u32,
     connect: ConnectOpts,
     model_name: String,
@@ -416,7 +423,7 @@ async fn print(
         }
         match &content {
             Content::Text(text) => {
-                ll_core::print::print_text(transport.as_mut(), model, text, frame, cut).await?
+                ll_core::print::print_text(transport.as_mut(), model, text, &options).await?
             }
             Content::Qr(data) => {
                 ll_core::print::print_qr(
@@ -424,24 +431,16 @@ async fn print(
                     model,
                     data,
                     ll_render::QrErrorCorrection::Medium,
-                    frame,
-                    cut,
+                    &options,
                 )
                 .await?
             }
             Content::Barcode(symbology, data) => {
-                ll_core::print::print_barcode(
-                    transport.as_mut(),
-                    model,
-                    *symbology,
-                    data,
-                    frame,
-                    cut,
-                )
-                .await?
+                ll_core::print::print_barcode(transport.as_mut(), model, *symbology, data, &options)
+                    .await?
             }
             Content::Image(path, invert) => {
-                ll_core::print::print_image(transport.as_mut(), model, path, *invert, frame, cut)
+                ll_core::print::print_image(transport.as_mut(), model, path, *invert, &options)
                     .await?
             }
         }

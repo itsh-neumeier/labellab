@@ -25,9 +25,39 @@ use crate::CoreError;
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Border thickness in print dots when `frame` is set on any `print_*`
-/// function. Not yet configurable from the CLI.
+/// Border thickness in print dots when `PrintOptions::frame` is set.
 const BORDER_THICKNESS: u16 = 2;
+
+/// Default feed margin in dots before the cut (`PrintOptions::margin_dots`
+/// default). Brother's own driver leaves some blank tape before cutting;
+/// `margin(0)` cuts right at the last printed dot, which clips content
+/// right at the edge (confirmed on real hardware, see `docs/PROGRESS.md`).
+/// TODO(verify): exact minimum the cutter needs — this is a conservative
+/// guess, not a manufacturer spec.
+const DEFAULT_MARGIN_DOTS: u16 = 28;
+
+/// Options shared by every `print_*` function (what differs between them
+/// is only the rendered content).
+#[derive(Debug, Clone, Copy)]
+pub struct PrintOptions {
+    /// Draw a border around the whole label.
+    pub frame: bool,
+    /// Auto-cut after printing.
+    pub auto_cut: bool,
+    /// Blank feed in dots before the cut. `0` cuts right at the last
+    /// printed dot (see `DEFAULT_MARGIN_DOTS`).
+    pub margin_dots: u16,
+}
+
+impl Default for PrintOptions {
+    fn default() -> Self {
+        Self {
+            frame: false,
+            auto_cut: false,
+            margin_dots: DEFAULT_MARGIN_DOTS,
+        }
+    }
+}
 
 /// Resets the printer, reads its status, renders `text` to fit the
 /// currently loaded tape and prints it. Fails without sending raster data
@@ -37,8 +67,7 @@ pub async fn print_text(
     transport: &mut dyn Transport,
     model: &ModelInfo,
     text: &str,
-    frame: bool,
-    auto_cut: bool,
+    options: &PrintOptions,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
     let mut bitmap = ll_render::render_text(
@@ -47,8 +76,8 @@ pub async fn print_text(
         geometry.printable_pins,
         geometry.left_offset_pins,
     )?;
-    maybe_draw_border(&mut bitmap, geometry, frame);
-    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+    maybe_draw_border(&mut bitmap, geometry, options.frame);
+    send_bitmap(transport, &bitmap, width_mm, options).await
 }
 
 /// Resets the printer, reads its status, renders `data` as a QR code to
@@ -59,8 +88,7 @@ pub async fn print_qr(
     model: &ModelInfo,
     data: &str,
     ec_level: QrErrorCorrection,
-    frame: bool,
-    auto_cut: bool,
+    options: &PrintOptions,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
     let mut bitmap = ll_render::render_qr(
@@ -70,8 +98,8 @@ pub async fn print_qr(
         geometry.left_offset_pins,
         ec_level,
     )?;
-    maybe_draw_border(&mut bitmap, geometry, frame);
-    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+    maybe_draw_border(&mut bitmap, geometry, options.frame);
+    send_bitmap(transport, &bitmap, width_mm, options).await
 }
 
 /// Resets the printer, reads its status, renders `data` as a barcode of
@@ -82,8 +110,7 @@ pub async fn print_barcode(
     model: &ModelInfo,
     symbology: Symbology,
     data: &str,
-    frame: bool,
-    auto_cut: bool,
+    options: &PrintOptions,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
     let mut bitmap = ll_render::render_barcode(
@@ -93,8 +120,8 @@ pub async fn print_barcode(
         geometry.printable_pins,
         geometry.left_offset_pins,
     )?;
-    maybe_draw_border(&mut bitmap, geometry, frame);
-    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+    maybe_draw_border(&mut bitmap, geometry, options.frame);
+    send_bitmap(transport, &bitmap, width_mm, options).await
 }
 
 /// Resets the printer, reads its status, renders the image at `path`
@@ -105,8 +132,7 @@ pub async fn print_image(
     model: &ModelInfo,
     path: &Path,
     invert: bool,
-    frame: bool,
-    auto_cut: bool,
+    options: &PrintOptions,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
     let mut bitmap = ll_render::render_image(
@@ -116,8 +142,8 @@ pub async fn print_image(
         geometry.left_offset_pins,
         invert,
     )?;
-    maybe_draw_border(&mut bitmap, geometry, frame);
-    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+    maybe_draw_border(&mut bitmap, geometry, options.frame);
+    send_bitmap(transport, &bitmap, width_mm, options).await
 }
 
 fn maybe_draw_border(bitmap: &mut Bitmap, geometry: &TapeGeometry, frame: bool) {
@@ -169,7 +195,7 @@ async fn send_bitmap(
     transport: &mut dyn Transport,
     bitmap: &Bitmap,
     width_mm: u8,
-    auto_cut: bool,
+    options: &PrintOptions,
 ) -> Result<(), CoreError> {
     let raster_lines = bitmap.height_dots();
 
@@ -177,9 +203,11 @@ async fn send_bitmap(
         .write_all(&command::switch_to_raster_mode())
         .await?;
     transport
-        .write_all(&command::various_mode(auto_cut))
+        .write_all(&command::various_mode(options.auto_cut))
         .await?;
-    transport.write_all(&command::margin(0)).await?;
+    transport
+        .write_all(&command::margin(options.margin_dots))
+        .await?;
     transport
         .write_all(
             &PrintInformation {
@@ -241,7 +269,7 @@ mod tests {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
 
-        print_text(&mut transport, p710bt(), "HI", false, false)
+        print_text(&mut transport, p710bt(), "HI", &PrintOptions::default())
             .await
             .unwrap();
 
@@ -259,9 +287,10 @@ mod tests {
             find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x00]).is_some(),
             "various_mode (no auto-cut) missing"
         );
+        let margin_le = DEFAULT_MARGIN_DOTS.to_le_bytes();
         assert!(
-            find_subsequence(written, &[0x1B, 0x69, 0x64, 0x00, 0x00]).is_some(),
-            "margin(0) missing"
+            find_subsequence(written, &[0x1B, 0x69, 0x64, margin_le[0], margin_le[1]]).is_some(),
+            "margin(DEFAULT_MARGIN_DOTS) missing"
         );
         assert!(
             find_subsequence(written, &[0x1B, 0x69, 0x7A]).is_some(),
@@ -307,7 +336,7 @@ mod tests {
         status[8] = 0x01; // error1 != 0
         transport.push_response(status);
 
-        let err = print_text(&mut transport, p710bt(), "HI", false, false)
+        let err = print_text(&mut transport, p710bt(), "HI", &PrintOptions::default())
             .await
             .unwrap_err();
 
@@ -329,7 +358,7 @@ mod tests {
         status[10] = 200; // not in the model's geometry table
         transport.push_response(status);
 
-        let err = print_text(&mut transport, p710bt(), "HI", false, false)
+        let err = print_text(&mut transport, p710bt(), "HI", &PrintOptions::default())
             .await
             .unwrap_err();
 
@@ -349,8 +378,7 @@ mod tests {
             p710bt(),
             "https://example.com",
             QrErrorCorrection::Medium,
-            false,
-            false,
+            &PrintOptions::default(),
         )
         .await
         .unwrap();
@@ -370,8 +398,7 @@ mod tests {
             p710bt(),
             Symbology::Code128,
             "LABELLAB-123",
-            false,
-            false,
+            &PrintOptions::default(),
         )
         .await
         .unwrap();
@@ -390,9 +417,15 @@ mod tests {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
 
-        print_image(&mut transport, p710bt(), &path, false, false, false)
-            .await
-            .unwrap();
+        print_image(
+            &mut transport,
+            p710bt(),
+            &path,
+            false,
+            &PrintOptions::default(),
+        )
+        .await
+        .unwrap();
 
         std::fs::remove_file(&path).ok();
 
@@ -408,13 +441,21 @@ mod tests {
         // than the same label without a border.
         let mut with_frame = MockTransport::new();
         with_frame.push_response(status_fixture_9mm_ok());
-        print_text(&mut with_frame, p710bt(), "HI", true, false)
-            .await
-            .unwrap();
+        print_text(
+            &mut with_frame,
+            p710bt(),
+            "HI",
+            &PrintOptions {
+                frame: true,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
 
         let mut without_frame = MockTransport::new();
         without_frame.push_response(status_fixture_9mm_ok());
-        print_text(&mut without_frame, p710bt(), "HI", false, false)
+        print_text(&mut without_frame, p710bt(), "HI", &PrintOptions::default())
             .await
             .unwrap();
 
@@ -422,6 +463,30 @@ mod tests {
         assert!(
             empty_rows(with_frame.written()) < empty_rows(without_frame.written()),
             "a bordered label should have fewer blank raster rows (border fills the caps)"
+        );
+    }
+
+    #[tokio::test]
+    async fn custom_margin_is_sent() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+
+        print_text(
+            &mut transport,
+            p710bt(),
+            "HI",
+            &PrintOptions {
+                margin_dots: 100,
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let written = transport.written();
+        assert!(
+            find_subsequence(written, &[0x1B, 0x69, 0x64, 100, 0]).is_some(),
+            "margin(100) missing"
         );
     }
 }

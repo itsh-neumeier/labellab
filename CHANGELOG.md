@@ -31,3 +31,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type
   <code128|ean13|ean8|upca|code39|itf>` auf `print`/`render`. Nur PNG-Vorschau geprüft, noch
   nicht auf Band gedruckt. SVG-Import und Symbolbibliothek noch offen — letzte fehlende M5-Teile.
+
+### Behoben
+- Cutter schnitt direkt am Ende des gedruckten Inhalts ohne Nachlauf (`margin(0)` war fest
+  einprogrammiert). `--margin <dots>` auf `print` macht den Leervorschub vor dem Schnitt
+  konfigurierbar, Default jetzt 28 statt 0 Druckpunkte. Noch nicht erneut hardware-getestet.

@@ -14,6 +14,9 @@
   (kein Code128-Scanner beim Nutzer verfügbar). Bildimport + Dithering, Rahmen und 4 weitere
   Barcode-Symbologien (EAN-13/8, UPC-A, Code39, ITF) fertig (Code grün, noch nicht auf Band
   gedruckt). Nur noch Symbolbibliothek + SVG-Import offen.
+  **Bugfix:** Nutzer meldete, der Cutter schneidet direkt am Ende des Inhalts (kein Nachlauf) —
+  Ursache war `margin(0)` fest einprogrammiert; jetzt konfigurierbar (`--margin`, Default 28
+  Druckpunkte statt 0), noch nicht erneut hardware-getestet.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -51,6 +54,9 @@
 | – | – | – | – |
 
 ## Nächste Schritte
+0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
+   schneidet der Cutter jetzt mit sichtbarem Nachlauf statt direkt am Inhalt (Default-Margin
+   28 statt 0 Druckpunkte)? `--margin <n>` zum Nachjustieren verfügbar.
 1. **Hardware-Test Bildimport (auf dem Gerät mit dem Drucker):** erster Versuch scheiterte an
    einem falschen/nicht gefundenen Dateipfad (`labellab print --image ...` →
    „Datei nicht gefunden“, vermutlich OneDrive-Pictures-Redirect) — Pfad mit `Test-Path`
@@ -102,6 +108,10 @@
   Druckpunkte) nur in PNG-Vorschau verifiziert.
 - [ ] M5: EAN-13/EAN-8/UPC-A/Code39/ITF gegen echten Drucker/Scanner testen — bisher nur
   PNG-Vorschau, nur Code128 wurde tatsächlich gedruckt.
+- [ ] Margin/Nachlauf-Fix erneut hardware-testen: Nutzer meldete, Cutter schneidet direkt am
+  Inhaltsende (keine Lücke zum Schnitt). Ursache gefunden: `margin(0)` war fest einprogrammiert.
+  Jetzt `PrintOptions::margin_dots` konfigurierbar (CLI `--margin`, Default 28 Druckpunkte statt
+  0, TODO(verify) ob 28 ausreicht). Noch nicht erneut gegen echten Drucker getestet.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -139,6 +149,22 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), Bugfix – konfigurierbarer Schnitt-Nachlauf
+- Nutzer-Meldung: Cutter schneidet direkt am Ende des gedruckten Inhalts, kein Nachlauf/Lücke.
+  Ursache: `send_bitmap()` schickte immer `margin(0)` fest einprogrammiert (TODO(verify) stand
+  schon länger im Code, aber keine Priorität bis zum konkreten Nutzer-Feedback).
+- `ll-core::print`: `frame: bool` + `auto_cut: bool`-Parameter in allen vier `print_*`-Funktionen
+  zu einem gemeinsamen `PrintOptions`-Struct zusammengefasst (`frame`, `auto_cut`,
+  `margin_dots`) — Parameterlisten wurden sonst bei jedem neuen Flag länger
+  (`clippy::too_many_arguments`-Risiko). `PrintOptions::default()` setzt `margin_dots` auf
+  neue Konstante `DEFAULT_MARGIN_DOTS = 28` statt der alten festen `0` (TODO(verify): 28 ist
+  eine konservative Schätzung, kein Hersteller-Wert). Neuer Test `custom_margin_is_sent`.
+- `ll-cli`: `--margin <dots>` auf `print` (Default 28, `0` = altes Verhalten). `render` bekommt
+  kein `--margin` (betrifft nur den Protokollbefehl beim Drucken, nicht die PNG-Vorschau).
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (57 Unit-Tests, vorher 56).
+- **Noch nicht gemacht:** Fix nicht erneut gegen echten Drucker getestet — Nutzer hatte das
+  Problem nur gemeldet, noch keine Bestätigung ob 28 Druckpunkte das eigentliche Problem löst.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – weitere Barcode-Symbologien
 - `ll-render::linear_barcode`: `Symbology`-Enum (`Code128`/`Ean13`/`Ean8`/`UpcA`/`Code39`/`Itf`),
   `render_barcode(symbology, data, ...)` generalisiert die bisherige Code128-only-Funktion
