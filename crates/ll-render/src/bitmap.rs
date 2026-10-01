@@ -45,6 +45,44 @@ impl Bitmap {
     pub fn row(&self, y: u32) -> &[u8] {
         &self.rows[y as usize]
     }
+
+    /// Whether the pixel at (`x`, `y`) is ink. Out-of-range is white.
+    pub fn pixel(&self, x: u16, y: u32) -> bool {
+        if x >= self.width_pins || y >= self.height_dots {
+            return false;
+        }
+        self.rows[y as usize][(x / 8) as usize] & (0x80 >> (x % 8)) != 0
+    }
+
+    /// Appends `lines` blank raster lines at the end (label length axis).
+    pub fn extend_blank(&mut self, lines: u32) {
+        let row_bytes = self.width_pins.div_ceil(8) as usize;
+        self.rows
+            .extend(std::iter::repeat_n(vec![0u8; row_bytes], lines as usize));
+        self.height_dots += lines;
+    }
+
+    /// Inserts `lines` blank raster lines at the start.
+    pub fn prepend_blank(&mut self, lines: u32) {
+        let row_bytes = self.width_pins.div_ceil(8) as usize;
+        self.rows.splice(
+            0..0,
+            std::iter::repeat_n(vec![0u8; row_bytes], lines as usize),
+        );
+        self.height_dots += lines;
+    }
+
+    /// Appends `other`'s raster lines after this bitmap's. Both must have
+    /// the same `width_pins` (one print head); returns `false` and leaves
+    /// `self` unchanged otherwise.
+    pub fn append(&mut self, other: &Bitmap) -> bool {
+        if other.width_pins != self.width_pins {
+            return false;
+        }
+        self.rows.extend(other.rows.iter().cloned());
+        self.height_dots += other.height_dots;
+        true
+    }
 }
 
 #[cfg(test)]
@@ -63,5 +101,23 @@ mod tests {
         bmp.set_pixel(0, 0, true);
         bmp.set_pixel(15, 0, true);
         assert_eq!(bmp.row(0), &[0x80, 0x01]);
+    }
+
+    #[test]
+    fn append_and_blank_lines_grow_length() {
+        let mut a = Bitmap::new(16, 1);
+        a.set_pixel(3, 0, true);
+        let mut b = Bitmap::new(16, 2);
+        b.set_pixel(5, 1, true);
+
+        a.extend_blank(2);
+        assert!(a.append(&b));
+        a.prepend_blank(1);
+
+        assert_eq!(a.height_dots(), 6);
+        assert!(a.pixel(3, 1));
+        assert!(a.pixel(5, 5));
+        assert!(!a.pixel(5, 4));
+        assert!(!a.append(&Bitmap::new(8, 1)));
     }
 }

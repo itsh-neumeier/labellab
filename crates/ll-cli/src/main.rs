@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use ll_core::device;
+use ll_core::label::{Element, Label};
 use ll_protocol::status::{StatusBlock, StatusType};
 use ll_transport::Transport;
 
@@ -70,7 +71,7 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Textlabel drucken.
+    /// Label drucken (Text, QR, Barcode, Bild oder `.llabel`-Vorlage).
     Print {
         text: Option<String>,
         /// QR-Code statt Text drucken (Daten für den Code, z. B. eine URL).
@@ -96,7 +97,8 @@ enum Command {
         /// schneidet direkt am letzten bedruckten Punkt.
         #[arg(long, default_value_t = ll_core::print::PrintOptions::default().margin_dots)]
         margin: u16,
-        #[arg(long)]
+        /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
         template: Option<String>,
         #[arg(long)]
         csv: Option<String>,
@@ -119,11 +121,8 @@ enum Command {
         #[arg(long, default_value = DEFAULT_MODEL)]
         model: String,
     },
-    /// Text ohne Drucker in eine PNG-Datei rendern (Vorschau).
-    ///
-    /// Provisorisch: nimmt reinen Text statt eines `.llabel`-Vorlagenformats
-    /// (das kommt erst mit dem GUI-Editor in M6) — daher `--width` statt
-    /// einer live abgefragten Bandbreite.
+    /// Label ohne Drucker in eine PNG-Datei rendern (Vorschau). `--width`
+    /// statt live abgefragter Bandbreite, da kein Drucker verbunden ist.
     Render {
         text: Option<String>,
         /// QR-Code statt Text rendern (Daten für den Code, z. B. eine URL).
@@ -145,6 +144,9 @@ enum Command {
         /// Rahmen um das ganze Label zeichnen.
         #[arg(long)]
         frame: bool,
+        /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
+        template: Option<String>,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -199,8 +201,8 @@ async fn main() -> anyhow::Result<()> {
             baud,
             model,
         } => {
-            if template.is_some() || csv.is_some() {
-                eprintln!("--template/--csv sind noch nicht implementiert (folgt in M7).");
+            if csv.is_some() {
+                eprintln!("--csv ist noch nicht implementiert (folgt in M7).");
                 std::process::exit(1);
             }
             print(
@@ -211,6 +213,7 @@ async fn main() -> anyhow::Result<()> {
                     barcode_type,
                     image,
                     invert,
+                    template,
                 },
                 ll_core::print::PrintOptions {
                     frame,
@@ -236,6 +239,7 @@ async fn main() -> anyhow::Result<()> {
             image,
             invert,
             frame,
+            template,
             output,
             width,
             model,
@@ -247,6 +251,7 @@ async fn main() -> anyhow::Result<()> {
                 barcode_type,
                 image,
                 invert,
+                template,
             },
             frame,
             output,
@@ -419,10 +424,10 @@ fn print_status(status: &StatusBlock, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// `text`/`--qr`/`--barcode`(`-type`)/`--image` from `print`/`render`,
-/// grouped so those commands don't need six separate parameters each
-/// (`clap`'s `conflicts_with_all` keeps more than one of them from being
-/// set at once).
+/// `text`/`--qr`/`--barcode`(`-type`)/`--image`/`--template` from
+/// `print`/`render`, grouped so those commands don't need seven separate
+/// parameters each (`clap`'s `conflicts_with_all` keeps more than one of
+/// them from being set at once).
 struct ContentArgs {
     text: Option<String>,
     qr: Option<String>,
@@ -430,35 +435,54 @@ struct ContentArgs {
     barcode_type: BarcodeType,
     image: Option<String>,
     invert: bool,
+    template: Option<String>,
 }
 
-/// What to render: plain text, a QR code, a linear barcode or an image.
-enum Content {
-    Text(String),
-    Qr(String),
-    Barcode(ll_render::Symbology, String),
-    Image(std::path::PathBuf, bool),
+impl ContentArgs {
+    /// Builds the label to render plus a short description for messages.
+    /// `None` if no content was given.
+    fn into_label(self) -> anyhow::Result<Option<(Label, String)>> {
+        let single = |element, desc: &str| Some((Label::single(element), desc.to_owned()));
+        Ok(
+            match (self.text, self.qr, self.barcode, self.image, self.template) {
+                (Some(t), None, None, None, None) => single(Element::Text { text: t.clone() }, &t),
+                (None, Some(q), None, None, None) => single(Element::Qr { data: q.clone() }, &q),
+                (None, None, Some(b), None, None) => single(
+                    Element::Barcode {
+                        symbology: self.barcode_type.into(),
+                        data: b.clone(),
+                    },
+                    &b,
+                ),
+                (None, None, None, Some(i), None) => single(
+                    Element::Image {
+                        path: i.clone().into(),
+                        invert: self.invert,
+                    },
+                    &i,
+                ),
+                (None, None, None, None, Some(t)) => {
+                    Some((Label::load(std::path::Path::new(&t))?, t))
+                }
+                _ => None,
+            },
+        )
+    }
 }
 
-impl Content {
-    fn from_args(args: ContentArgs) -> Option<Self> {
-        match (args.text, args.qr, args.barcode, args.image) {
-            (Some(t), None, None, None) => Some(Content::Text(t)),
-            (None, Some(q), None, None) => Some(Content::Qr(q)),
-            (None, None, Some(b), None) => Some(Content::Barcode(args.barcode_type.into(), b)),
-            (None, None, None, Some(i)) => Some(Content::Image(i.into(), args.invert)),
-            _ => None,
-        }
+fn find_model(model_name: &str) -> &'static ll_protocol::model::ModelInfo {
+    if let Some(model) = ll_protocol::model::find_by_name(model_name) {
+        return model;
     }
-
-    fn label(&self) -> String {
-        match self {
-            Content::Text(t) => t.clone(),
-            Content::Qr(d) => d.clone(),
-            Content::Barcode(_, d) => d.clone(),
-            Content::Image(p, _) => p.display().to_string(),
-        }
-    }
+    eprintln!(
+        "Unbekanntes Modell '{model_name}'. Bekannt: {}",
+        ll_protocol::model::MODELS
+            .iter()
+            .map(|m| m.name)
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    std::process::exit(1);
 }
 
 async fn print(
@@ -468,57 +492,24 @@ async fn print(
     connect: ConnectOpts,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(content_args) else {
+    let Some((label, description)) = content_args.into_label()? else {
         eprintln!(
-            "Bitte Text, --qr, --barcode oder --image angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
+            "Bitte Text, --qr, --barcode, --image oder --template angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
         );
         std::process::exit(1);
     };
-    let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
-        eprintln!(
-            "Unbekanntes Modell '{model_name}'. Bekannt: {}",
-            ll_protocol::model::MODELS
-                .iter()
-                .map(|m| m.name)
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        std::process::exit(1);
-    };
+    let model = find_model(&model_name);
 
     let mut transport = open_transport(&connect).await?;
-
     for copy in 1..=copies {
         if copies > 1 {
             eprintln!("Drucke Kopie {copy}/{copies} ...");
         }
-        match &content {
-            Content::Text(text) => {
-                ll_core::print::print_text(transport.as_mut(), model, text, &options).await?
-            }
-            Content::Qr(data) => {
-                ll_core::print::print_qr(
-                    transport.as_mut(),
-                    model,
-                    data,
-                    ll_render::QrErrorCorrection::Medium,
-                    &options,
-                )
-                .await?
-            }
-            Content::Barcode(symbology, data) => {
-                ll_core::print::print_barcode(transport.as_mut(), model, *symbology, data, &options)
-                    .await?
-            }
-            Content::Image(path, invert) => {
-                ll_core::print::print_image(transport.as_mut(), model, path, *invert, &options)
-                    .await?
-            }
-        }
+        ll_core::print::print_label(transport.as_mut(), model, &label, &options).await?;
     }
     transport.close().await?;
 
-    println!("Gedruckt: \"{}\" ({copies}x)", content.label());
+    println!("Gedruckt: \"{description}\" ({copies}x)");
     Ok(())
 }
 
@@ -529,28 +520,14 @@ fn render(
     width_mm: u8,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(content_args) else {
+    let Some((mut label, _)) = content_args.into_label()? else {
         eprintln!(
-            "Bitte Text, --qr, --barcode oder --image angeben: labellab render \"Text\" -o datei.png"
+            "Bitte Text, --qr, --barcode, --image oder --template angeben: labellab render \"Text\" -o datei.png"
         );
         std::process::exit(1);
     };
-    let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
-        eprintln!(
-            "Unbekanntes Modell '{model_name}'. Bekannt: {}",
-            ll_protocol::model::MODELS
-                .iter()
-                .map(|m| m.name)
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        std::process::exit(1);
-    };
-    let Some(geometry) = model
-        .tape_geometries
-        .iter()
-        .find(|g| g.width_mm == width_mm)
-    else {
+    let model = find_model(&model_name);
+    if model.tape_geometries.iter().all(|g| g.width_mm != width_mm) {
         eprintln!(
             "Bandbreite {width_mm} mm nicht bekannt für {model_name}. Bekannt: {}",
             model
@@ -561,46 +538,10 @@ fn render(
                 .join(", ")
         );
         std::process::exit(1);
-    };
-
-    let mut bitmap = match &content {
-        Content::Text(text) => ll_render::render_text(
-            text,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-        )?,
-        Content::Qr(data) => ll_render::render_qr(
-            data,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-            ll_render::QrErrorCorrection::Medium,
-        )?,
-        Content::Barcode(symbology, data) => ll_render::render_barcode(
-            *symbology,
-            data,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-        )?,
-        Content::Image(path, invert) => ll_render::render_image(
-            path,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-            *invert,
-        )?,
-    };
-    if frame {
-        ll_render::draw_border(
-            &mut bitmap,
-            geometry.left_offset_pins,
-            geometry.printable_pins,
-            2,
-        );
     }
-    let png = ll_render::png::to_png(&bitmap, geometry.left_offset_pins, geometry.printable_pins)?;
+
+    label.frame |= frame;
+    let png = ll_core::label::render_label_png(&label, model, width_mm)?;
     std::fs::write(&output, png)?;
 
     println!("Geschrieben: {output}");

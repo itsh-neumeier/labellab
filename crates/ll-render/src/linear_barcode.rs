@@ -17,8 +17,10 @@ use crate::{Bitmap, RenderError};
 /// confirm whether this is wide enough to read reliably at 180 dpi.
 const MODULE_PX: u32 = 3;
 
-/// Which linear barcode symbology to encode with.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Which linear barcode symbology to encode with. Serialized in
+/// `.llabel` templates as `"code128"`, `"ean13"`, `"upc_a"`, …
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Symbology {
     /// Any ASCII text/data. Defaults to character-set B if `data` doesn't
     /// already start with a charset-switch character.

@@ -9,6 +9,7 @@ description = "Device manager, print jobs, series/CSV, template storage, error h
 [dependencies]
 thiserror.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 ll-protocol = { path = "../ll-protocol" }
 ll-transport = { path = "../ll-transport" }
 ll-render = { path = "../ll-render" }

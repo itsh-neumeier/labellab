@@ -5,10 +5,9 @@
 //!
 //! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
 //! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
-//! denselben Renderpfad"). `print_text`/`print_qr`/`print_barcode`/
-//! `print_image` share the protocol sequence; only the rendered content
-//! differs (a bundled symbol library and SVG import are still open M5
-//! scope).
+//! denselben Renderpfad"): everything goes through [`print_label`] and
+//! `crate::label::render_label`; `print_text`/`print_qr`/`print_barcode`/
+//! `print_image` are one-element shortcuts.
 
 use std::path::Path;
 use std::time::Duration;
@@ -18,15 +17,13 @@ use ll_protocol::{
     model::{ModelInfo, TapeGeometry},
     status::StatusBlock,
 };
-use ll_render::{Bitmap, QrErrorCorrection, Symbology};
+use ll_render::{Bitmap, Symbology};
 use ll_transport::Transport;
 
+use crate::label::{geometry_for, render_label, Element, Label};
 use crate::CoreError;
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
-
-/// Border thickness in print dots when `PrintOptions::frame` is set.
-const BORDER_THICKNESS: u16 = 2;
 
 /// Default feed margin in dots before the cut (`PrintOptions::margin_dots`
 /// default). Brother's own driver leaves some blank tape before cutting;
@@ -59,52 +56,57 @@ impl Default for PrintOptions {
     }
 }
 
-/// Resets the printer, reads its status, renders `text` to fit the
-/// currently loaded tape and prints it. Fails without sending raster data
-/// if the printer reports an error or the tape width isn't in `model`'s
-/// geometry table.
+/// Resets the printer, reads its status, renders `label` for the
+/// currently loaded tape (see [`crate::label::render_label`]) and prints
+/// it. Fails without sending raster data if the printer reports an error
+/// or the tape width isn't in `model`'s geometry table. `options.frame`
+/// adds a border even if `label.frame` is off.
+pub async fn print_label(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+    label: &Label,
+    options: &PrintOptions,
+) -> Result<(), CoreError> {
+    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
+    let framed;
+    let label = if options.frame && !label.frame {
+        framed = Label {
+            frame: true,
+            ..label.clone()
+        };
+        &framed
+    } else {
+        label
+    };
+    let bitmap = render_label(label, model, geometry)?;
+    send_bitmap(transport, &bitmap, width_mm, options).await
+}
+
+/// Prints a single line of `text`, see [`print_label`].
 pub async fn print_text(
     transport: &mut dyn Transport,
     model: &ModelInfo,
     text: &str,
     options: &PrintOptions,
 ) -> Result<(), CoreError> {
-    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let mut bitmap = ll_render::render_text(
-        text,
-        model.head_pins,
-        geometry.printable_pins,
-        geometry.left_offset_pins,
-    )?;
-    maybe_draw_border(&mut bitmap, geometry, options.frame);
-    send_bitmap(transport, &bitmap, width_mm, options).await
+    let label = Label::single(Element::Text { text: text.into() });
+    print_label(transport, model, &label, options).await
 }
 
-/// Resets the printer, reads its status, renders `data` as a QR code to
-/// fit the currently loaded tape and prints it. Same failure behavior as
-/// [`print_text`].
+/// Prints `data` as a QR code (error correction level medium), see
+/// [`print_label`].
 pub async fn print_qr(
     transport: &mut dyn Transport,
     model: &ModelInfo,
     data: &str,
-    ec_level: QrErrorCorrection,
     options: &PrintOptions,
 ) -> Result<(), CoreError> {
-    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let mut bitmap = ll_render::render_qr(
-        data,
-        model.head_pins,
-        geometry.printable_pins,
-        geometry.left_offset_pins,
-        ec_level,
-    )?;
-    maybe_draw_border(&mut bitmap, geometry, options.frame);
-    send_bitmap(transport, &bitmap, width_mm, options).await
+    let label = Label::single(Element::Qr { data: data.into() });
+    print_label(transport, model, &label, options).await
 }
 
-/// Resets the printer, reads its status, renders `data` as a barcode of
-/// the given `symbology` to fit the currently loaded tape and prints it.
-/// Same failure behavior as [`print_text`].
+/// Prints `data` as a barcode of the given `symbology`, see
+/// [`print_label`].
 pub async fn print_barcode(
     transport: &mut dyn Transport,
     model: &ModelInfo,
@@ -112,21 +114,15 @@ pub async fn print_barcode(
     data: &str,
     options: &PrintOptions,
 ) -> Result<(), CoreError> {
-    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let mut bitmap = ll_render::render_barcode(
+    let label = Label::single(Element::Barcode {
         symbology,
-        data,
-        model.head_pins,
-        geometry.printable_pins,
-        geometry.left_offset_pins,
-    )?;
-    maybe_draw_border(&mut bitmap, geometry, options.frame);
-    send_bitmap(transport, &bitmap, width_mm, options).await
+        data: data.into(),
+    });
+    print_label(transport, model, &label, options).await
 }
 
-/// Resets the printer, reads its status, renders the image at `path`
-/// (scaled to fit the currently loaded tape, Floyd-Steinberg dithered)
-/// and prints it. Same failure behavior as [`print_text`].
+/// Prints the image at `path` (scaled to the tape, Floyd-Steinberg
+/// dithered), see [`print_label`].
 pub async fn print_image(
     transport: &mut dyn Transport,
     model: &ModelInfo,
@@ -134,27 +130,11 @@ pub async fn print_image(
     invert: bool,
     options: &PrintOptions,
 ) -> Result<(), CoreError> {
-    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let mut bitmap = ll_render::render_image(
-        path,
-        model.head_pins,
-        geometry.printable_pins,
-        geometry.left_offset_pins,
+    let label = Label::single(Element::Image {
+        path: path.into(),
         invert,
-    )?;
-    maybe_draw_border(&mut bitmap, geometry, options.frame);
-    send_bitmap(transport, &bitmap, width_mm, options).await
-}
-
-fn maybe_draw_border(bitmap: &mut Bitmap, geometry: &TapeGeometry, frame: bool) {
-    if frame {
-        ll_render::draw_border(
-            bitmap,
-            geometry.left_offset_pins,
-            geometry.printable_pins,
-            BORDER_THICKNESS,
-        );
-    }
+    });
+    print_label(transport, model, &label, options).await
 }
 
 /// Invalidate -> initialize -> status request -> parse. Returns the loaded
@@ -181,12 +161,7 @@ async fn read_status_and_geometry<'m>(
     }
 
     let width_mm = status.media_width_mm();
-    let geometry = model
-        .tape_geometries
-        .iter()
-        .find(|g| g.width_mm == width_mm)
-        .ok_or(ll_protocol::ProtocolError::UnsupportedTapeWidth(width_mm))?;
-    Ok((width_mm, geometry))
+    Ok((width_mm, geometry_for(model, width_mm)?))
 }
 
 /// Raster-Modus/Various-Mode/Rand/PrintInformation/Kompression, then the
@@ -377,7 +352,6 @@ mod tests {
             &mut transport,
             p710bt(),
             "https://example.com",
-            QrErrorCorrection::Medium,
             &PrintOptions::default(),
         )
         .await
