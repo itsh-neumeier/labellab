@@ -89,8 +89,9 @@
 4. Symbolbibliothek (Nutzerentscheidung steht): **Tabler Icons (MIT)** für Elektro/IT +
    selbst gezeichnete Warnzeichen im Stil DIN EN ISO 7010 (keine ISO-Originalgrafiken). Als
    neues Element `{"type": "symbol", "name": ...}` in `ll_core::label` + Auswahl in der GUI.
-4a. **GUI unter Windows testen:** `cd app && npm install && npm run tauri dev`, mit echtem
-    Drucker „Status lesen“ und „Drucken“ ausprobieren.
+4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64“ des
+    Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
+    Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
 4b. GUI-Ausbau: Textgröße/fett/mehrzeilig, verständliche Druckerfehler, zuletzt verwendete
     Labels, später freies Positionieren (ADR-014).
 5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
@@ -184,6 +185,19 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, Windows-`.exe`
+- Nutzerwunsch: vollständig lauffähige `.exe` für Windows. Workflow
+  `.github/workflows/windows-build.yml` (ADR-015) baut GUI-`.exe`, NSIS-Setup, MSI und CLI-`.exe`
+  als Artefakt; Tags `v*` → Release. README-Abschnitt „Windows: herunterladen und starten“.
+- Lokal per `cargo-xwin` cross-gebaut und dem Nutzer geschickt (portable ZIP mit `LabelLab.exe`
+  + `labellab.exe` + `LIESMICH.txt`, dazu `LabelLab_0.1.0_x64-setup.exe`).
+- Geprüft: Importtabellen (`llvm-objdump -p`) — beide `.exe` brauchen nur Windows-System-DLLs
+  (UCRT/WinRT/WinUSB), kein `VCRUNTIME140.dll` (CLI erst nach `+crt-static`). CLI unter Wine
+  ausgeführt: `--help`, QR- und Vorlagen-Render (`.llabel` mit QR+Text+Rahmen) korrekt. GUI-`.exe`
+  **nicht** unter Wine/Windows gestartet (WebView2 unter Wine nicht praktikabel) → Nutzer-Test
+  offen.
+- Erster Lauf des Workflows auf GitHub noch nicht beobachtet.
+
 ### 2026-10-01 – Claude Code, M6 (Teil) – Layoutmodell, `.llabel`, Tauri-GUI
 - `ll-core::label` (neu): `Label`/`Element` (serde, `"type"`-Tag), `render_label()`,
   `render_label_png()`, `geometry_for()`, `Label::load/save` (relative Bildpfade relativ zur

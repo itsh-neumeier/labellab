@@ -34,6 +34,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   <datei.llabel>`
 - M6 (Teil): erste Desktop-Oberfläche (Tauri 2) mit Editor, Live-Vorschau, Geräteauswahl,
   Bandstatus, Drucken, Öffnen/Speichern, Rückgängig/Wiederholen, Deutsch/Englisch
+- Windows: fertige `LabelLab.exe` (ohne Installation startbar), Installer (Setup/MSI) und
+  `labellab.exe` werden bei jedem Push automatisch gebaut (GitHub Actions, Artefakt
+  `LabelLab-windows-x64`)
 - M5 (Teil): Rahmen um das ganze Label — `--frame` auf `print` und `render`, gilt für
   Text/QR/Barcode/Bild
 - M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type

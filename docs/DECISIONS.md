@@ -208,3 +208,19 @@ Vorlage:
 - Konsequenzen: Kein freies Positionieren, keine Textformatierung (fett/Größe/mehrzeilig) in
   dieser ersten Editor-Stufe. WinRT-Bluetooth blockiert beim Verbinden einen Worker-Thread
   (TODO `spawn_blocking`).
+
+## ADR-015: Windows-Auslieferung als eigenständige `.exe` + Installer
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Nutzer will LabelLab unter Windows als fertige `.exe` ohne Entwicklungsumgebung.
+- Entscheidung: GitHub-Actions-Workflow `windows-build.yml` (bei jedem Push, manuell, Tags `v*`
+  zusätzlich als Release) baut auf `windows-latest`: `LabelLab.exe` (GUI, Frontend eingebettet),
+  NSIS-Setup (`installMode: currentUser`, Deutsch/Englisch, keine Adminrechte), MSI (de-DE) und
+  `labellab.exe` (CLI) als Artefakt `LabelLab-windows-x64`. C-Laufzeit statisch gelinkt
+  (`.cargo/config.toml`, `+crt-static` für MSVC; Tauri macht das für die GUI selbst), damit kein
+  Visual-C++-Redistributable nötig ist. WebView2: vorinstalliert auf Windows 11/aktuellem
+  Windows 10, der Installer lädt den Bootstrapper bei Bedarf (`downloadBootstrapper`).
+  `mainBinaryName = "LabelLab"`.
+- Konsequenzen: Binärdateien unsigniert → SmartScreen-Warnung beim ersten Start (Signierung
+  ist M8-Thema). Lokaler Cross-Build von Linux geht auch (`cargo-xwin`, `clang`/`lld`, `nsis`:
+  `npx tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis`), gilt
+  bei Tauri aber als experimentell — maßgeblich ist der Windows-Runner.
