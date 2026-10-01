@@ -10,6 +10,7 @@
     <header class="toolbar">
       <button id="btn-new" data-i18n="toolbar.new"></button>
       <button id="btn-open" data-i18n="toolbar.open"></button>
+      <select id="recent" aria-label="Zuletzt verwendet"></select>
       <button id="btn-save" data-i18n="toolbar.save"></button>
       <span class="sep"></span>
       <button id="btn-undo" data-i18n="toolbar.undo" data-i18n-title="toolbar.undoHint"></button>
@@ -69,8 +70,32 @@
           <input id="padding" type="number" min="0" step="0.5" />
           <label for="min-length" data-i18n="layout.minLength"></label>
           <input id="min-length" type="number" min="0" step="1" data-i18n-placeholder="layout.auto" />
-          <label for="frame" data-i18n="layout.frame"></label>
-          <input id="frame" type="checkbox" />
+        </div>
+
+        <h2 data-i18n="border.title"></h2>
+        <div class="grid border-grid">
+          <label for="border-style" data-i18n="border.style"></label>
+          <select id="border-style">
+            <option value="" data-i18n="border.none"></option>
+            <option value="solid" data-i18n="border.solid"></option>
+            <option value="dashed" data-i18n="border.dashed"></option>
+            <option value="dotted" data-i18n="border.dotted"></option>
+            <option value="double" data-i18n="border.double"></option>
+            <option value="striped" data-i18n="border.striped"></option>
+          </select>
+          <label for="border-width" data-i18n="border.width" class="border-opt"></label>
+          <input id="border-width" type="number" min="0.1" step="0.1" class="border-opt" />
+          <label for="border-pattern" data-i18n="border.pattern" class="border-opt border-pattern"></label>
+          <input id="border-pattern" type="number" min="0.2" step="0.1" class="border-opt border-pattern" />
+          <label for="border-inset" data-i18n="border.inset" class="border-opt"></label>
+          <input id="border-inset" type="number" min="0" step="0.1" class="border-opt" />
+        </div>
+        <div class="border-sides border-opt">
+          <span data-i18n="border.sides"></span>
+          <label><input type="checkbox" data-side="top" /> <span data-i18n="border.top"></span></label>
+          <label><input type="checkbox" data-side="bottom" /> <span data-i18n="border.bottom"></span></label>
+          <label><input type="checkbox" data-side="left" /> <span data-i18n="border.left"></span></label>
+          <label><input type="checkbox" data-side="right" /> <span data-i18n="border.right"></span></label>
         </div>
 
         <h2 data-i18n="numbering.title"></h2>
@@ -132,6 +157,7 @@
               <option value="1" data-i18n="preview.raster"></option>
             </select>
           </label>
+          <button id="btn-series" data-i18n="series.open" data-i18n-title="series.openHint" hidden></button>
           <span class="spacer"></span>
           <span class="muted" data-i18n="preview.hint"></span>
         </div>
@@ -170,6 +196,17 @@
         <div class="row end">
           <button id="pair-rescan" type="button" data-i18n="pair.rescan"></button>
           <button value="close" data-i18n="pair.close"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="series-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="series.title"></h2>
+        <p id="series-msg" class="muted hint"></p>
+        <div id="series-list" class="series-list"></div>
+        <div class="row end">
+          <button value="close" data-i18n="series.close"></button>
         </div>
       </form>
     </dialog>

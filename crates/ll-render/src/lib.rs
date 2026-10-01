@@ -24,7 +24,7 @@ pub use bitmap::Bitmap;
 pub use boxed::TextAlign;
 pub use error::RenderError;
 pub use fonts::Face;
-pub use frame::draw_border;
+pub use frame::{draw_border, draw_border_styled, Border, BorderSides, BorderStyle};
 pub use linear_barcode::{render_barcode, render_barcode_with_module, render_code128, Symbology};
 pub use picture::{render_image, render_svg_bytes};
 pub use symbols::{render_symbol, SYMBOL_NAMES};

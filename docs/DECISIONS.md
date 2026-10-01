@@ -394,3 +394,32 @@ Vorlage:
     „Koppeln …“ (Suche, Liste ungekoppelter Geräte, Koppeln).
 - Konsequenzen: Linux-Builds brauchen `libdbus-1-dev`/`pkg-config` (CI, AGENTS.md). Zur
   Laufzeit muss `bluetoothd` laufen. Kanal und PIN sind bis zum Hardware-Test Annahmen.
+
+## ADR-022: Rahmen mit Stil, Stärke und frei wählbaren Seiten; Schriftauswahl in der eigenen Schrift
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Nutzerwunsch: Ränder in verschiedenen Varianten (u. a. gestreift), definierbare
+  Linienstärke, frei wählbare Seiten (z. B. nur oben oder oben und unten). Außerdem sollen
+  Schriften in der Auswahlliste in ihrer eigenen Schrift erscheinen.
+- Entscheidung:
+  - `ll_render::frame`: `BorderStyle` (`solid`, `dashed`, `dotted`, `double`, `striped`),
+    `BorderSides` (`top`/`bottom`/`left`/`right`, wie in der Vorschau: oben = Bandkante am
+    Pin-Offset), `Border` in Druckpunkten (Stärke, Muster, Abstand) und `draw_border_styled`.
+    Streifen laufen diagonal über absolute Koordinaten, damit sie an Ecken durchgehen.
+  - `.llabel`: neues optionales Feld `border` (`LabelBorder`, mm: `style`, `width_mm`,
+    `sides`, `pattern_mm`, `inset_mm`). Das alte `frame: true` bleibt lesbar und entspricht dem
+    Standardrahmen (durchgezogen, 2 Punkte, alle Seiten); `border` hat Vorrang. Keine
+    Versionserhöhung nötig (Feld optional, alte Dateien unverändert gültig).
+  - Inhalt hält Abstand zum Rahmen: Fluss-Elemente werden um Abstand + Linie + Freiraum
+    (eine Linienstärke, mind. 0,3 mm) je Rahmenseite verkleinert, das Labelende wächst um
+    denselben Betrag. Boxen bleiben frei positioniert; die GUI rückt sie beim Einstellen
+    des Rahmens oben/unten/links nach innen (rückgängig machbar).
+  - CLI: `--border <stil>`, `--border-sides ou|olur…`, `--border-width`, `--border-pattern`,
+    `--border-inset` für `print` und `render`; `--frame` bleibt.
+  - GUI: Bereich „Rahmen“ (Stil, Linienstärke, Strich-/Streifenlänge, Abstand, Seiten).
+    Schriftauswahl als eigene Komponente (Suchfeld, Pfeiltasten/Enter/Esc), jede Familie in
+    ihrer Schrift (`font-family`), weil native `<select>`-Optionen sich in WebView2/WebKitGTK
+    nicht zuverlässig gestalten lassen.
+- Konsequenzen: Feine Muster (< 1 mm) sind auf 180 dpi grob; wie gut Streifen/Punkte auf dem
+  Band aussehen, ist hardware-offen. Systemschriften, die die Webview nicht kennt, erscheinen
+  in der Liste in der Ersatzschrift (gedruckt wird trotzdem die gewählte).
+

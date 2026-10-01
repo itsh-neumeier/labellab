@@ -66,13 +66,25 @@ export type Layout =
       margin_mm: number;
     };
 
+export type BorderStyle = "solid" | "dashed" | "dotted" | "double" | "striped";
+
+export interface Border {
+  style: BorderStyle;
+  width_mm: number;
+  sides: { top: boolean; bottom: boolean; left: boolean; right: boolean };
+  pattern_mm: number;
+  inset_mm: number;
+}
+
 export interface Label {
   version: number;
   elements: Item[];
   gap_mm: number;
   padding_mm: number;
   min_length_mm?: number | null;
+  /** Solid border (older files); `border` takes precedence. */
   frame: boolean;
+  border?: Border | null;
   /** Stacked tape strips (multi-tape label), default 1. */
   strips?: number;
 }

@@ -33,6 +33,49 @@ pub const LABEL_FORMAT_VERSION: u32 = 2;
 /// Border thickness in print dots when [`Label::frame`] is set.
 pub const BORDER_THICKNESS: u16 = 2;
 
+pub use ll_render::{BorderSides, BorderStyle};
+
+/// Minimum gap between a border and flow-layout content, in mm.
+const BORDER_CLEARANCE_MM: f32 = 0.3;
+
+fn default_border_width_mm() -> f32 {
+    ll_protocol::model::dots_to_mm(BORDER_THICKNESS as u32)
+}
+
+fn default_border_pattern_mm() -> f32 {
+    1.5
+}
+
+/// Border around the whole label, see [`Label::border`].
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LabelBorder {
+    #[serde(default)]
+    pub style: BorderStyle,
+    /// Line thickness in mm.
+    #[serde(default = "default_border_width_mm")]
+    pub width_mm: f32,
+    #[serde(default)]
+    pub sides: BorderSides,
+    /// Dash length (`dashed`) or stripe width (`striped`) in mm.
+    #[serde(default = "default_border_pattern_mm")]
+    pub pattern_mm: f32,
+    /// Distance from the label edge in mm.
+    #[serde(default)]
+    pub inset_mm: f32,
+}
+
+impl Default for LabelBorder {
+    fn default() -> Self {
+        Self {
+            style: BorderStyle::Solid,
+            width_mm: default_border_width_mm(),
+            sides: BorderSides::ALL,
+            pattern_mm: default_border_pattern_mm(),
+            inset_mm: 0.0,
+        }
+    }
+}
+
 fn default_version() -> u32 {
     LABEL_FORMAT_VERSION
 }
@@ -60,9 +103,13 @@ pub struct Label {
     /// with boxes it's a fixed minimum (boxes keep their positions).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_length_mm: Option<f32>,
-    /// Draw a border around the whole label.
+    /// Draw a solid border around the whole label (older files; see
+    /// `border` for styled borders, which takes precedence).
     #[serde(default)]
     pub frame: bool,
+    /// Styled border: pattern, thickness, sides.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub border: Option<LabelBorder>,
     /// Number of tape strips stacked on top of each other (multi-tape
     /// label): the design is `strips` x the printable height tall and is
     /// printed as one strip per slice, top first.
@@ -87,6 +134,7 @@ impl Default for Label {
             padding_mm: 0.0,
             min_length_mm: None,
             frame: false,
+            border: None,
             strips: 1,
         }
     }
@@ -189,6 +237,13 @@ impl Element {
 }
 
 impl Label {
+    /// The border to draw: `border` if set, else a default solid one when
+    /// the older `frame` flag is on.
+    pub fn effective_border(&self) -> Option<LabelBorder> {
+        self.border
+            .or_else(|| self.frame.then(LabelBorder::default))
+    }
+
     /// A label with just `element` (flow layout) and default spacing.
     pub fn single(element: Element) -> Self {
         Self {
@@ -469,6 +524,30 @@ struct Composed {
     overflow: Vec<bool>,
 }
 
+/// Space in dots the flow layout leaves free for the border per side.
+#[derive(Debug, Default, Clone, Copy)]
+struct Reserve {
+    top: u16,
+    bottom: u16,
+    left: u32,
+    right: u32,
+}
+
+/// Inset + line + a clearance of one line width (at least
+/// [`BORDER_CLEARANCE_MM`]) on each side that has a border.
+fn border_reserve(border: &LabelBorder, canvas: &Canvas) -> Reserve {
+    let width = border.width_mm.max(0.0);
+    let total = canvas.mm(border.inset_mm.max(0.0) + width + width.max(BORDER_CLEARANCE_MM));
+    let pins = total.min(u16::MAX as u32) as u16;
+    let sides = border.sides;
+    Reserve {
+        top: if sides.top { pins } else { 0 },
+        bottom: if sides.bottom { pins } else { 0 },
+        left: if sides.left { total } else { 0 },
+        right: if sides.right { total } else { 0 },
+    }
+}
+
 fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     let mut fonts = FontCache::default();
     if label.has_text() {
@@ -477,12 +556,22 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     let pins = canvas.pins;
     let gap = canvas.mm(label.gap_mm);
     let padding = canvas.mm(label.padding_mm);
+    // Flow content keeps clear of the border on the sides that have one.
+    let reserve = label
+        .effective_border()
+        .map(|b| border_reserve(&b, canvas))
+        .unwrap_or_default();
+    let flow_canvas = Canvas {
+        offset: canvas.offset + reserve.top,
+        pins: pins.saturating_sub(reserve.top + reserve.bottom).max(1),
+        ..*canvas
+    };
 
     // Flow pass: elements without a box, one after another.
     let mut bitmap = Bitmap::new(canvas.head_pins, 0);
     let mut boxes: Vec<Option<(i32, i32, u32, u32)>> = vec![None; label.elements.len()];
     let mut overflow = vec![false; label.elements.len()];
-    bitmap.extend_blank(padding);
+    bitmap.extend_blank(padding + reserve.left);
     let mut first = true;
     for (i, item) in label.elements.iter().enumerate() {
         if item.rect.is_some() {
@@ -497,15 +586,20 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
         // can't mismatch; checked anyway rather than dropping content.
         if !bitmap.append(&render_flow_element(
             &item.element,
-            canvas,
+            &flow_canvas,
             &mut fonts,
             &mut overflow[i],
         )?) {
             return Err(CoreError::Template("element width mismatch".into()));
         }
-        boxes[i] = Some((start as i32, 0, bitmap.height_dots() - start, pins as u32));
+        boxes[i] = Some((
+            start as i32,
+            reserve.top as i32,
+            bitmap.height_dots() - start,
+            flow_canvas.pins as u32,
+        ));
     }
-    bitmap.extend_blank(padding);
+    bitmap.extend_blank(padding + reserve.right);
 
     let has_boxes = label.elements.iter().any(|i| i.rect.is_some());
     let min_len = label.min_length_mm.map(|mm| canvas.mm(mm)).unwrap_or(0);
@@ -523,7 +617,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
             .elements
             .iter()
             .filter_map(|i| i.rect.as_ref().map(|r| canvas.rect(r)))
-            .map(|(x, _, w, _)| (x + w as i32).max(0) as u32 + padding)
+            .map(|(x, _, w, _)| (x + w as i32).max(0) as u32 + padding + reserve.right)
             .max()
             .unwrap_or(0);
         let length = content_end.max(min_len);
@@ -557,9 +651,24 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
         }
     }
 
-    if label.frame {
-        let thickness = (BORDER_THICKNESS as u32 * canvas.scale).min(u16::MAX as u32) as u16;
-        ll_render::draw_border(&mut bitmap, canvas.offset, pins, thickness);
+    if let Some(border) = label.effective_border() {
+        let thickness = if border.width_mm > 0.0 {
+            canvas.mm(border.width_mm).clamp(1, u16::MAX as u32) as u16
+        } else {
+            0
+        };
+        ll_render::draw_border_styled(
+            &mut bitmap,
+            canvas.offset,
+            pins,
+            &ll_render::Border {
+                style: border.style,
+                thickness,
+                sides: border.sides,
+                pattern: canvas.mm(border.pattern_mm).max(1),
+                inset: canvas.mm(border.inset_mm),
+            },
+        );
     }
     Ok(Composed {
         bitmap,
@@ -1018,6 +1127,62 @@ mod tests {
                 .unwrap();
         assert_eq!(hires.height(), 4 * normal.height());
         assert!((hires.width() as i64 - 4 * normal.width() as i64).abs() <= 4);
+    }
+
+    #[test]
+    fn legacy_frame_draws_two_dot_solid_border() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let label = Label {
+            frame: true,
+            min_length_mm: Some(20.0),
+            ..Label::default()
+        };
+        let canvas = Canvas::new(&label, model, geometry, 1);
+        let bitmap = render_label(&label, model, geometry).unwrap();
+        let mid = bitmap.height_dots() / 2;
+        let top = canvas.offset;
+        assert!(bitmap.pixel(top, mid) && bitmap.pixel(top + 1, mid));
+        assert!(!bitmap.pixel(top + 2, mid));
+    }
+
+    #[test]
+    fn styled_border_top_only_round_trips_and_renders() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let label = Label {
+            border: Some(LabelBorder {
+                style: BorderStyle::Striped,
+                width_mm: 1.0,
+                sides: BorderSides {
+                    top: true,
+                    bottom: false,
+                    left: false,
+                    right: false,
+                },
+                ..LabelBorder::default()
+            }),
+            min_length_mm: Some(20.0),
+            ..Label::default()
+        };
+        let back = Label::from_json(&label.to_json().unwrap()).unwrap();
+        assert_eq!(back, label);
+        assert!(label.to_json().unwrap().contains(r#""style": "striped""#));
+
+        let canvas = Canvas::new(&label, model, geometry, 1);
+        let bitmap = render_label(&label, model, geometry).unwrap();
+        let (top, bottom) = (canvas.offset, canvas.offset + canvas.pins - 1);
+        let ink = |pin| {
+            (0..bitmap.height_dots())
+                .filter(|&l| bitmap.pixel(pin, l))
+                .count()
+        };
+        assert!(ink(top) > 0, "striped top border");
+        assert!(
+            ink(top) < bitmap.height_dots() as usize,
+            "stripes have gaps"
+        );
+        assert_eq!(ink(bottom), 0, "no bottom border");
     }
 
     #[test]
