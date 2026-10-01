@@ -32,4 +32,5 @@ resvg = "0.48"
 usvg = "0.48"
 tiny-skia = "0.12"
 fontdb = "0.24"
+csv = "1"
 nusb = { version = "0.2", features = ["tokio"] }

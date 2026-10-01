@@ -1,6 +1,10 @@
 use clap::{Parser, Subcommand};
 use ll_core::device;
+use std::ops::RangeInclusive;
+use std::path::Path;
+
 use ll_core::label::{Element, Label};
+use ll_core::series::{self, DataSet};
 use ll_protocol::status::{StatusBlock, StatusType};
 
 /// Default baud rate for serial/COM-port connections. Virtual Bluetooth-SPP
@@ -99,10 +103,19 @@ enum Command {
         /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
         template: Option<String>,
-        #[arg(long)]
+        /// CSV-Datei für Serien: Platzhalter `{{Spalte}}` und `{{#}}` (Nummer)
+        /// in der Vorlage werden je Datensatz ersetzt, ein Label pro Datensatz.
+        #[arg(long, requires = "template")]
         csv: Option<String>,
+        /// Nur diese Datensätze drucken (1-basiert): `5`, `1-10`, `3-`.
+        #[arg(long, requires = "csv")]
+        rows: Option<String>,
+        /// Nach dem Druck abschneiden (Nachschnitt).
         #[arg(long)]
         cut: bool,
+        /// Vor dem Druck einmal abschneiden (Vorschnitt, entfernt den Vorlauf).
+        #[arg(long)]
+        pre_cut: bool,
         #[arg(long, default_value_t = 1)]
         copies: u32,
         #[arg(long)]
@@ -146,6 +159,12 @@ enum Command {
         /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
         template: Option<String>,
+        /// CSV-Datei: Platzhalter mit Datensatz `--row` füllen.
+        #[arg(long, requires = "template")]
+        csv: Option<String>,
+        /// Datensatz für die Vorschau (1-basiert).
+        #[arg(long, default_value_t = 1, requires = "csv")]
+        row: usize,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -192,7 +211,9 @@ async fn main() -> anyhow::Result<()> {
             margin,
             template,
             csv,
+            rows,
             cut,
+            pre_cut,
             copies,
             device,
             bt,
@@ -200,10 +221,6 @@ async fn main() -> anyhow::Result<()> {
             baud,
             model,
         } => {
-            if csv.is_some() {
-                eprintln!("--csv ist noch nicht implementiert (folgt in M7).");
-                std::process::exit(1);
-            }
             print(
                 ContentArgs {
                     text,
@@ -217,9 +234,11 @@ async fn main() -> anyhow::Result<()> {
                 ll_core::print::PrintOptions {
                     frame,
                     auto_cut: cut,
+                    pre_cut,
                     margin_dots: margin,
                 },
                 copies,
+                series_args(csv, rows.as_deref())?,
                 ConnectOpts {
                     device,
                     bt,
@@ -239,6 +258,8 @@ async fn main() -> anyhow::Result<()> {
             invert,
             frame,
             template,
+            csv,
+            row,
             output,
             width,
             model,
@@ -253,6 +274,7 @@ async fn main() -> anyhow::Result<()> {
                 template,
             },
             frame,
+            series_args(csv, Some(&row.to_string()))?,
             output,
             width,
             model,
@@ -449,10 +471,44 @@ fn find_model(model_name: &str) -> &'static ll_protocol::model::ModelInfo {
     std::process::exit(1);
 }
 
+/// `--csv`/`--rows`: the data set and the selected record numbers.
+struct Series {
+    data: DataSet,
+    rows: RangeInclusive<usize>,
+}
+
+/// Parses `5`, `1-10` or `3-` (1-based, inclusive).
+fn parse_rows(spec: &str) -> anyhow::Result<RangeInclusive<usize>> {
+    let num = |s: &str| -> anyhow::Result<usize> {
+        s.trim()
+            .parse()
+            .map_err(|_| anyhow::anyhow!("ungültige Zeilenangabe '{spec}' (z. B. 5, 1-10, 3-)"))
+    };
+    Ok(match spec.split_once('-') {
+        None => num(spec)?..=num(spec)?,
+        Some((a, b)) if b.trim().is_empty() => num(a)?..=usize::MAX,
+        Some((a, b)) => num(a)?..=num(b)?,
+    })
+}
+
+fn series_args(csv: Option<String>, rows: Option<&str>) -> anyhow::Result<Option<Series>> {
+    let Some(path) = csv else { return Ok(None) };
+    let data = DataSet::load(Path::new(&path))?;
+    let rows = data.select(rows.map(parse_rows).transpose()?);
+    if rows.is_empty() {
+        anyhow::bail!(
+            "Keine Datensätze im gewählten Bereich ({} vorhanden).",
+            data.rows.len()
+        );
+    }
+    Ok(Some(Series { data, rows }))
+}
+
 async fn print(
     content_args: ContentArgs,
-    options: ll_core::print::PrintOptions,
+    mut options: ll_core::print::PrintOptions,
     copies: u32,
+    series: Option<Series>,
     connect: ConnectOpts,
     model_name: String,
 ) -> anyhow::Result<()> {
@@ -464,22 +520,38 @@ async fn print(
     };
     let model = find_model(&model_name);
 
+    let labels: Vec<Label> = match &series {
+        Some(s) => s
+            .rows
+            .clone()
+            .map(|n| series::apply(&label, &s.data, n))
+            .collect(),
+        None => vec![label],
+    };
+    let total = labels.len() as u32 * copies;
+
     let mut transport = device::connect(&connect.into_connection()).await?;
-    for copy in 1..=copies {
-        if copies > 1 {
-            eprintln!("Drucke Kopie {copy}/{copies} ...");
+    let mut done = 0;
+    for label in &labels {
+        for _ in 0..copies {
+            done += 1;
+            if total > 1 {
+                eprintln!("Drucke Label {done}/{total} ...");
+            }
+            ll_core::print::print_label(transport.as_mut(), model, label, &options).await?;
+            options.pre_cut = false; // only before the first label
         }
-        ll_core::print::print_label(transport.as_mut(), model, &label, &options).await?;
     }
     transport.close().await?;
 
-    println!("Gedruckt: \"{description}\" ({copies}x)");
+    println!("Gedruckt: \"{description}\" ({total} Label)");
     Ok(())
 }
 
 fn render(
     content_args: ContentArgs,
     frame: bool,
+    series: Option<Series>,
     output: String,
     width_mm: u8,
     model_name: String,
@@ -504,6 +576,9 @@ fn render(
         std::process::exit(1);
     }
 
+    if let Some(s) = &series {
+        label = series::apply(&label, &s.data, *s.rows.start());
+    }
     label.frame |= frame;
     let png = ll_core::label::render_label_png(&label, model, width_mm)?;
     std::fs::write(&output, png)?;

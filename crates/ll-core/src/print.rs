@@ -39,8 +39,11 @@ const DEFAULT_MARGIN_DOTS: u16 = 28;
 pub struct PrintOptions {
     /// Draw a border around the whole label.
     pub frame: bool,
-    /// Auto-cut after printing.
+    /// Cut after printing ("Nachschnitt").
     pub auto_cut: bool,
+    /// Cut once before printing ("Vorschnitt"), removing the tape leader
+    /// already past the cutter, see [`send_pre_cut`].
+    pub pre_cut: bool,
     /// Blank feed in dots before the cut. `0` cuts right at the last
     /// printed dot (see `DEFAULT_MARGIN_DOTS`).
     pub margin_dots: u16,
@@ -51,6 +54,7 @@ impl Default for PrintOptions {
         Self {
             frame: false,
             auto_cut: false,
+            pre_cut: false,
             margin_dots: DEFAULT_MARGIN_DOTS,
         }
     }
@@ -79,7 +83,31 @@ pub async fn print_label(
         label
     };
     let bitmap = render_label(label, model, geometry)?;
+    if options.pre_cut {
+        send_pre_cut(transport, model, width_mm, options.margin_dots).await?;
+    }
     send_bitmap(transport, &bitmap, width_mm, options).await
+}
+
+/// Feeds and cuts once without printing: a one-line blank page with
+/// auto-cut on, sent as its own page before the label.
+///
+/// TODO(verify): whether the PT-P710BT accepts two complete pages (each
+/// ending in `1A`) back to back in one session, and whether the blank
+/// page cuts off exactly the leader (hardware test in `docs/PROGRESS.md`).
+async fn send_pre_cut(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+    width_mm: u8,
+    margin_dots: u16,
+) -> Result<(), CoreError> {
+    let blank = Bitmap::new(model.head_pins, 1);
+    let options = PrintOptions {
+        auto_cut: true,
+        margin_dots,
+        ..PrintOptions::default()
+    };
+    send_bitmap(transport, &blank, width_mm, &options).await
 }
 
 /// Prints a single line of `text`, see [`print_label`].
@@ -341,6 +369,27 @@ mod tests {
             err,
             CoreError::Protocol(ll_protocol::ProtocolError::UnsupportedTapeWidth(200))
         ));
+    }
+
+    #[tokio::test]
+    async fn pre_cut_sends_a_blank_cut_page_first() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+        let options = PrintOptions {
+            pre_cut: true,
+            ..PrintOptions::default()
+        };
+        print_text(&mut transport, p710bt(), "HI", &options)
+            .await
+            .unwrap();
+
+        let written = transport.written();
+        let pages = written.iter().filter(|&&b| b == 0x1A).count();
+        assert!(pages >= 2, "blank pre-cut page + label");
+        // First page has auto-cut on, the label page (no Nachschnitt) off.
+        let cut_on = find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x40]).unwrap();
+        let cut_off = find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x00]).unwrap();
+        assert!(cut_on < cut_off);
     }
 
     #[tokio::test]

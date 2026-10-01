@@ -9,5 +9,6 @@ pub mod device;
 mod error;
 pub mod label;
 pub mod print;
+pub mod series;
 
 pub use error::CoreError;
