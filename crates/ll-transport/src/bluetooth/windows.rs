@@ -12,8 +12,13 @@
 use std::time::Duration;
 
 use windows::core::HSTRING;
+use windows::Devices::Bluetooth::BluetoothDevice;
 use windows::Devices::Bluetooth::Rfcomm::{RfcommDeviceService, RfcommServiceId};
-use windows::Devices::Enumeration::DeviceInformation;
+use windows::Devices::Enumeration::{
+    DeviceInformation, DeviceInformationCustomPairing, DevicePairingKinds,
+    DevicePairingRequestedEventArgs, DevicePairingResultStatus,
+};
+use windows::Foundation::TypedEventHandler;
 use windows::Networking::Sockets::StreamSocket;
 use windows::Storage::Streams::{DataReader, DataWriter, InputStreamOptions};
 
@@ -32,6 +37,7 @@ pub struct BluetoothDeviceInfo {
     pub name: String,
     /// The SPP service name as enumerated (e.g. `SPP SERVER`).
     pub service_name: String,
+    pub paired: bool,
 }
 
 /// Lists paired devices that expose an RFCOMM SPP service. Does not filter
@@ -66,9 +72,87 @@ pub fn list_paired_devices() -> Result<Vec<BluetoothDeviceInfo>, TransportError>
             id,
             name: device_name.unwrap_or_else(|| service_name.clone()),
             service_name,
+            paired: true,
         });
     }
     Ok(out)
+}
+
+/// Bluetooth devices Windows has seen but that are not paired yet (from
+/// the system's device cache; a printer in pairing mode nearby usually
+/// shows up). Ids are `BluetoothDevice` ids, usable with [`pair`].
+///
+/// TODO(verify): whether an unpaired PT-P710BT appears here without an
+/// active scan (not hardware-tested).
+pub fn list_unpaired_devices() -> Result<Vec<BluetoothDeviceInfo>, TransportError> {
+    let selector =
+        BluetoothDevice::GetDeviceSelectorFromPairingState(false).map_err(platform_err)?;
+    let devices = DeviceInformation::FindAllAsyncAqsFilter(&selector)
+        .map_err(platform_err)?
+        .get()
+        .map_err(platform_err)?;
+    let mut out = Vec::new();
+    for device in devices {
+        let name = device.Name().map_err(platform_err)?.to_string_lossy();
+        out.push(BluetoothDeviceInfo {
+            id: device.Id().map_err(platform_err)?.to_string_lossy(),
+            service_name: name.clone(),
+            name,
+            paired: false,
+        });
+    }
+    Ok(out)
+}
+
+/// Pairs the device with id `id` (from [`list_unpaired_devices`]),
+/// confirming automatically and answering PIN requests with `pin`.
+///
+/// TODO(verify): pairing flow of the PT-P710BT (PIN vs. confirm only),
+/// not hardware-tested.
+pub fn pair(id: &str, pin: &str) -> Result<(), TransportError> {
+    let info = DeviceInformation::CreateFromIdAsync(&HSTRING::from(id))
+        .map_err(platform_err)?
+        .get()
+        .map_err(platform_err)?;
+    let pairing = info.Pairing().map_err(platform_err)?;
+    if pairing.IsPaired().map_err(platform_err)? {
+        return Ok(());
+    }
+    let custom = pairing.Custom().map_err(platform_err)?;
+    let pin = HSTRING::from(pin);
+    let handler = TypedEventHandler::<
+        DeviceInformationCustomPairing,
+        DevicePairingRequestedEventArgs,
+    >::new(move |_, args| {
+        if let Some(args) = args.as_ref() {
+            match args.PairingKind()? {
+                DevicePairingKinds::ProvidePin => args.AcceptWithPin(&pin)?,
+                _ => args.Accept()?,
+            }
+        }
+        Ok(())
+    });
+    let token = custom.PairingRequested(&handler).map_err(platform_err)?;
+    let kinds = DevicePairingKinds::ConfirmOnly
+        | DevicePairingKinds::ProvidePin
+        | DevicePairingKinds::ConfirmPinMatch;
+    let result = custom
+        .PairAsync(kinds)
+        .map_err(platform_err)?
+        .get()
+        .map_err(platform_err);
+    let _ = custom.RemovePairingRequested(token);
+    let status = result?.Status().map_err(platform_err)?;
+    if status == DevicePairingResultStatus::Paired
+        || status == DevicePairingResultStatus::AlreadyPaired
+    {
+        Ok(())
+    } else {
+        Err(TransportError::Platform(format!(
+            "pairing failed: {}",
+            status.0
+        )))
+    }
 }
 
 /// A connection to the printer over native Bluetooth RFCOMM.

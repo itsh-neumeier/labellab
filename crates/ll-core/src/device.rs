@@ -39,14 +39,25 @@ pub async fn connect(connection: &Connection) -> Result<Box<dyn Transport>, Core
         Connection::Usb { spec } => Ok(Box::new(open_usb(spec.as_deref()).await?)),
         #[cfg(windows)]
         Connection::Bluetooth { device_id } => {
-            let id = bluetooth::resolve_bluetooth_id(device_id);
+            let id = resolve_bluetooth_id(device_id).await;
             Ok(Box::new(
                 ll_transport::bluetooth::BluetoothTransport::connect(&id).await?,
             ))
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "linux")]
+        Connection::Bluetooth { device_id } => {
+            let id = resolve_bluetooth_id(device_id).await;
+            Ok(Box::new(
+                ll_transport::bluetooth::BluetoothTransport::connect(
+                    &id,
+                    ll_protocol::model::BT_SPP_RFCOMM_CHANNEL,
+                )
+                .await?,
+            ))
+        }
+        #[cfg(not(any(windows, target_os = "linux")))]
         Connection::Bluetooth { .. } => Err(CoreError::Unsupported(
-            "native Bluetooth is not implemented on this platform yet (BlueZ pending)",
+            "native Bluetooth is only implemented on Windows and Linux",
         )),
     }
 }
@@ -143,40 +154,64 @@ pub async fn open_usb(spec: Option<&str>) -> Result<UsbTransport, CoreError> {
     .await?)
 }
 
-#[cfg(windows)]
-pub use bluetooth::list_bluetooth_devices;
+#[cfg(any(windows, target_os = "linux"))]
+pub use ll_transport::bluetooth::BluetoothDeviceInfo;
 
-#[cfg(windows)]
-mod bluetooth {
-    use ll_transport::bluetooth::{self, BluetoothDeviceInfo};
+/// Paired (Windows) / known (Linux, incl. recently seen) Bluetooth
+/// devices. Not filtered by name; see [`model_for_device_name`].
+#[cfg(any(windows, target_os = "linux"))]
+pub async fn list_bluetooth_devices() -> Result<Vec<BluetoothDeviceInfo>, CoreError> {
+    #[cfg(windows)]
+    let devices = ll_transport::bluetooth::list_paired_devices()?;
+    #[cfg(target_os = "linux")]
+    let devices = ll_transport::bluetooth::list_devices().await?;
+    Ok(devices)
+}
 
-    use super::*;
+/// Devices nearby that can be paired (Windows: from the system cache;
+/// Linux: after a short scan).
+#[cfg(any(windows, target_os = "linux"))]
+pub async fn discover_bluetooth_devices() -> Result<Vec<BluetoothDeviceInfo>, CoreError> {
+    #[cfg(windows)]
+    let devices = ll_transport::bluetooth::list_unpaired_devices()?;
+    #[cfg(target_os = "linux")]
+    let devices = ll_transport::bluetooth::discover()
+        .await?
+        .into_iter()
+        .filter(|d| !d.paired)
+        .collect();
+    Ok(devices)
+}
 
-    /// Lists paired Bluetooth devices offering the Serial Port Profile.
-    /// Not filtered by name; multiple PT-P7xx/E7xx models exist, see
-    /// `ll_protocol::model`.
-    pub fn list_bluetooth_devices() -> Result<Vec<BluetoothDeviceInfo>, CoreError> {
-        Ok(bluetooth::list_paired_devices()?)
-    }
+/// Pairs the device `id` (from [`discover_bluetooth_devices`]), answering
+/// a PIN request with the model table's default PIN.
+#[cfg(any(windows, target_os = "linux"))]
+pub async fn pair_bluetooth(id: &str) -> Result<(), CoreError> {
+    #[cfg(windows)]
+    ll_transport::bluetooth::pair(id, ll_protocol::model::BT_DEFAULT_PIN)?;
+    #[cfg(target_os = "linux")]
+    ll_transport::bluetooth::pair(id, ll_protocol::model::BT_DEFAULT_PIN).await?;
+    Ok(())
+}
 
-    /// Accepts a full device id or a device/service name (as shown by
-    /// `labellab devices`, case-insensitive) and returns the device id.
-    /// Unknown names are passed through unchanged (connect reports them).
-    pub(super) fn resolve_bluetooth_id(spec: &str) -> String {
-        let Ok(devices) = bluetooth::list_paired_devices() else {
-            return spec.to_string();
-        };
-        devices
-            .iter()
-            .find(|d| d.id == spec)
-            .or_else(|| devices.iter().find(|d| d.name.eq_ignore_ascii_case(spec)))
-            .or_else(|| {
-                devices
-                    .iter()
-                    .find(|d| d.service_name.eq_ignore_ascii_case(spec))
-            })
-            .map_or_else(|| spec.to_string(), |d| d.id.clone())
-    }
+/// Accepts a full device id or a device/service name (as shown by
+/// `labellab devices`, case-insensitive) and returns the device id.
+/// Unknown names are passed through unchanged (connect reports them).
+#[cfg(any(windows, target_os = "linux"))]
+async fn resolve_bluetooth_id(spec: &str) -> String {
+    let Ok(devices) = list_bluetooth_devices().await else {
+        return spec.to_string();
+    };
+    devices
+        .iter()
+        .find(|d| d.id.eq_ignore_ascii_case(spec))
+        .or_else(|| devices.iter().find(|d| d.name.eq_ignore_ascii_case(spec)))
+        .or_else(|| {
+            devices
+                .iter()
+                .find(|d| d.service_name.eq_ignore_ascii_case(spec))
+        })
+        .map_or_else(|| spec.to_string(), |d| d.id.clone())
 }
 
 pub(crate) async fn query_status(transport: &mut dyn Transport) -> Result<StatusBlock, CoreError> {

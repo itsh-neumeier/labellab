@@ -18,8 +18,13 @@ windows = { version = "0.58", features = [
     "Devices_Bluetooth",
     "Devices_Bluetooth_Rfcomm",
     "Devices_Enumeration",
+    "Foundation",
     "Foundation_Collections",
     "Networking",
     "Networking_Sockets",
     "Storage_Streams",
 ] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+bluer = { version = "0.17", features = ["bluetoothd", "rfcomm"] }
+tokio-stream = "0.1"
