@@ -375,3 +375,22 @@ Vorlage:
 - Konsequenzen: Text in Generator-Feldern ist auto-skaliert (an Feldbreite/-höhe); sehr lange
   Texte werden klein. Echte Längen-Genauigkeit hängt an der Vorschub-Genauigkeit des Druckers
   (hardware-offen, wichtig für Patchpanels).
+
+## ADR-021: Bluetooth unter Linux über BlueZ (`bluer`), Kopplung aus CLI und GUI (M4)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: M4 verlangt nativen Bluetooth-Druck auch unter Linux sowie Kopplung aus der App,
+  damit Nutzer nicht in die Systemeinstellungen müssen.
+- Entscheidung:
+  - **Linux:** `bluer` (offizielle BlueZ-Rust-Bindung, BSD-2-Clause, MIT-kompatibel, D-Bus) mit
+    Features `bluetoothd` + `rfcomm`. Geräte werden über die MAC-Adresse angesprochen. `bluer`
+    hat keinen SDP-Client, daher kommt der RFCOMM-Kanal aus `ll_protocol::model::
+    BT_SPP_RFCOMM_CHANNEL` (= 1, `TODO(verify)`). `tokio-stream` für den Discovery-Stream.
+  - **Kopplung:** `pair(id, pin)` in `ll-transport` — Linux registriert einen BlueZ-Agenten,
+    der PIN-Anfragen mit `BT_DEFAULT_PIN` (`0000`, `TODO(verify)`) beantwortet und
+    Bestätigungen annimmt, und setzt das Gerät auf „trusted“. Windows nutzt WinRT
+    `DeviceInformationCustomPairing` mit denselben Antworten.
+  - `ll-core::device` bietet eine plattformübergreifende async-API (`list_bluetooth_devices`,
+    `discover_bluetooth_devices`, `pair_bluetooth`); CLI `labellab pair [Gerät]`, GUI-Dialog
+    „Koppeln …“ (Suche, Liste ungekoppelter Geräte, Koppeln).
+- Konsequenzen: Linux-Builds brauchen `libdbus-1-dev`/`pkg-config` (CI, AGENTS.md). Zur
+  Laufzeit muss `bluetoothd` laufen. Kanal und PIN sind bis zum Hardware-Test Annahmen.
