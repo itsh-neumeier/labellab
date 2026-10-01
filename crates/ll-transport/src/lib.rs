@@ -7,6 +7,7 @@
 
 mod error;
 pub mod mock;
+pub mod serial;
 
 use std::time::Duration;
 

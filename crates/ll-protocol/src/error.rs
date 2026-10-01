@@ -6,6 +6,9 @@ pub enum ProtocolError {
     #[error("status block has wrong length: expected 32 bytes, got {0}")]
     InvalidStatusLength(usize),
 
+    #[error("status block has wrong header byte: expected 0x80, got {0:#04x}")]
+    InvalidStatusHeader(u8),
+
     #[error("unknown model byte combination: series {series:#04x}, model {model:#04x}")]
     UnknownModel { series: u8, model: u8 },
 

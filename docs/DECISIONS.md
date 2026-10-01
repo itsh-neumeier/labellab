@@ -51,3 +51,12 @@ Vorlage:
   `io-util`) und `async-trait` ab. `ll-core`/`ll-cli` übernehmen das transitiv.
 - Konsequenzen: Einheitliches async-Modell über alle Transport-Implementierungen (Serial, BT,
   USB, Mock). Etwas größere Abhängigkeitsfläche; MIT/Apache-2.0-kompatibel.
+
+## ADR-006: `tokio-serial` für den Serial-Transport
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: M2 braucht einen Serial-Transport (BT-SPP-Fallback über COM-Port), der zum async
+  `Transport`-Trait (ADR-005) passt.
+- Entscheidung: `tokio-serial` (wrapt `serialport`, liefert direkt eine async `SerialStream`
+  mit `AsyncRead`/`AsyncWrite`) statt `serialport` + manuellem `spawn_blocking`.
+- Konsequenzen: Weniger eigener Glue-Code. Auf Linux braucht `serialport` zur Port-Erkennung
+  `libudev-dev` zur Build-Zeit → CI-Workflow installiert das für `ubuntu-latest`. MIT-lizenziert.

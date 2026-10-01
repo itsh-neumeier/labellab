@@ -10,3 +10,4 @@ description = "Transport trait and implementations: Bluetooth RFCOMM, Serial, US
 thiserror.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
+tokio-serial.workspace = true
