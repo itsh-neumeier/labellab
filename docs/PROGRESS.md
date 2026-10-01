@@ -9,8 +9,9 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 läuft — echte Schriften hardware-verifiziert, QR-Codes fertig
-  (Code grün, noch nicht auf Band gedruckt). Rahmen/lineare Barcodes/Bilder/Symbole offen.
+- **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes beide hardware-verifiziert
+  (QR gedruckt und mit Handy erfolgreich gescannt, Link öffnete). Rahmen/lineare
+  Barcodes/Bilder/Symbole offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -76,8 +77,9 @@
 - [x] ~~M5: `labellab print "Text" --bt` mit der neuen Systemschrift (`fontdue`) gegen echten
   Drucker testen~~ – erfolgreich, 2026-10-01: sauberer "TEST"-Druck in echter Schrift (Foto im
   Vergleich zum alten M3-Pixelfont bestätigt deutliche Verbesserung).
-- [ ] M5: `labellab print --qr "..." --bt` gegen echten Drucker testen — druckt es, und scannt
-  der Code (Ruhezone nur 2 Module statt der spec-üblichen 4, siehe ADR-009)?
+- [x] ~~M5: `labellab print --qr "..." --bt` gegen echten Drucker testen~~ – erfolgreich,
+  2026-10-01: gedruckt und mit Handy gescannt, Link öffnete trotz schmaler Ruhezone (2 statt
+  der spec-üblichen 4 Module, siehe ADR-009).
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -107,6 +109,9 @@
 - 2026-10-01: Echte Systemschrift (`fontdue`, M5) gegen echten Drucker getestet:
   `labellab print "TEST" --bt` druckte sauberen, proportionalen Text — Foto-Vergleich mit dem
   alten M3-Pixelfont-Druck bestätigt deutlich bessere Lesbarkeit/Optik.
+- 2026-10-01: QR-Code (M5) gegen echten Drucker getestet: `labellab print --qr "https://..."
+  --bt` druckte einen sauberen QR-Code auf 9-mm-Band, mit Handy gescannt — Link öffnete. Die
+  knappe Ruhezone (2 statt der spec-üblichen 4 Module, ADR-009) war in diesem Test kein Problem.
 
 ## Session-Log
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – QR-Codes
@@ -123,7 +128,8 @@
   bündelt `--device`/`--bt`/`--baud` (sonst `clippy::too_many_arguments`). Smoke-getestet:
   `render --qr "https://..." -o out.png` erzeugt gültig aussehenden QR-Code.
 - `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (34 Unit-Tests, vorher 30).
-- **Noch nicht gemacht:** QR-Druck auf echtes Band getestet (nur PNG-Vorschau verifiziert).
+- **Hardware-Test erfolgreich:** Nutzer hat `labellab print --qr "..." --bt` gedruckt und mit
+  Handy gescannt — Link öffnete trotz schmaler Ruhezone (2 statt 4 Module).
 - **Noch offen in M5:** Rahmen/Linien, lineare Barcodes (Code128/EAN/...), Bilder,
   Symbolbibliothek.
 

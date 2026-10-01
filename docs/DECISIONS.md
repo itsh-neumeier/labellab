@@ -107,6 +107,7 @@ Vorlage:
   `ll_render::barcode::render_qr()` rastert die Matrix direkt ins `Bitmap`, gleiche
   Pin-/Rasterzeilen-Orientierung wie `text`. `ll-core::print::print_qr()` teilt sich die
   Protokoll-Sequenz mit `print_text()` (gemeinsame `send_bitmap()`-Hilfsfunktion).
-- Konsequenzen: Ruhezone (Quiet Zone) ist 2 Module statt der spec-üblichen 4 (spart Band,
-  TODO(verify) ob das noch zuverlässig scannt). Fehlerkorrekturstufe aktuell fest auf `Medium`
-  in der CLI, noch keine `--ec-level`-Option. MIT-lizenziert.
+- Konsequenzen: Ruhezone (Quiet Zone) ist 2 Module statt der spec-üblichen 4 (spart Band).
+  Hardware-Test 2026-10-01: trotzdem mit einem Handy scannbar (ein Gerät/eine App getestet,
+  nicht erschöpfend geprüft). Fehlerkorrekturstufe aktuell fest auf `Medium` in der CLI, noch
+  keine `--ec-level`-Option. MIT-lizenziert.
