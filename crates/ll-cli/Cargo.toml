@@ -10,6 +10,9 @@ description = "labellab command-line interface"
 name = "labellab"
 path = "src/main.rs"
 
+[build-dependencies]
+static_vcruntime = "3"
+
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true

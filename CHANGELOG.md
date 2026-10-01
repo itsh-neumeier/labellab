@@ -38,9 +38,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Einrasten an Bandkanten und anderen Boxen zum bündigen Aneinanderlegen, Duplizieren
 - Text: Schriftgröße in pt oder automatisch, mehrzeilig, Ausrichtung links/Mitte/rechts
 - Vorlagenformat `.llabel` Version 2 (Boxen, Textgröße/-ausrichtung); Version 1 wird weiter gelesen
-- Windows: fertige `LabelLab.exe` (ohne Installation startbar), Installer (Setup/MSI) und
-  `labellab.exe` werden bei jedem Push automatisch gebaut (GitHub Actions, Artefakt
-  `LabelLab-windows-x64`)
+- Windows: portable `LabelLab.exe` (ohne Installation startbar) und `labellab.exe` werden bei
+  jedem Push automatisch gebaut (GitHub Actions, Artefakt `LabelLab-windows-x64-portable`)
 - M5 (Teil): Rahmen um das ganze Label — `--frame` auf `print` und `render`, gilt für
   Text/QR/Barcode/Bild
 - M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type

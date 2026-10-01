@@ -93,7 +93,7 @@
 4. Symbolbibliothek (Nutzerentscheidung steht): **Tabler Icons (MIT)** für Elektro/IT +
    selbst gezeichnete Warnzeichen im Stil DIN EN ISO 7010 (keine ISO-Originalgrafiken). Als
    neues Element `{"type": "symbol", "name": ...}` in `ll_core::label` + Auswahl in der GUI.
-4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64“ des
+4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64-portable“ des
     Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
     Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
 4b. GUI-Ausbau: Textgröße/fett/mehrzeilig, verständliche Druckerfehler, zuletzt verwendete
@@ -204,6 +204,9 @@
   Fluss→Box ohne optische Änderung, Auto-Größe ohne Umbruch/Abschneiden), fmt/clippy grün,
   `snap.ts` per Node geprüft, App unter Xvfb: Hinzufügen, Ziehen, Einrasten (Hilfslinien),
   mehrzeiliger 9-pt-Text links. CLI rendert v2-Vorlage mit Boxen korrekt.
+- Nutzerwunsch: nur portable `.exe`, kein Installer → NSIS/MSI entfernt (ADR-015-Nachtrag),
+  CLI-CRT statisch über `static_vcruntime` statt `.cargo/config.toml` (die brach den
+  Tauri-Link). Portable ZIP neu gebaut und geschickt; Windows-CLI unter Wine geprüft.
 - **Stolpersteine:** (1) fontdue bricht anders um als eine reine Glyphen-Messung → Auto-Größe
   prüft jetzt mit identischen Layout-Einstellungen, dass kein Zusatzumbruch entsteht.
   (2) Box-DOM während des Ziehens neu aufzubauen verliert die Pointer-Capture → bei

@@ -209,7 +209,13 @@ Vorlage:
   dieser ersten Editor-Stufe. WinRT-Bluetooth blockiert beim Verbinden einen Worker-Thread
   (TODO `spawn_blocking`).
 
-## ADR-015: Windows-Auslieferung als eigenständige `.exe` + Installer
+## ADR-015: Windows-Auslieferung als eigenständige `.exe` (portabel)
+- **Nachtrag 2026-10-01:** Nutzerwunsch „reine portable ohne Installer“: NSIS/MSI entfernt
+  (`bundle.active = false`), Artefakt `LabelLab-windows-x64-portable` mit `LabelLab.exe`,
+  `labellab.exe` und `LIESMICH.txt`. Die statische C-Laufzeit für die CLI kommt jetzt aus
+  `static_vcruntime` (Build-Abhängigkeit von `ll-cli`, MIT/Apache-2.0/Zlib) statt aus einer
+  Workspace-`.cargo/config.toml` mit `+crt-static`: die galt auch für `app/src-tauri` und
+  kollidierte dort beim Linken mit tauri-builds eigener CRT-Einstellung.
 - Datum / Status: 2026-10-01 · angenommen
 - Kontext: Nutzer will LabelLab unter Windows als fertige `.exe` ohne Entwicklungsumgebung.
 - Entscheidung: GitHub-Actions-Workflow `windows-build.yml` (bei jedem Push, manuell, Tags `v*`
