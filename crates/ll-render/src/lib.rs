@@ -1,9 +1,9 @@
 //! Label model to 1-bit raster bitmap: real text rendering via system
 //! fonts (`text`/`fontsrc`), QR codes (`barcode`) and linear barcodes —
 //! Code128/EAN-13/EAN-8/UPC-A/Code39/ITF (`linear_barcode`), imported
-//! images (`picture`), a whole-label border (`frame`) and PNG export for
-//! preview (`png`). A bundled symbol library and SVG import are still
-//! open M5 scope.
+//! images including SVG (`picture`), a whole-label border (`frame`) and
+//! PNG export for preview (`png`). A bundled symbol library is the last
+//! open M5 piece.
 
 pub mod barcode;
 mod bitmap;

@@ -30,7 +30,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Text/QR/Barcode/Bild
 - M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type
   <code128|ean13|ean8|upca|code39|itf>` auf `print`/`render`. Nur PNG-Vorschau geprüft, noch
-  nicht auf Band gedruckt. SVG-Import und Symbolbibliothek noch offen — letzte fehlende M5-Teile.
+  nicht auf Band gedruckt.
+- M5 (Teil): SVG-Import über denselben `--image`-Pfad (`resvg`/`usvg`/`tiny-skia`, an `.svg`-
+  Endung erkannt). Nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt. Symbolbibliothek
+  noch offen — letztes fehlendes M5-Teil.
 
 ### Behoben
 - Cutter schnitt direkt am Ende des gedruckten Inhalts ohne Nachlauf (`margin(0)` war fest

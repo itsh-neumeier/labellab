@@ -12,3 +12,6 @@ fontdue.workspace = true
 image.workspace = true
 qrcode.workspace = true
 barcoders.workspace = true
+resvg.workspace = true
+usvg.workspace = true
+tiny-skia.workspace = true

@@ -1,6 +1,6 @@
-//! Imported-image rendering: PNG/JPEG/BMP -> 1-bit [`Bitmap`] via
-//! Floyd-Steinberg dithering. SVG and a bundled symbol library are still
-//! open M5 scope (SVG needs a separate rasterizer like `resvg`).
+//! Imported-image rendering: PNG/JPEG/BMP/SVG -> 1-bit [`Bitmap`] via
+//! Floyd-Steinberg dithering. A bundled symbol library is still open M5
+//! scope.
 //!
 //! Same orientation convention as `text`/QR: image height maps to the
 //! pin (tape-width) axis, image width maps to the raster-line
@@ -12,8 +12,10 @@ use image::{GrayImage, Luma};
 
 use crate::{Bitmap, RenderError};
 
-/// Loads `path`, scales it to fill `printable_pins` of tape height
-/// (keeping aspect ratio) and dithers it to 1-bit.
+/// Loads `path` (PNG/JPEG/BMP via `image`, SVG via `resvg`/`usvg`/
+/// `tiny-skia` — dispatched on the `.svg` extension), scales it to fill
+/// `printable_pins` of tape height (keeping aspect ratio) and dithers it
+/// to 1-bit.
 pub fn render_image(
     path: &Path,
     head_pins: u16,
@@ -21,14 +23,58 @@ pub fn render_image(
     left_offset_pins: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    let img = image::open(path).map_err(|e| RenderError::Image(e.to_string()))?;
-    render_gray(
-        &img.to_luma8(),
-        head_pins,
-        printable_pins,
-        left_offset_pins,
-        invert,
-    )
+    let is_svg = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
+
+    let gray = if is_svg {
+        render_svg_to_gray(path, printable_pins)?
+    } else {
+        image::open(path)
+            .map_err(|e| RenderError::Image(e.to_string()))?
+            .to_luma8()
+    };
+
+    render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
+}
+
+/// Rasterizes an SVG file to a grayscale image `target_height_px` pixels
+/// tall (aspect ratio preserved), white background. `render_gray` handles
+/// any further scaling/dithering, same as raster formats.
+fn render_svg_to_gray(path: &Path, target_height_px: u16) -> Result<GrayImage, RenderError> {
+    let data = std::fs::read(path)?;
+    let tree = usvg::Tree::from_data(&data, &usvg::Options::default())
+        .map_err(|e| RenderError::Image(e.to_string()))?;
+
+    let svg_size = tree.size();
+    if svg_size.width() <= 0.0 || svg_size.height() <= 0.0 || target_height_px == 0 {
+        return Ok(GrayImage::new(0, 0));
+    }
+
+    let scale = target_height_px as f32 / svg_size.height();
+    let px_w = (svg_size.width() * scale).round().max(1.0) as u32;
+    let px_h = target_height_px as u32;
+
+    let mut pixmap = tiny_skia::Pixmap::new(px_w, px_h)
+        .ok_or_else(|| RenderError::Image(format!("invalid SVG raster size {px_w}x{px_h}")))?;
+    pixmap.fill(tiny_skia::Color::WHITE);
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::from_scale(scale, scale),
+        &mut pixmap.as_mut(),
+    );
+
+    // Rendered onto an opaque white background, so every pixel is already
+    // fully opaque (alpha 255) — straight RGB->luma, no alpha compositing
+    // needed.
+    let mut gray = GrayImage::new(px_w, px_h);
+    for (i, px) in pixmap.pixels().iter().enumerate() {
+        let (r, g, b) = (px.red() as u32, px.green() as u32, px.blue() as u32);
+        let luma = ((r * 299 + g * 587 + b * 114) / 1000) as u8;
+        gray.put_pixel(i as u32 % px_w, i as u32 / px_w, Luma([luma]));
+    }
+    Ok(gray)
 }
 
 /// Core logic, separated from file I/O so it's testable without touching
@@ -164,5 +210,36 @@ mod tests {
         let bmp = render_gray(&gray, 128, 50, 0, false).unwrap();
         // width scales proportionally: src 40x20 -> height 50 means width 100
         assert_eq!(bmp.height_dots(), 100);
+    }
+
+    #[test]
+    fn renders_svg_file() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40">
+            <rect x="0" y="0" width="100" height="40" fill="black"/>
+        </svg>"#;
+        let path = std::env::temp_dir().join("labellab_render_svg_test.svg");
+        std::fs::write(&path, svg).unwrap();
+
+        let bmp = render_image(&path, 128, 50, 39, false).unwrap();
+        std::fs::remove_file(&path).ok();
+
+        assert!(bmp.height_dots() > 0);
+        let has_ink = (0..bmp.height_dots()).any(|y| bmp.row(y).iter().any(|&b| b != 0));
+        assert!(has_ink, "solid black SVG rect rendered no ink");
+    }
+
+    #[test]
+    fn empty_svg_does_not_panic() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>"#;
+        let path = std::env::temp_dir().join("labellab_render_empty_svg_test.svg");
+        std::fs::write(&path, svg).unwrap();
+
+        let result = render_image(&path, 128, 50, 39, false);
+        std::fs::remove_file(&path).ok();
+
+        // Either an empty bitmap or a clean error is acceptable; must not panic.
+        if let Ok(bmp) = result {
+            assert_eq!(bmp.height_dots(), 0);
+        }
     }
 }

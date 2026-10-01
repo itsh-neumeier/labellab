@@ -28,3 +28,6 @@ fontdue = "0.9"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
 qrcode = { version = "0.14", default-features = false }
 barcoders = { version = "2", default-features = false, features = ["std"] }
+resvg = "0.48"
+usvg = "0.48"
+tiny-skia = "0.12"

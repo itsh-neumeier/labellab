@@ -146,3 +146,24 @@ Vorlage:
   erhalten), `--invert`-Flag für Bilder mit hellem Motiv auf dunklem Grund. SVG bleibt offen
   (braucht eigenen Rasterizer wie `resvg`, `image`-Crate kann das nicht).
 - Konsequenzen: Keine Symbolbibliothek (separates M5-Los). MIT-lizenziert.
+
+## ADR-012: `resvg`/`usvg`/`tiny-skia` für SVG-Import (M5)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: ADR-011 hatte SVG-Import offen gelassen, weil `image` SVG nicht dekodieren kann.
+  `MASTER_PROMPT.md` Feature 6 verlangt PNG/JPG/BMP/SVG-Import; eine Symbolbibliothek
+  (Material Symbols o. ä.) liefert ihre Icons typischerweise als SVG, also ist SVG-Import
+  auch Voraussetzung für die noch offene Symbolbibliothek.
+- Entscheidung: `resvg` + `usvg` (Parsing/Baum) + `tiny-skia` (Software-Rasterizer) — der
+  Standard-Rust-Stack für SVG→Bitmap, alle drei vom selben Projekt (linebender/resvg),
+  MIT/Apache-2.0. `ll_render::picture::render_image()` erkennt `.svg` an der Dateiendung
+  (case-insensitiv) und rastert über `render_svg_to_gray()` auf `printable_pins` Höhe
+  (Seitenverhältnis erhalten), danach derselbe Floyd-Steinberg-Dithering-Pfad wie für
+  PNG/JPEG/BMP. Rendering auf weißem, opakem Hintergrund — kein manuelles
+  Alpha-Compositing nötig, da `resvg::render()` mit normaler Über-Blendung auf den bereits
+  gefüllten Pixmap zeichnet.
+- Konsequenzen: Standard-`usvg`/`resvg`-Features aktiv (u. a. `text`, `system-fonts`,
+  `raster-images`) — SVGs mit eingebettetem Text oder Rasterbildern funktionieren, erhöht aber
+  Abhängigkeitsfläche/Build-Zeit spürbar (viele Font-/Shaping-Crates). Noch nicht auf echtes
+  Band gedruckt, nur PNG-Vorschau (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
+  Symbolbibliothek selbst (echte Icon-Dateien bündeln) ist jetzt technisch möglich, aber noch
+  nicht umgesetzt — braucht eine explizite Entscheidung zu Lizenz/Icon-Set.

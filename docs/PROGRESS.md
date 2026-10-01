@@ -9,11 +9,12 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes hardware-verifiziert.
+- **Aktueller Meilenstein:** M5 fast fertig — echte Schriften und QR-Codes hardware-verifiziert.
   Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
-  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport + Dithering, Rahmen und 4 weitere
-  Barcode-Symbologien (EAN-13/8, UPC-A, Code39, ITF) fertig (Code grün, noch nicht auf Band
-  gedruckt). Nur noch Symbolbibliothek + SVG-Import offen.
+  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport inkl. SVG + Dithering, Rahmen und
+  4 weitere Barcode-Symbologien (EAN-13/8, UPC-A, Code39, ITF) fertig (Code grün, noch nicht
+  auf Band gedruckt). **Nur noch Symbolbibliothek offen** (braucht Lizenz-/Icon-Set-Entscheidung
+  vom Nutzer) — dann ist M5 komplett.
   **Bugfix:** Nutzer meldete, der Cutter schneidet direkt am Ende des Inhalts (kein Nachlauf) —
   Ursache war `margin(0)` fest einprogrammiert; jetzt konfigurierbar (`--margin`, Default 28
   Druckpunkte statt 0), noch nicht erneut hardware-getestet.
@@ -39,11 +40,12 @@
   `ll_render::Symbology`, CLI `--barcode-type`) — Code128 gedruckt (Scan-Lesbarkeit offen),
   Rest nur PNG-Vorschau. Bildimport (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`,
   ADR-011) und Rahmen (`ll_render::frame::draw_border`, `--frame`-Flag) fertig, **noch nicht
-  auf Band gedruckt**. `ll_render::png` + CLI `render ["Text"|--qr|--barcode [--barcode-type]|
-  --image <datei>] [--frame] -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/
-  `print_barcode`/`print_image` teilen sich die Protokoll-Sequenz
-  (`ll-core::print::send_bitmap()`) und das optionale Rahmenzeichnen. Noch offen: SVG-Import,
-  Symbolbibliothek.
+  auf Band gedruckt**. SVG-Import (`resvg`/`usvg`/`tiny-skia`, ADR-012) über denselben
+  `--image`-Pfad (an `.svg`-Endung erkannt) neu dazu. `ll_render::png` + CLI
+  `render ["Text"|--qr|--barcode [--barcode-type]|--image <datei>] [--frame] -o x.png
+  --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_barcode`/`print_image` teilen
+  sich die Protokoll-Sequenz (`ll-core::print::send_bitmap()`) und das optionale
+  Rahmenzeichnen. Noch offen: Symbolbibliothek (letztes fehlendes M5-Stück).
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -66,7 +68,10 @@
 3. **Hardware-Test weitere Barcode-Symbologien:** z. B. `labellab print --barcode
    "012345678905" --barcode-type ean13 --bt` — EAN/UPC/Code39/ITF bisher nur PNG-Vorschau,
    keine auf echtem Band gedruckt.
-4. M5 Rest: SVG-Import (braucht `resvg`), Symbolbibliothek.
+3a. **Hardware-Test SVG:** `labellab print --image icon.svg --bt` — bisher nur PNG-Vorschau
+    (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
+4. Symbolbibliothek: Lizenz/Icon-Set mit Nutzer klären (z. B. Material Symbols, Apache-2.0),
+   dann SVG-Dateien einbetten — letztes offenes M5-Stück.
 5. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
 6. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
@@ -112,6 +117,8 @@
   Inhaltsende (keine Lücke zum Schnitt). Ursache gefunden: `margin(0)` war fest einprogrammiert.
   Jetzt `PrintOptions::margin_dots` konfigurierbar (CLI `--margin`, Default 28 Druckpunkte statt
   0, TODO(verify) ob 28 ausreicht). Noch nicht erneut gegen echten Drucker getestet.
+- [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
+  bisher nur PNG-Vorschau.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -149,6 +156,24 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – SVG-Import
+- `ll-render::picture`: `render_image()` erkennt `.svg` an der Dateiendung (case-insensitiv)
+  und rastert über neue `render_svg_to_gray()`-Funktion (`usvg::Tree::from_data` zum Parsen,
+  `resvg::render()` auf einen `tiny_skia::Pixmap` mit weißem, opakem Hintergrund vorgefüllt —
+  dadurch kein manuelles Alpha-Compositing nötig, direkte RGB→Luma-Umrechnung reicht). Skaliert
+  auf `printable_pins` Höhe, danach derselbe Floyd-Steinberg-Pfad wie PNG/JPEG/BMP (ADR-012).
+  Neue Abhängigkeiten `resvg`+`usvg`+`tiny-skia` (selbes Projekt, MIT/Apache-2.0).
+  `ll-core`/`ll-cli` brauchten **keine** Änderung — `--image` funktioniert automatisch auch für
+  `.svg`-Dateien über denselben Code-Pfad.
+- Visuell per Wegwerf-Beispiel geprüft: ein per Hand geschriebenes Uhr-Symbol-SVG (Kreis +
+  Zeiger) wurde korrekt und sauber gerendert, danach entfernt.
+- 2 neue Tests: `renders_svg_file` (voller Pfad über `render_image()` mit echter Temp-Datei,
+  schwarzes Rechteck), `empty_svg_does_not_panic` (0×0-SVG darf nicht crashen).
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (59 Unit-Tests, vorher 57).
+- **Noch nicht gemacht:** SVG-Druck auf echtes Band getestet (nur PNG-Vorschau verifiziert).
+- **M5 jetzt nur noch Symbolbibliothek offen** (braucht Lizenz-/Icon-Set-Entscheidung vom
+  Nutzer, dann reine Asset-Arbeit — SVG-Rendering-Pipeline ist technisch bereits fertig).
+
 ### 2026-10-01 – Claude Code (Sonnet 5), Bugfix – konfigurierbarer Schnitt-Nachlauf
 - Nutzer-Meldung: Cutter schneidet direkt am Ende des gedruckten Inhalts, kein Nachlauf/Lücke.
   Ursache: `send_bitmap()` schickte immer `margin(0)` fest einprogrammiert (TODO(verify) stand
