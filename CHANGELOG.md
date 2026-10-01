@@ -29,6 +29,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - M4 (Teil): USB-Transport (`nusb`) für Windows und Linux — `labellab devices` listet
   angeschlossene USB-Drucker, `labellab status --usb` und `labellab print ... --usb
   [--device <Modell|VVVV:PPPP|Seriennummer>]`; noch nicht hardware-getestet
+- M6 (Teil): Vorlagenformat `.llabel` (JSON) mit mehreren Elementen pro Label (Text, QR,
+  Barcode, Bild), Abstand, Rand, Mindestlänge und Rahmen — `labellab print/render --template
+  <datei.llabel>`
+- M6 (Teil): erste Desktop-Oberfläche (Tauri 2) mit Editor, Live-Vorschau, Geräteauswahl,
+  Bandstatus, Drucken, Öffnen/Speichern, Rückgängig/Wiederholen, Deutsch/Englisch
 - M5 (Teil): Rahmen um das ganze Label — `--frame` auf `print` und `render`, gilt für
   Text/QR/Barcode/Bild
 - M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type

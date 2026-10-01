@@ -183,3 +183,28 @@ Vorlage:
   `usbprint.sys` oder dem Brother-Treiber scheitert das Öffnen. TODO(verify): ob der PT-P710BT
   mit WinUSB (z. B. per Zadig) sauber druckt. Unter Linux braucht Nicht-root-Zugriff eine
   udev-Regel (`docs/PROTOCOL.md`). Noch nicht gegen echte Hardware getestet.
+
+## ADR-014: Label-Layoutmodell, `.llabel`-Format und Tauri-App-Struktur (M6)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Der Editor braucht mehrere Elemente pro Label und ein Speicherformat; bisher konnte
+  der Renderer nur genau einen Inhalt (Text/QR/Barcode/Bild) pro Label.
+- Entscheidung:
+  - `ll_core::label::Label`: Elemente werden **nacheinander entlang des Bandes** angeordnet
+    (Abstand, Rand, Mindestlänge mit Zentrierung, Rahmen), jedes füllt die bedruckbare Höhe.
+    Das deckt typische Bandlabels ab und ist einfach zu bedienen. Frei positionierbare Elemente
+    (`MASTER_PROMPT.md` Abschnitt 3) bleiben späterer Ausbau; das Format ist dafür versioniert.
+  - `.llabel` = JSON über `serde` (`version`, `elements` mit `"type"`-Tag, `gap_mm`,
+    `padding_mm`, `min_length_mm`, `frame`). Neuere Versionen werden abgelehnt, unbekannte
+    Felder ignoriert. Relative Bildpfade gelten relativ zur Vorlagendatei.
+  - `render_label()` ist der eine Renderpfad für Vorschau (`render_label_png`), Druck
+    (`print_label`) und CLI (`--template`); `print_text` usw. sind Ein-Element-Abkürzungen.
+  - Verbindungswahl (`ll_core::device::Connection`) zentral in `ll-core` für CLI und GUI.
+  - GUI unter `app/`: Tauri 2, Frontend **Vite + reines TypeScript ohne UI-Framework**
+    (kleines Bundle, schneller Kaltstart, Ziel < 1 s), i18n über flache JSON-Wörterbücher
+    (`app/src/i18n/{de,en}.json`, Deutsch Standard). `app/src-tauri` ist ein **eigener
+    Cargo-Workspace** (WebKitGTK-Abhängigkeit unter Linux soll den Bibliotheks-CI-Job nicht
+    belasten), eigener CI-Job `app`. Vorschau-PNG geht als rohe IPC-Antwort (`ArrayBuffer`)
+    ohne Base64. Einzige Tauri-Plugin-Abhängigkeit: `tauri-plugin-dialog` (Öffnen/Speichern).
+- Konsequenzen: Kein freies Positionieren, keine Textformatierung (fett/Größe/mehrzeilig) in
+  dieser ersten Editor-Stufe. WinRT-Bluetooth blockiert beim Verbinden einen Worker-Thread
+  (TODO `spawn_blocking`).

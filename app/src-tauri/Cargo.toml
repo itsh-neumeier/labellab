@@ -1,0 +1,24 @@
+[package]
+name = "labellab-app"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "LabelLab desktop GUI (Tauri 2)"
+
+# Own workspace: building Tauri needs WebKitGTK on Linux, which the
+# library crates' CI job doesn't install (see ADR-014).
+[workspace]
+
+[lib]
+name = "labellab_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+ll-core = { path = "../../crates/ll-core" }
+ll-protocol = { path = "../../crates/ll-protocol" }

@@ -9,6 +9,11 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
+- **Neu: M6 begonnen** — Label-Layoutmodell + `.llabel`-Format (`ll_core::label`, ADR-014) und
+  erste lauffähige Tauri-GUI unter `app/` (Editor mit Elementliste, Live-Vorschau, Geräteauswahl,
+  Status, Druck, Öffnen/Speichern, Rückgängig, Deutsch/Englisch). Unter Linux/Xvfb gestartet und
+  per Screenshot geprüft; **noch nicht unter Windows und nicht mit echtem Drucker aus der GUI
+  gedruckt.**
 - **Aktueller Meilenstein:** M5 fast fertig — echte Schriften und QR-Codes hardware-verifiziert.
   Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
   (kein Code128-Scanner beim Nutzer verfügbar). Bildimport inkl. SVG + Dithering, Rahmen und
@@ -48,6 +53,16 @@
   sich die Protokoll-Sequenz (`ll-core::print::send_bitmap()`) und das optionale
   Rahmenzeichnen. Noch offen: Symbolbibliothek (letztes fehlendes M5-Stück).
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
+  **Teilstand (2026-10-01):** `ll_core::label` (Elemente nacheinander entlang des Bandes,
+  Abstand/Rand/Mindestlänge/Rahmen, `.llabel`-JSON v1, `render_label` = einziger Renderpfad für
+  Vorschau, Druck, CLI `--template`). App `app/` (Tauri 2, Vite + TypeScript, eigener Workspace,
+  CI-Job `app`): Geräteliste (USB/BT/seriell), „Status lesen“ setzt die Bandbreite, Modell-/
+  Bandwahl, Elementkarten (Text/QR/Barcode/Bild) mit Verschieben/Entfernen, Live-Vorschau mit
+  Zoom (automatisch an die Bandhöhe angepasst) und Fehleranzeige, Rückgängig/Wiederholen
+  (Strg+Z/Y), Öffnen/Speichern (Strg+O/S), Drucken mit Kopien/Schnitt/Nachlauf (Strg+P),
+  i18n de/en. **Fehlt:** freies Positionieren, Textformatierung (Größe/fett/mehrzeilig),
+  Symbole (M5), zuletzt verwendete Labels, Warnung bei Layout-/Band-Konflikt, verständliche
+  Fehlertexte für Statusbits, Test unter Windows und echter GUI-Druck.
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
 
@@ -71,8 +86,13 @@
    keine auf echtem Band gedruckt.
 3a. **Hardware-Test SVG:** `labellab print --image icon.svg --bt` — bisher nur PNG-Vorschau
     (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
-4. Symbolbibliothek: Lizenz/Icon-Set mit Nutzer klären (z. B. Material Symbols, Apache-2.0),
-   dann SVG-Dateien einbetten — letztes offenes M5-Stück.
+4. Symbolbibliothek (Nutzerentscheidung steht): **Tabler Icons (MIT)** für Elektro/IT +
+   selbst gezeichnete Warnzeichen im Stil DIN EN ISO 7010 (keine ISO-Originalgrafiken). Als
+   neues Element `{"type": "symbol", "name": ...}` in `ll_core::label` + Auswahl in der GUI.
+4a. **GUI unter Windows testen:** `cd app && npm install && npm run tauri dev`, mit echtem
+    Drucker „Status lesen“ und „Drucken“ ausprobieren.
+4b. GUI-Ausbau: Textgröße/fett/mehrzeilig, verständliche Druckerfehler, zuletzt verwendete
+    Labels, später freies Positionieren (ADR-014).
 5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
    `labellab status --usb`, dann `labellab print "TEST" --usb`. Unter Windows wird das Öffnen
    vermutlich scheitern, solange `usbprint.sys`/Brother-Treiber gebunden ist (WinUSB per Zadig
@@ -164,6 +184,25 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, M6 (Teil) – Layoutmodell, `.llabel`, Tauri-GUI
+- `ll-core::label` (neu): `Label`/`Element` (serde, `"type"`-Tag), `render_label()`,
+  `render_label_png()`, `geometry_for()`, `Label::load/save` (relative Bildpfade relativ zur
+  Datei). `print::print_label()`; `print_text/qr/barcode/image` sind jetzt Hüllen darum (gleiche
+  Ausgabe, Golden-Tests unverändert grün; `print_qr` ohne EC-Parameter, immer „Medium“).
+- `ll-protocol::model`: `DOTS_PER_INCH` (180) + `mm_to_dots()`. `ll-render::Bitmap`:
+  `pixel/extend_blank/prepend_blank/append`; `Symbology` serde-fähig (`"ean13"`, `"upc_a"` …).
+- `ll-core::device::Connection` + `connect()`/`query_status_on()` ersetzen die
+  `query_status_over_*`-Funktionen; CLI nutzt das (`ConnectOpts::into_connection`).
+  Windows-Build per `cargo clippy --target x86_64-pc-windows-gnu` geprüft.
+- CLI: `--template <datei.llabel>` auf `print` und `render` (vorher „noch nicht implementiert“).
+- `app/`: Tauri-2-App (siehe Meilenstein M6), eigenes Icon (`app/app-icon.svg`, Bandstreifen,
+  keine Marken), CI-Job `app` (npm build + fmt/clippy im eigenen Workspace).
+- Geprüft: 72 Workspace-Tests grün, fmt/clippy grün (auch App); App unter Xvfb gestartet,
+  Screenshots: Vorschau, Elemente hinzufügen/verschieben, Barcode-Fehleranzeige, deutsche UI.
+- **Stolpersteine:** WebKitGTK meldet `navigator.language` = Englisch → Default jetzt fest
+  Deutsch (Nutzerwahl wird gespeichert). `pkill -f` mit Muster aus der eigenen Kommandozeile
+  beendet die eigene Shell — `pkill -x` verwenden.
+
 ### 2026-10-01 – Claude Code, M4 (Teil) – USB-Transport
 - `ll-transport::usb` (neu, `nusb` 0.2 mit `tokio`-Feature, ADR-013): `list_devices()`,
   `find_printer_endpoints()` (Druckerklasse `0x07`, Bulk OUT + IN aus der aktiven
