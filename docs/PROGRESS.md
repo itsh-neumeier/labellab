@@ -4,25 +4,22 @@
 > aktualisiert (siehe `AGENTS.md`). Neueste Einträge im Session-Log oben.
 
 ## Aktueller Stand
-- **Phase:** M1/M2 abgeschlossen. M4-Teilstand (natives Windows-BT-RFCOMM) hardware-verifiziert.
-  **M3 hardware-verifiziert:** `labellab print "TEST" --bt` hat echten, lesbaren Text auf
-  9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
-  Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
-  end-to-end auf echter Hardware.
-- **Neu: M6 begonnen** — Label-Layoutmodell + `.llabel`-Format (`ll_core::label`, ADR-014) und
-  erste lauffähige Tauri-GUI unter `app/` (Editor mit Elementliste, Live-Vorschau, Geräteauswahl,
-  Status, Druck, Öffnen/Speichern, Rückgängig, Deutsch/Englisch). Unter Linux/Xvfb gestartet und
-  per Screenshot geprüft; **noch nicht unter Windows und nicht mit echtem Drucker aus der GUI
-  gedruckt.**
-- **Aktueller Meilenstein:** M5 fast fertig — echte Schriften und QR-Codes hardware-verifiziert.
-  Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
-  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport inkl. SVG + Dithering, Rahmen und
-  4 weitere Barcode-Symbologien (EAN-13/8, UPC-A, Code39, ITF) fertig (Code grün, noch nicht
-  auf Band gedruckt). **Nur noch Symbolbibliothek offen** (braucht Lizenz-/Icon-Set-Entscheidung
-  vom Nutzer) — dann ist M5 komplett.
-  **Bugfix:** Nutzer meldete, der Cutter schneidet direkt am Ende des Inhalts (kein Nachlauf) —
-  Ursache war `margin(0)` fest einprogrammiert; jetzt konfigurierbar (`--margin`, Default 28
-  Druckpunkte statt 0), noch nicht erneut hardware-getestet.
+- **Kurzfassung (2026-10-01):** CLI und Windows-GUI drucken per nativem Bluetooth auf echtem
+  PT-P710BT (hardware-bestätigt: Text, QR, Code128-Optik, GUI-Druck, Serie mit 2 Labels,
+  Bluetooth-Gerätename „PT-P710BT5265“). Auslieferung als **portable** `LabelLab.exe` +
+  `labellab.exe` (GitHub Actions „Windows build“, ADR-015).
+- **GUI (M6, weit fortgeschritten):** freies Layout mit Boxen + Einrasten, Text mehrzeilig mit
+  pt-Größe/Ausrichtung/Systemschrift/fett/kursiv, QR/Barcode/Bild, Bandfarben-Vorschau
+  (automatisch aus Status), glatte 4×-Vorschau oder Druckraster, Mehrband 1×–4×, CSV-Serien,
+  Kettendruck („Fortlaufend“), Fortschritt beim Drucken. Details: ADR-014/016/017/018.
+- **M7 teilweise vorgezogen:** CSV-Serien und Kettendruck fertig (Kettendruck hardware-offen);
+  Kabelfahne/-wickel, Patchpanel, Nummernfolgen `{n:03}` fehlen.
+- **M5:** nur Symbolbibliothek offen — Entscheidung steht: Tabler Icons (MIT) + selbst
+  gezeichnete Warnzeichen im Stil DIN EN ISO 7010.
+- **Wichtigster Hardware-Befund zuletzt:** Vorschnitt per Leerseite ergab 3 Schnitte → entfernt;
+  der Drucker schneidet bei Auto-Cut den Vorlauf vermutlich selbst (Bestätigung offen).
+- **Offen/ungetestet am Gerät:** Kettendruck, Mehrband-Streifen, Farberkennung anderer Bänder,
+  USB, Bildimport/Rahmen/EAN usw. — siehe „Hardware-Tests offen“.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -50,8 +47,9 @@
   `--image`-Pfad (an `.svg`-Endung erkannt) neu dazu. `ll_render::png` + CLI
   `render ["Text"|--qr|--barcode [--barcode-type]|--image <datei>] [--frame] -o x.png
   --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_barcode`/`print_image` teilen
-  sich die Protokoll-Sequenz (`ll-core::print::send_bitmap()`) und das optionale
-  Rahmenzeichnen. Noch offen: Symbolbibliothek (letztes fehlendes M5-Stück).
+  sich die Protokoll-Sequenz (heute `ll-core::print::print_labels`/`send_page`). Seitdem
+  ergänzt: Box-Rendering (`ll_render::boxed`), Systemschriften (`ll_render::fonts`).
+  Noch offen: Symbolbibliothek (Tabler Icons MIT + eigene Warnzeichen, Entscheidung steht).
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
   **Teilstand (2026-10-01):** `ll_core::label` (Elemente nacheinander entlang des Bandes,
   Abstand/Rand/Mindestlänge/Rahmen, `.llabel`-JSON v1, `render_label` = einziger Renderpfad für
@@ -68,6 +66,10 @@
   überlaufendem Text, Symbole (M5), zuletzt verwendete Labels, verständliche Fehlertexte für
   Statusbits.
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
+  **Teilstand:** CSV-Serien (`ll_core::series`, `{{Spalte}}`/`{{#}}`, Bereich, GUI + CLI
+  `--csv/--rows`, ADR-017) und Kettendruck (`PrintOptions::chain`, `--chain`, ADR-018) fertig.
+  Mehrband-Labels (ADR-018) zusätzlich. Fehlen: Kabelfahne, Kabelwickel, Patchpanel/Port-Raster,
+  Nummernfolgen mit Format (`{n:03}`, Buchstabenfolgen), Vorschau aller Datensätze.
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
 
 ## In Arbeit

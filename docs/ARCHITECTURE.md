@@ -33,16 +33,18 @@ Jedes `ll-*`-Bibliotheks-Crate hat einen eigenen `thiserror`-Fehlertyp (`Protoco
 `TransportError`, `RenderError`). `ll-core::CoreError` bündelt sie mit `#[from]`. `anyhow` nur in
 `ll-cli` und später im Tauri-Binary. Kein `unwrap()`/`expect()` in Bibliothekscode außer in Tests.
 
-## Stand nach M1
+## Module (Stand 2026-10-01)
 
-- Crates angelegt, kompilieren, `cargo fmt`/`clippy -D warnings`/`test` grün.
-- `ll-protocol`: Modelltabelle (PT-P710BT/P715eBT/E720BT) mit Status-Byte-Lookup; Status-Parser,
-  Befehlsaufbau und PackBits folgen in M2.
-- `ll-transport`: `Transport`-Trait + `MockTransport`; Serial-Transport folgt in M2, native
-  Bluetooth/USB in M4.
-- `ll-render`: `Bitmap`-Typ (1-Bit-Raster); Text-/Barcode-/Bild-Rendering folgt in M5.
-- `ll-core`: gemeinsamer `CoreError`; Gerätemanager und Jobs folgen in M2/M3.
-- `ll-cli`: Subcommands `devices`/`status`/`print`/`render` als Gerüst (clap), geben aktuell
-  „noch nicht implementiert“ aus.
-- CI (`.github/workflows/ci.yml`): fmt-check, clippy -D warnings, test auf windows-latest und
-  ubuntu-latest.
+| Crate / Ordner | Wichtige Module |
+|---|---|
+| `ll-protocol` | `command` (Befehle inkl. `0C`/`1A`), `status` (32-Byte-Status), `media` (Band-/Schriftfarben), `model` (Modell-/Bandtabelle, `mm_to_dots`, `pt_to_dots`, 180 dpi), `packbits` |
+| `ll-transport` | `Transport`-Trait, `bluetooth` (WinRT-RFCOMM, Gerätename), `serial`, `usb` (`nusb`), `mock` |
+| `ll-render` | `Bitmap` (inkl. `blit`), `text` (Fluss-Text), `boxed` (Element in Box: Text mehrzeilig/Größe/Ausrichtung, QR, Barcode, Bild), `fonts` (Systemschriften via fontdb, fett/kursiv, Ersatz), `barcode` (QR), `linear_barcode`, `picture` (PNG/JPEG/BMP/SVG + Dithering), `frame`, `png` (PNG, transparente Maske) |
+| `ll-core` | `label` (`Label`/`Item`/`Rect`, `.llabel` v2, `Canvas` für Mehrband/Vorschau-Skalierung, `render_label`, `render_label_pages`, `render_label_preview`, `resolved_rects`), `print` (`print_labels`: Einzelaufträge oder Kettendruck, Fortschritt), `series` (CSV, Platzhalter), `device` (`Connection`, USB/BT/seriell, Modell aus Gerätename) |
+| `ll-cli` | `labellab devices/status/print/render` (`--usb`, `--bt`, `--template`, `--csv`, `--rows`, `--chain`) |
+| `app/` | Tauri 2, eigener Cargo-Workspace (`app/src-tauri`, Befehle in `lib.rs`), Frontend Vite + TypeScript (`main.ts` Editor, `snap.ts` Einrasten, `tapes.ts` Bandfarben, `api.ts`, `i18n/` de/en) |
+
+Renderpfad: `Label` → `compose` (Fluss-Layout + Boxen auf einer `Canvas`) → `Bitmap`. Druck nutzt
+`render_label_pages` (Mehrband in Streifen geschnitten), Vorschau `render_label_preview` (gleicher
+Code, optional höhere Auflösung). CI: Job `test` (Workspace), Job `app` (GUI), Workflow
+„Windows build“ (portable `.exe`).
