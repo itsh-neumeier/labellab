@@ -12,3 +12,6 @@ serde.workspace = true
 ll-protocol = { path = "../ll-protocol" }
 ll-transport = { path = "../ll-transport" }
 ll-render = { path = "../ll-render" }
+
+[dev-dependencies]
+tokio.workspace = true

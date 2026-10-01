@@ -14,4 +14,9 @@ pub enum CoreError {
 
     #[error("no printer connected")]
     NoDevice,
+
+    #[error(
+        "printer reports an error (raw, bit meaning unverified): error1={error1:#04x} error2={error2:#04x}"
+    )]
+    PrinterError { error1: u8, error2: u8 },
 }

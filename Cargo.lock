@@ -215,6 +215,7 @@ dependencies = [
  "clap",
  "ll-core",
  "ll-protocol",
+ "ll-transport",
  "serde_json",
  "tokio",
 ]
@@ -228,6 +229,7 @@ dependencies = [
  "ll-transport",
  "serde",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

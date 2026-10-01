@@ -103,3 +103,8 @@ pub fn find_by_status_bytes(series: u8, model: u8) -> Option<&'static ModelInfo>
         .iter()
         .find(|m| m.status_series_byte == series && m.status_model_byte == model)
 }
+
+/// Looks up a model by its name (e.g. `"PT-P710BT"`), case-insensitive.
+pub fn find_by_name(name: &str) -> Option<&'static ModelInfo> {
+    MODELS.iter().find(|m| m.name.eq_ignore_ascii_case(name))
+}

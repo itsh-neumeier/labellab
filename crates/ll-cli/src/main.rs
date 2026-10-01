@@ -1,10 +1,14 @@
 use clap::{Parser, Subcommand};
 use ll_core::device;
 use ll_protocol::status::{StatusBlock, StatusType};
+use ll_transport::Transport;
 
 /// Default baud rate for serial/COM-port connections. Virtual Bluetooth-SPP
 /// ports generally ignore it, but the OS API still requires a value.
 const DEFAULT_BAUD_RATE: u32 = 9600;
+
+/// Default model, looked up in `ll_protocol::model::MODELS`.
+const DEFAULT_MODEL: &str = "PT-P710BT";
 
 #[derive(Parser)]
 #[command(
@@ -50,6 +54,16 @@ enum Command {
         cut: bool,
         #[arg(long, default_value_t = 1)]
         copies: u32,
+        #[arg(long)]
+        device: Option<String>,
+        /// Natives Bluetooth RFCOMM statt seriellem COM-Port verwenden
+        /// (nur Windows; `device` ist dann die Geraete-ID aus `devices`).
+        #[arg(long)]
+        bt: bool,
+        #[arg(long, default_value_t = DEFAULT_BAUD_RATE)]
+        baud: u32,
+        #[arg(long, default_value = DEFAULT_MODEL)]
+        model: String,
     },
     /// Label ohne Drucker in eine PNG-Datei rendern.
     Render {
@@ -71,10 +85,54 @@ async fn main() -> anyhow::Result<()> {
             baud,
             json,
         } => status(device, bt, baud, json).await,
-        Command::Print { .. } | Command::Render { .. } => {
-            eprintln!("Noch nicht implementiert (folgt in M3/M5). Siehe docs/PROGRESS.md.");
+        Command::Print {
+            text,
+            template,
+            csv,
+            image,
+            cut,
+            copies,
+            device,
+            bt,
+            baud,
+            model,
+        } => {
+            if template.is_some() || csv.is_some() || image.is_some() {
+                eprintln!(
+                    "--template/--csv/--image sind noch nicht implementiert (folgen in M5/M7)."
+                );
+                std::process::exit(1);
+            }
+            print(text, cut, copies, device, bt, baud, model).await
+        }
+        Command::Render { .. } => {
+            eprintln!("Noch nicht implementiert (folgt in M5). Siehe docs/PROGRESS.md.");
             std::process::exit(1);
         }
+    }
+}
+
+/// Opens a transport by CLI args: `--bt` picks native Bluetooth RFCOMM
+/// (Windows only), otherwise a serial/COM port at `baud`.
+async fn open_transport(device: &str, bt: bool, baud: u32) -> anyhow::Result<Box<dyn Transport>> {
+    if bt {
+        #[cfg(windows)]
+        {
+            Ok(Box::new(
+                ll_transport::bluetooth::BluetoothTransport::connect(device).await?,
+            ))
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = device;
+            anyhow::bail!(
+                "Natives Bluetooth ist unter Linux noch nicht implementiert (BlueZ folgt)."
+            );
+        }
+    } else {
+        Ok(Box::new(ll_transport::serial::SerialTransport::open(
+            device, baud,
+        )?))
     }
 }
 
@@ -156,6 +214,49 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
             status.error2()
         );
     }
+    Ok(())
+}
+
+async fn print(
+    text: Option<String>,
+    cut: bool,
+    copies: u32,
+    device: Option<String>,
+    bt: bool,
+    baud: u32,
+    model_name: String,
+) -> anyhow::Result<()> {
+    let Some(text) = text else {
+        eprintln!("Bitte Text angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>");
+        std::process::exit(1);
+    };
+    let Some(device) = device else {
+        eprintln!("Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`).");
+        std::process::exit(1);
+    };
+    let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
+        eprintln!(
+            "Unbekanntes Modell '{model_name}'. Bekannt: {}",
+            ll_protocol::model::MODELS
+                .iter()
+                .map(|m| m.name)
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        std::process::exit(1);
+    };
+
+    let mut transport = open_transport(&device, bt, baud).await?;
+
+    for copy in 1..=copies {
+        if copies > 1 {
+            eprintln!("Drucke Kopie {copy}/{copies} ...");
+        }
+        ll_core::print::print_text(transport.as_mut(), model, &text, cut).await?;
+    }
+    transport.close().await?;
+
+    println!("Gedruckt: \"{text}\" ({copies}x)");
     Ok(())
 }
 
