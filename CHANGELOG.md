@@ -37,6 +37,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Editor: Elemente frei als Boxen platzieren und skalieren (Maus, Pfeiltasten, X/Y/Breite/Höhe),
   Einrasten an Bandkanten und anderen Boxen zum bündigen Aneinanderlegen, Duplizieren
 - Text: Schriftgröße in pt oder automatisch, mehrzeilig, Ausrichtung links/Mitte/rechts
+- Schriftarten aus den installierten Systemschriften, fett und kursiv (fehlende Schnitte werden
+  nachgebildet)
+- Serien aus CSV: Platzhalter `{{Spalte}}` und `{{#}}`, Vorschau je Datensatz, Druck aller oder
+  eines Bereichs (GUI und `labellab print --csv … --rows 1-10`)
+- Vorschnitt vor dem Druck und Nachschnitt nach dem Druck als getrennte Optionen (`--pre-cut`)
+- Gerätesuche zeigt den Bluetooth-Gerätenamen statt „SPP SERVER“, erkennt den Drucker, wählt ihn
+  aus und liest den Bandstatus automatisch
+- Druckknopf zeigt „Wird gedruckt … n/m“ und ist während der Übertragung gesperrt
 - Vorlagenformat `.llabel` Version 2 (Boxen, Textgröße/-ausrichtung); Version 1 wird weiter gelesen
 - Windows: portable `LabelLab.exe` (ohne Installation startbar) und `labellab.exe` werden bei
   jedem Push automatisch gebaut (GitHub Actions, Artefakt `LabelLab-windows-x64-portable`)

@@ -7,13 +7,35 @@
 //! shows them under a localized heading.
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use base64::Engine;
 use ll_core::device::{self, Connection};
 use ll_core::label::{self, Label, Rect};
 use ll_core::print::PrintOptions;
+use ll_core::series::{self, DataSet};
 use ll_protocol::model::{self, dots_to_mm, ModelInfo, MODELS};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use tauri::{Emitter, State};
+
+/// CSV data loaded for series printing, shared by preview and print.
+#[derive(Default)]
+struct SeriesState(Mutex<Option<DataSet>>);
+
+impl SeriesState {
+    fn get(&self) -> Option<DataSet> {
+        self.0.lock().ok().and_then(|g| g.clone())
+    }
+}
+
+/// `label` with placeholders filled from record `row` of the loaded CSV,
+/// or unchanged without CSV/row.
+fn with_record(label: Label, series: &SeriesState, row: Option<usize>) -> Label {
+    match (series.get(), row) {
+        (Some(data), Some(n)) => series::apply(&label, &data, n),
+        _ => label,
+    }
+}
 
 /// Baud rate for serial ports picked in the GUI. Virtual Bluetooth-SPP
 /// ports ignore it, but the OS API needs one (same as the CLI default).
@@ -64,7 +86,14 @@ fn models() -> Vec<ModelDto> {
 /// string survives every IPC transport (raw binary responses arrived
 /// broken in the Windows WebView2 build, preview stayed empty).
 #[tauri::command]
-fn render_preview(label: Label, model: String, width_mm: u8) -> Result<String, String> {
+fn render_preview(
+    label: Label,
+    model: String,
+    width_mm: u8,
+    row: Option<usize>,
+    series: State<'_, SeriesState>,
+) -> Result<String, String> {
+    let label = with_record(label, &series, row);
     let png = label::render_label_png(&label, find_model(&model)?, width_mm).map_err(err)?;
     Ok(base64::engine::general_purpose::STANDARD.encode(png))
 }
@@ -83,17 +112,21 @@ struct DeviceDto {
     /// Human-readable name for the device picker.
     name: String,
     connection: Connection,
+    /// Recognized printer model, if any (USB VID:PID or Bluetooth name).
+    model: Option<&'static str>,
 }
 
 #[derive(Serialize)]
 struct DeviceListDto {
+    /// Recognized printers first, then other Bluetooth devices, then
+    /// serial ports.
     devices: Vec<DeviceDto>,
     /// Non-fatal enumeration failures (e.g. no USB access).
     warnings: Vec<String>,
 }
 
-/// Lists USB printers, paired Bluetooth printers (Windows) and serial
-/// ports, in that order. One failing transport doesn't hide the others.
+/// Lists USB printers, paired Bluetooth devices (Windows) and serial
+/// ports. One failing transport doesn't hide the others.
 #[tauri::command]
 async fn list_devices() -> DeviceListDto {
     let mut devices = Vec::new();
@@ -105,6 +138,7 @@ async fn list_devices() -> DeviceListDto {
             DeviceDto {
                 name: format!("{} (USB)", p.model.name),
                 connection: Connection::Usb { spec: Some(spec) },
+                model: Some(p.model.name),
             }
         })),
         Err(e) => warnings.push(format!("USB: {e}")),
@@ -113,6 +147,7 @@ async fn list_devices() -> DeviceListDto {
     #[cfg(windows)]
     match device::list_bluetooth_devices() {
         Ok(bt) => devices.extend(bt.into_iter().map(|d| DeviceDto {
+            model: device::model_for_device_name(&d.name).map(|m| m.name),
             name: format!("{} (Bluetooth)", d.name),
             connection: Connection::Bluetooth { device_id: d.id },
         })),
@@ -126,10 +161,13 @@ async fn list_devices() -> DeviceListDto {
                 port,
                 baud_rate: SERIAL_BAUD_RATE,
             },
+            model: None,
         })),
         Err(e) => warnings.push(format!("Serial: {e}")),
     }
 
+    // Stable sort: recognized printers first, original order otherwise.
+    devices.sort_by_key(|d| d.model.is_none());
     DeviceListDto { devices, warnings }
 }
 
@@ -163,29 +201,106 @@ async fn query_status(connection: Connection) -> Result<StatusDto, String> {
     })
 }
 
-/// Prints `label` `copies` times over `connection`.
+/// Print job settings from the print bar.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PrintJob {
+    copies: u32,
+    pre_cut: bool,
+    post_cut: bool,
+    margin_dots: u16,
+    /// Record numbers (1-based, inclusive) of the loaded CSV; `None`
+    /// without CSV prints the label as is, with CSV all records.
+    rows: Option<(usize, usize)>,
+}
+
+/// Progress event payload (`print-progress`).
+#[derive(Clone, Serialize)]
+struct Progress {
+    done: u32,
+    total: u32,
+}
+
+/// Prints `label` (per selected CSV record, if a CSV is loaded) `copies`
+/// times each over one connection, emitting `print-progress` events.
 #[tauri::command]
 async fn print_label(
+    app: tauri::AppHandle,
     label: Label,
     connection: Connection,
     model: String,
-    copies: u32,
-    auto_cut: bool,
-    margin_dots: u16,
+    job: PrintJob,
+    series: State<'_, SeriesState>,
 ) -> Result<(), String> {
     let model = find_model(&model)?;
-    let options = PrintOptions {
-        frame: false,
-        auto_cut,
-        margin_dots,
+    let labels: Vec<Label> = match series.get() {
+        Some(data) => {
+            let range = data.select(job.rows.map(|(a, b)| a..=b));
+            if range.is_empty() {
+                return Err("no records in the selected range".into());
+            }
+            range.map(|n| series::apply(&label, &data, n)).collect()
+        }
+        None => vec![label],
     };
+    let copies = job.copies.max(1);
+    let total = labels.len() as u32 * copies;
+    let mut options = PrintOptions {
+        frame: false,
+        auto_cut: job.post_cut,
+        pre_cut: job.pre_cut,
+        margin_dots: job.margin_dots,
+    };
+
     let mut transport = device::connect(&connection).await.map_err(err)?;
-    for _ in 0..copies.max(1) {
-        ll_core::print::print_label(transport.as_mut(), model, &label, &options)
-            .await
-            .map_err(err)?;
+    let mut done = 0;
+    let _ = app.emit("print-progress", Progress { done, total });
+    for label in &labels {
+        for _ in 0..copies {
+            ll_core::print::print_label(transport.as_mut(), model, label, &options)
+                .await
+                .map_err(err)?;
+            options.pre_cut = false; // only before the first label
+            done += 1;
+            let _ = app.emit("print-progress", Progress { done, total });
+        }
     }
     transport.close().await.map_err(err)
+}
+
+#[derive(Serialize)]
+struct CsvDto {
+    headers: Vec<String>,
+    rows: Vec<Vec<String>>,
+}
+
+/// Loads a CSV for series printing (replaces a previously loaded one).
+#[tauri::command]
+fn load_csv(path: PathBuf, series: State<'_, SeriesState>) -> Result<CsvDto, String> {
+    let data = DataSet::load(&path).map_err(err)?;
+    let dto = CsvDto {
+        headers: data.headers.clone(),
+        rows: data.rows.clone(),
+    };
+    if let Ok(mut guard) = series.0.lock() {
+        *guard = Some(data);
+    }
+    Ok(dto)
+}
+
+#[tauri::command]
+fn clear_csv(series: State<'_, SeriesState>) {
+    if let Ok(mut guard) = series.0.lock() {
+        *guard = None;
+    }
+}
+
+/// Installed font families (scans system fonts once, can take a moment).
+#[tauri::command]
+async fn font_families() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(ll_render::fonts::families)
+        .await
+        .unwrap_or_default()
 }
 
 /// Default feed margin before the cut, for the GUI's initial value.
@@ -208,6 +323,7 @@ fn save_label(path: PathBuf, label: Label) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(SeriesState::default())
         .invoke_handler(tauri::generate_handler![
             models,
             render_preview,
@@ -215,6 +331,9 @@ pub fn run() {
             list_devices,
             query_status,
             print_label,
+            load_csv,
+            clear_csv,
+            font_families,
             default_margin_dots,
             load_label,
             save_label,

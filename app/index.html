@@ -59,6 +59,31 @@
           <label for="frame" data-i18n="layout.frame"></label>
           <input id="frame" type="checkbox" />
         </div>
+
+        <h2 data-i18n="data.title"></h2>
+        <div class="data">
+          <div class="row">
+            <button id="btn-csv" data-i18n="data.load"></button>
+            <span id="csv-name" class="muted filename" data-i18n="data.none"></span>
+            <button id="btn-csv-clear" data-i18n-title="data.clear" hidden>✕</button>
+          </div>
+          <div id="csv-details" hidden>
+            <p class="muted hint" data-i18n="data.columnsHint"></p>
+            <div id="csv-columns" class="chips"></div>
+            <div class="grid">
+              <label for="preview-row" data-i18n="data.previewRow"></label>
+              <input id="preview-row" type="number" min="1" value="1" />
+            </div>
+            <div class="rows">
+              <label><input type="radio" name="rows" value="all" checked /> <span data-i18n="data.all"></span></label>
+              <label><input type="radio" name="rows" value="range" /> <span data-i18n="data.from"></span></label>
+              <input id="row-from" type="number" min="1" value="1" />
+              <span data-i18n="data.to"></span>
+              <input id="row-to" type="number" min="1" value="1" />
+            </div>
+            <p id="csv-summary" class="muted hint"></p>
+          </div>
+        </div>
       </aside>
 
       <section class="canvas">
@@ -84,7 +109,8 @@
       <label><span data-i18n="print.copies"></span>
         <input id="copies" type="number" min="1" value="1" />
       </label>
-      <label><input id="cut" type="checkbox" /> <span data-i18n="print.cut"></span></label>
+      <label><input id="pre-cut" type="checkbox" /> <span data-i18n="print.preCut"></span></label>
+      <label><input id="post-cut" type="checkbox" checked /> <span data-i18n="print.postCut"></span></label>
       <label><span data-i18n="print.margin"></span>
         <input id="margin" type="number" min="0" />
       </label>

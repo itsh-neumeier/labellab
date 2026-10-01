@@ -28,6 +28,7 @@
 | Statusabfrage über natives WinRT-RFCOMM (kein virtueller COM-Port) | `00×100, 1B 40, 1B 69 53` → 32 Byte, Byte0 `0x80` | **verifiziert** | Hardware-Test 2026-10-01, PT-P710BT über `labellab status --bt`: 9 mm Band korrekt erkannt, `error1=0, error2=0, media_type=1, tape_color=1, text_color=8` |
 | Eingehende BT-COM-Ports | unbrauchbar für Statusabfrage | verifiziert | Hardware-Test 2026-10-01 |
 | Gleichzeitige BT-Verbindungen | nur eine (z. B. Handy blockiert PC) | verifiziert | Hardware-Test 2026-10-01 |
+| Gerätename hinter dem SPP-Dienst | `RfcommDeviceService.Device().Name()` liefert den Kopplungsnamen (z. B. `PT-P710BT5265`) statt „SPP SERVER“ | unverifiziert | Annahme nach WinRT-Doku; Fallback auf Dienstnamen implementiert |
 
 ## USB
 
@@ -54,6 +55,7 @@
 | Leerzeile | `5A` | verifiziert | Hardware-Test 2026-10-01 |
 | Drucken mit Vorschub (letzte Seite) | `1A` | verifiziert | Hardware-Test 2026-10-01 |
 | Seite ohne Vorschub | `0C` | dokumentiert (nicht gesendet) | Raster Command Reference — nur für Kettendruck (M7) relevant |
+| Vorschnitt (Leerseite 1 Zeile + Auto-Cut vor dem Label) | zweite komplette Seite (`… 1A`) in derselben Sitzung | unverifiziert | Annahme, `ll_core::print::send_pre_cut` |
 
 ## Statusblock (32 Byte)
 

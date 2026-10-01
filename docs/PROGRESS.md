@@ -96,8 +96,8 @@
 4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64-portable“ des
     Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
     Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
-4b. GUI-Ausbau: Textgröße/fett/mehrzeilig, verständliche Druckerfehler, zuletzt verwendete
-    Labels, später freies Positionieren (ADR-014).
+4b. GUI-Ausbau: verständliche (deutsche) Fehlertexte für Druckerfehler/Timeouts, zuletzt
+    verwendete Labels, Rotation, Warnung bei überlaufendem Text, Kettendruck für Serien (M7).
 5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
    `labellab status --usb`, dann `labellab print "TEST" --usb`. Unter Windows wird das Öffnen
    vermutlich scheitern, solange `usbprint.sys`/Brother-Treiber gebunden ist (WinUSB per Zadig
@@ -150,6 +150,12 @@
 - [ ] M4: USB-Transport gegen echten Drucker testen (`labellab status --usb`, `print --usb`):
   Endpunkt-Erkennung (Druckerklasse `0x07`, Bulk IN/OUT), Windows mit WinUSB vs.
   `usbprint.sys`, Linux mit udev-Regel und `usblp`-Detach.
+- [ ] Vorschnitt („Vorschnitt vor Druck“ / `--pre-cut`): schneidet die Leerseite den Vorlauf
+  sauber ab, und akzeptiert der Drucker zwei Seiten (`1A`) nacheinander in einer Sitzung?
+- [ ] Serien/Kopien: mehrere Labels nacheinander über dieselbe Bluetooth-Verbindung (je eigener
+  Auftrag mit Invalidate/Init/Status) — läuft das stabil?
+- [ ] Bluetooth-Liste zeigt „PT-P710BT…“ statt „SPP SERVER“ (Gerätename über
+  `RfcommDeviceService.Device().Name()`), und `--bt --device PT-P710BT5265` verbindet.
 - [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
   bisher nur PNG-Vorschau.
 
@@ -189,6 +195,20 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, Schriften, CSV-Serien, Schnittoptionen, Gerätenamen (ADR-017)
+- Nutzer-Feedback (Screenshot): Vorschau unter Windows jetzt ok, Druck klappt. Neue Wünsche
+  umgesetzt: Systemschriften + fett/kursiv (`ll_render::fonts`, fontdb, synthetischer
+  Ersatz), Bluetooth-Gerätename statt „SPP SERVER“ + Drucker-Erkennung + Auto-Status nach
+  „Suchen“, Checkboxen Vor-/Nachschnitt (`PrintOptions::pre_cut`), CSV-Serien
+  (`ll_core::series`, `{{Spalte}}`/`{{#}}`, Bereich), Druckknopf „Wird gedruckt … n/m“ gesperrt.
+- CLI: `print --csv --rows 1-10 --pre-cut`, `render --csv --row N`, `devices` zeigt Modell und
+  Namen, `--bt --device <Name>`.
+- Geprüft: 98 Workspace-Tests grün, fmt/clippy (Linux + Windows-Cross-Check) grün, App unter
+  Xvfb: Schriftzeile, Fett, CSV laden, Spalten-Chips einfügen, Vorschau mit Datensatz,
+  Druckknopf-Zustand (Fehlerfall). Windows-`.exe` neu gebaut. **Nicht** hardware-getestet:
+  Vorschnitt, Serien über BT, Gerätenamen.
+- **Stolperstein:** Fokus nach Chip-Klick scrollte das Seitenpanel → `preventScroll`.
+
 ### 2026-10-01 – Claude Code, M6 (Teil) – freies Layout, Schriftgrößen, mehrzeiliger Text
 - Nutzer-Feedback (Screenshot Windows-GUI): Vorschau leer, Druck klappte; Wunsch nach frei
   positionierbaren Boxen, Schriftgrößen, mehrzeiligem Text und bündigem Aneinanderlegen.

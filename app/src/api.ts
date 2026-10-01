@@ -2,6 +2,7 @@
 // Shapes mirror `ll_core::label::Label` / `ll_core::device::Connection`
 // (serde JSON), so `.llabel` files and IPC use the same format.
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export type Symbology = "code128" | "ean13" | "ean8" | "upc_a" | "code39" | "itf";
 export const SYMBOLOGIES: Symbology[] = ["code128", "ean13", "ean8", "upc_a", "code39", "itf"];
@@ -25,7 +26,16 @@ export interface Rect {
 }
 
 export type Element =
-  | { type: "text"; text: string; size_pt?: number | null; align: TextAlign }
+  | {
+      type: "text";
+      text: string;
+      size_pt?: number | null;
+      align: TextAlign;
+      /** System font family; empty/absent = default font. */
+      font?: string | null;
+      bold?: boolean;
+      italic?: boolean;
+    }
   | { type: "qr"; data: string }
   | { type: "barcode"; symbology: Symbology; data: string }
   | { type: "image"; path: string; invert: boolean };
@@ -61,6 +71,8 @@ export interface Model {
 export interface Device {
   name: string;
   connection: Connection;
+  /** Recognized printer model (USB id or Bluetooth name), else null. */
+  model: string | null;
 }
 
 export interface Status {
@@ -81,18 +93,38 @@ export const loadLabel = (path: string) => invoke<Label>("load_label", { path })
 export const saveLabel = (path: string, label: Label) => invoke<void>("save_label", { path, label });
 
 /** Base64 PNG of the label as it will be printed (same render path). */
-export const renderPreview = (label: Label, model: string, widthMm: number) =>
-  invoke<string>("render_preview", { label, model, widthMm });
+export const renderPreview = (label: Label, model: string, widthMm: number, row: number | null) =>
+  invoke<string>("render_preview", { label, model, widthMm, row });
 
 /** Boxes for every element as rendered (flow elements included). */
 export const resolveRects = (label: Label, model: string, widthMm: number) =>
   invoke<Rect[]>("resolve_rects", { label, model, widthMm });
 
-export const printLabel = (args: {
-  label: Label;
-  connection: Connection;
-  model: string;
+export interface PrintJob {
   copies: number;
-  autoCut: boolean;
+  preCut: boolean;
+  postCut: boolean;
   marginDots: number;
-}) => invoke<void>("print_label", args);
+  /** 1-based inclusive record range of the loaded CSV; null = all. */
+  rows: [number, number] | null;
+}
+
+export const printLabel = (args: { label: Label; connection: Connection; model: string; job: PrintJob }) =>
+  invoke<void>("print_label", args);
+
+export interface Progress {
+  done: number;
+  total: number;
+}
+
+export const onPrintProgress = (cb: (p: Progress) => void): Promise<UnlistenFn> =>
+  listen<Progress>("print-progress", (e) => cb(e.payload));
+
+export interface Csv {
+  headers: string[];
+  rows: string[][];
+}
+
+export const loadCsv = (path: string) => invoke<Csv>("load_csv", { path });
+export const clearCsv = () => invoke<void>("clear_csv");
+export const fontFamilies = () => invoke<string[]>("font_families");

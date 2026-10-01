@@ -44,6 +44,11 @@ const state = {
   models: [] as api.Model[],
   devices: [] as Device[],
   selected: -1,
+  fonts: [] as string[],
+  csv: null as (api.Csv & { name: string }) | null,
+  /** Last focused text field in an element card (CSV column insertion). */
+  lastField: null as { el: HTMLInputElement | HTMLTextAreaElement; apply: (v: string) => void } | null,
+  printing: false,
   history: [] as string[],
   historyIndex: -1,
 };
@@ -148,7 +153,7 @@ async function updatePreview(): Promise<void> {
   if (!model || !width) return;
 
   try {
-    const base64 = await api.renderPreview(state.label, model, width);
+    const base64 = await api.renderPreview(state.label, model, width, previewRow());
     if (seq !== previewSeq) return; // a newer render is on its way
     img.onload = () => {
       layoutStage();
@@ -200,6 +205,13 @@ function repositionBoxes(): void {
 function fitZoom(): void {
   const z = Math.min(10, Math.max(1, Math.round(FIT_TAPE_PX / (tapeMm() * DOTS_PER_MM))));
   $<HTMLInputElement>("zoom").value = String(z);
+}
+
+/** CSV record shown in the preview, or null without CSV. */
+function previewRow(): number | null {
+  if (!state.csv) return null;
+  const n = Number($<HTMLInputElement>("preview-row").value) || 1;
+  return Math.min(Math.max(1, n), Math.max(1, state.csv.rows.length));
 }
 
 // ---------------------------------------------------------------- boxes (canvas)
@@ -392,7 +404,13 @@ function textInput(value: string, onInput: (v: string) => void): HTMLInputElemen
     syncBoxCaption();
     changed();
   });
+  trackField(input, onInput);
   return input;
+}
+
+/** Remembers `el` as the target for inserting CSV placeholders. */
+function trackField(el: HTMLInputElement | HTMLTextAreaElement, apply: (v: string) => void): void {
+  el.addEventListener("focus", () => (state.lastField = { el, apply }));
 }
 
 function numberInput(value: number | null | undefined, step: number, placeholder: string, onInput: (v: number | null) => void): HTMLInputElement {
@@ -455,6 +473,7 @@ function contentFields(item: Item): HTMLElement[] {
         syncBoxCaption();
         changed();
       });
+      trackField(area, (v) => (item.text = v));
       const size = numberInput(item.size_pt, 0.5, t("layout.auto"), (v) => {
         item.size_pt = v && v > 0 ? v : null;
       });
@@ -469,7 +488,35 @@ function contentFields(item: Item): HTMLElement[] {
       const row = document.createElement("div");
       row.className = "row";
       row.append(field("elements.size", size), field("elements.align", align));
-      return [area, row];
+
+      const font = document.createElement("select");
+      font.add(new Option(t("elements.defaultFont"), ""));
+      const families = item.font && !state.fonts.includes(item.font) ? [item.font, ...state.fonts] : state.fonts;
+      for (const f of families) font.add(new Option(f, f, false, f === item.font));
+      font.value = item.font ?? "";
+      font.addEventListener("change", () => {
+        item.font = font.value || null;
+        changed(true);
+      });
+      const toggle = (label: string, title: string, key: "bold" | "italic") => {
+        const b = makeButton(label, title, () => {
+          item[key] = !item[key];
+          b.classList.toggle("on", !!item[key]);
+          changed(true);
+        });
+        b.className = `toggle${item[key] ? " on" : ""}`;
+        b.style.fontWeight = key === "bold" ? "700" : "";
+        b.style.fontStyle = key === "italic" ? "italic" : "";
+        return b;
+      };
+      const style = document.createElement("div");
+      style.className = "row font-row";
+      style.append(
+        field("elements.font", font),
+        toggle("F", t("elements.bold"), "bold"),
+        toggle("K", t("elements.italic"), "italic"),
+      );
+      return [area, style, row];
     }
     case "qr":
       return [textInput(item.data, (v) => (item.data = v))];
@@ -650,14 +697,35 @@ function setMessage(text: string, isError = false): void {
   el.className = isError ? "message error" : "message";
 }
 
-async function refreshDevices(): Promise<void> {
+async function refreshDevices(autoStatus = true): Promise<void> {
   const select = $<HTMLSelectElement>("device");
   const { devices, warnings } = await api.listDevices();
   state.devices = devices;
   select.replaceChildren();
   if (devices.length === 0) select.add(new Option(t("device.none"), ""));
-  devices.forEach((d, i) => select.add(new Option(d.name, String(i))));
+  devices.forEach((d, i) => select.add(new Option(d.model ? `${d.name} – ${d.model}` : d.name, String(i))));
   if (warnings.length) console.warn("device enumeration:", warnings);
+
+  // Pick the first recognized printer, switch to its model and read the
+  // tape status right away.
+  const index = devices.findIndex((d) => d.model);
+  if (index >= 0) {
+    select.value = String(index);
+    applyDeviceModel(devices[index]);
+    if (autoStatus) {
+      setStatus(t("device.autoStatus"));
+      await readStatus();
+    }
+  }
+}
+
+function applyDeviceModel(device: Device | undefined): void {
+  const modelSelect = $<HTMLSelectElement>("model");
+  if (device?.model && device.model !== modelSelect.value) {
+    modelSelect.value = device.model;
+    fillWidths();
+    tapeChanged();
+  }
 }
 
 function hex(v: number): string {
@@ -694,30 +762,134 @@ async function readStatus(): Promise<boolean> {
   }
 }
 
+function setPrinting(on: boolean, text?: string): void {
+  state.printing = on;
+  const button = $<HTMLButtonElement>("btn-print");
+  button.disabled = on;
+  button.classList.toggle("busy", on);
+  button.textContent = on ? (text ?? t("print.printingBusy")) : t("print.print");
+}
+
+/** Selected CSV record range for printing, null = all (or no CSV). */
+function selectedRows(): [number, number] | null {
+  if (!state.csv) return null;
+  const mode = document.querySelector<HTMLInputElement>('input[name="rows"]:checked')?.value;
+  if (mode !== "range") return null;
+  const from = Math.max(1, Number($<HTMLInputElement>("row-from").value) || 1);
+  const to = Math.max(from, Number($<HTMLInputElement>("row-to").value) || from);
+  return [from, to];
+}
+
 async function print(): Promise<void> {
+  if (state.printing) return;
   const connection = selectedConnection();
   if (!connection) {
     setMessage(t("print.noDevice"), true);
     return;
   }
-  const button = $<HTMLButtonElement>("btn-print");
-  button.disabled = true;
-  setMessage(t("print.printing"));
+  setPrinting(true);
+  setMessage("");
+  const unlisten = await api.onPrintProgress(({ done, total }) => {
+    if (state.printing) setPrinting(true, t("print.printingProgress", { done: Math.min(done + 1, total), total }));
+    if (done === total) setMessage(t("print.doneCount", { total }));
+  });
   try {
     await api.printLabel({
       label: state.label,
       connection,
       model: selectedModel(),
-      copies: Math.max(1, Number($<HTMLInputElement>("copies").value) || 1),
-      autoCut: $<HTMLInputElement>("cut").checked,
-      marginDots: Math.max(0, Number($<HTMLInputElement>("margin").value) || 0),
+      job: {
+        copies: Math.max(1, Number($<HTMLInputElement>("copies").value) || 1),
+        preCut: $<HTMLInputElement>("pre-cut").checked,
+        postCut: $<HTMLInputElement>("post-cut").checked,
+        marginDots: Math.max(0, Number($<HTMLInputElement>("margin").value) || 0),
+        rows: selectedRows(),
+      },
     });
-    setMessage(t("print.done"));
   } catch (e) {
     setMessage(t("error.prefix", { error: String(e) }), true);
   } finally {
-    button.disabled = false;
+    unlisten();
+    setPrinting(false);
   }
+}
+
+// ---------------------------------------------------------------- CSV series
+
+function renderCsv(): void {
+  const csv = state.csv;
+  $("csv-name").textContent = csv ? csv.name : t("data.none");
+  $("btn-csv-clear").hidden = !csv;
+  $("csv-details").hidden = !csv;
+  if (!csv) return;
+  const chips = $("csv-columns");
+  chips.replaceChildren();
+  for (const name of [...csv.headers, "#"]) {
+    const chip = makeButton(name, `{{${name}}}`, () => insertPlaceholder(name));
+    chip.className = "chip";
+    chips.append(chip);
+  }
+  const count = csv.rows.length;
+  for (const id of ["preview-row", "row-from", "row-to"]) $<HTMLInputElement>(id).max = String(count);
+  if (Number($<HTMLInputElement>("row-to").value) > count || !$<HTMLInputElement>("row-to").value) {
+    $<HTMLInputElement>("row-to").value = String(count);
+  }
+  updateCsvSummary();
+}
+
+function updateCsvSummary(): void {
+  if (!state.csv) return;
+  const count = state.csv.rows.length;
+  const rows = selectedRows();
+  const selected = rows ? Math.max(0, Math.min(rows[1], count) - rows[0] + 1) : count;
+  $("csv-summary").textContent = t("data.summary", { count, selected });
+}
+
+/** Inserts `{{name}}` at the cursor of the last edited field (or appends it to the selected text element). */
+function insertPlaceholder(name: string): void {
+  const token = `{{${name}}}`;
+  const target = state.lastField;
+  if (target && target.el.isConnected) {
+    const el = target.el;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? start;
+    el.value = el.value.slice(0, start) + token + el.value.slice(end);
+    target.apply(el.value);
+    el.focus({ preventScroll: true });
+    el.setSelectionRange(start + token.length, start + token.length);
+    syncBoxCaption();
+    changed();
+    return;
+  }
+  const item = state.label.elements[state.selected];
+  if (item?.type === "text") item.text += token;
+  else if (item?.type === "qr" || item?.type === "barcode") item.data += token;
+  else return;
+  changed(true);
+}
+
+async function loadCsvFile(): Promise<void> {
+  const path = await open({ multiple: false, filters: [{ name: t("data.filter"), extensions: ["csv", "txt"] }] });
+  if (typeof path !== "string") return;
+  try {
+    const csv = await api.loadCsv(path);
+    state.csv = { ...csv, name: path.split(/[\\/]/).pop() ?? path };
+    $<HTMLInputElement>("preview-row").value = "1";
+    $<HTMLInputElement>("row-from").value = "1";
+    $<HTMLInputElement>("row-to").value = String(csv.rows.length);
+    renderCsv();
+    schedulePreview();
+    setMessage("");
+  } catch (e) {
+    setMessage(t("error.prefix", { error: String(e) }), true);
+  }
+}
+
+async function clearCsvFile(): Promise<void> {
+  await api.clearCsv();
+  state.csv = null;
+  renderCsv();
+  schedulePreview();
 }
 
 // ---------------------------------------------------------------- files
@@ -789,7 +961,13 @@ function bindUi(): void {
   $("btn-save").addEventListener("click", saveFile);
   $("btn-undo").addEventListener("click", () => stepHistory(-1));
   $("btn-redo").addEventListener("click", () => stepHistory(1));
-  $("btn-refresh").addEventListener("click", refreshDevices);
+  $("btn-refresh").addEventListener("click", () => void refreshDevices());
+  $("device").addEventListener("change", () => applyDeviceModel(state.devices[Number($<HTMLSelectElement>("device").value)]));
+  $("btn-csv").addEventListener("click", loadCsvFile);
+  $("btn-csv-clear").addEventListener("click", clearCsvFile);
+  $("preview-row").addEventListener("input", schedulePreview);
+  for (const id of ["row-from", "row-to"]) $(id).addEventListener("input", updateCsvSummary);
+  document.querySelectorAll<HTMLInputElement>('input[name="rows"]').forEach((r) => r.addEventListener("change", updateCsvSummary));
   $("btn-status").addEventListener("click", readStatus);
   $("btn-print").addEventListener("click", print);
   $("model").addEventListener("change", () => {
@@ -817,6 +995,8 @@ function bindUi(): void {
   lang.addEventListener("change", () => {
     setLang(lang.value as Lang);
     renderAll();
+    renderCsv();
+    setPrinting(state.printing);
   });
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey) {
@@ -872,6 +1052,13 @@ async function init(): Promise<void> {
   resetHistory();
   renderAll();
   applyStatic();
+  renderCsv();
+  setPrinting(false);
+  // Font scan can take a moment; fill the font pickers when it's done.
+  api.fontFamilies().then((fonts) => {
+    state.fonts = fonts;
+    renderElements();
+  });
   await refreshDevices();
 }
 

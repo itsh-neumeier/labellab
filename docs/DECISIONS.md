@@ -259,3 +259,33 @@ Vorlage:
     Binärweg kam im Windows-Build nicht als Bild an.
 - Konsequenzen: Kein Fett/Kursiv (nur die eine Systemschrift aus `fontsrc`), keine Rotation,
   keine Warnung, wenn Text mit fester Größe nicht in seine Box passt (wird abgeschnitten).
+
+## ADR-017: Systemschriften, CSV-Serien, Vor-/Nachschnitt, BT-Gerätenamen
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Nutzerwünsche nach dem ersten erfolgreichen GUI-Druck unter Windows: Schriftarten
+  inkl. fett/kursiv aus den installierten Systemschriften; Drucker heißt in der Liste immer
+  „SPP SERVER“; Checkboxen Vorschnitt/Nachschnitt; Serien mit Variablen aus CSV inkl.
+  Bereichsauswahl; sichtbarer „Wird gedruckt“-Zustand.
+- Entscheidung:
+  - Schriften: `ll_render::fonts` mit `fontdb` (MIT, war über `resvg` schon im Baum):
+    Systemschriften einmal pro Prozess scannen (`OnceLock`), Abfrage nach Familie/fett/kursiv.
+    Fehlt die Familie → Standardschrift; fehlt der Schnitt → synthetisch (Glyphen um 1 Punkt
+    je 24 px verbreitert bzw. ~12° geschert), damit fett/kursiv auf dem Band immer sichtbar ist.
+    `Element::Text` bekommt `font`, `bold`, `italic` (nur geschrieben, wenn gesetzt).
+  - CSV-Serien: `ll_core::series` (`csv`-Crate, MIT/Unlicense). Platzhalter `{{Spalte}}`
+    (Groß/Klein egal) und `{{#}}` (Datensatznummer) in Text, QR-/Barcode-Daten und Bildpfad;
+    unbekannte Platzhalter bleiben sichtbar stehen. Trennzeichen `;`/`,`/Tab aus der Kopfzeile
+    erkannt, UTF-8 (mit/ohne BOM) oder Windows-1252 (Excel „ANSI“). Bereich 1-basiert,
+    inklusive, auf die Daten begrenzt. Vorschau und Druck füllen denselben `Label` aus
+    (gleicher Renderpfad). GUI hält die CSV im Backend (`SeriesState`), Vorschau zeigt einen
+    wählbaren Datensatz; Druck aller oder Von–Bis, Fortschritt per Event `print-progress`.
+    Jedes Label ist ein eigener Druckauftrag über dieselbe Verbindung (Kettendruck = M7-Rest).
+  - Vorschnitt: `PrintOptions::pre_cut` sendet vor dem ersten Label eine leere Ein-Zeilen-Seite
+    mit Auto-Cut (TODO(verify)); Nachschnitt = bisheriges `auto_cut`.
+  - Bluetooth-Liste zeigt den Gerätenamen hinter dem SPP-Dienst (`RfcommDeviceService.Device()
+    .Name()`, Fallback Dienstname, TODO(verify)); `model_for_device_name()` erkennt das Modell am
+    Namenspräfix; erkannte Drucker stehen oben, werden nach „Suchen“ vorausgewählt, das Modell
+    wird übernommen und der Bandstatus automatisch gelesen. `--bt --device` akzeptiert Namen.
+- Konsequenzen: Erster Schriftscan kann unter Windows spürbar dauern (läuft im Hintergrund,
+  Schriftliste erscheint verzögert). Vorschnitt und Mehrfach-Aufträge pro Verbindung sind
+  hardware-unbestätigt.
