@@ -25,5 +25,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   `labellab render --barcode "..." -o vorschau.png` — gedruckt (sauberes Balkenmuster),
   Scan-Lesbarkeit noch nicht verifiziert
 - M5 (Teil): Bildimport (PNG/JPEG/BMP) mit Floyd-Steinberg-Dithering — `labellab print --image
-  <datei> [--invert]` und `labellab render --image <datei> -o vorschau.png`. SVG-Import,
-  weitere Barcode-Symbologien, Symbole/Rahmen noch offen.
+  <datei> [--invert]` und `labellab render --image <datei> -o vorschau.png`
+- M5 (Teil): Rahmen um das ganze Label — `--frame` auf `print` und `render`, gilt für
+  Text/QR/Barcode/Bild. SVG-Import, weitere Barcode-Symbologien, Symbolbibliothek noch offen.

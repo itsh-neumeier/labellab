@@ -11,8 +11,8 @@
   end-to-end auf echter Hardware.
 - **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes hardware-verifiziert.
   Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
-  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport + Dithering fertig (Code grün,
-  noch nicht auf Band gedruckt). Rahmen/Symbole offen.
+  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport + Dithering und Rahmen fertig (Code
+  grün, noch nicht auf Band gedruckt). Nur noch Symbolbibliothek + weitere Barcode-Typen offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -32,12 +32,13 @@
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
   **Teilstand:** echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt +
   gescannt). Code128-Barcode (ADR-010) gedruckt, Scan-Lesbarkeit offen. Bildimport
-  (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`, ADR-011, `ll_render::picture`) neu,
-  **noch nicht auf Band gedruckt**. `ll_render::png` + CLI `render ["Text"|--qr|--barcode|
-  --image <datei>] -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/
-  `print_code128`/`print_image` teilen sich die Protokoll-Sequenz
-  (`ll-core::print::send_bitmap()`). Noch offen: Rahmen/Linien, weitere Barcode-Symbologien
-  (EAN/UPC/Code39/ITF), SVG-Import, Symbolbibliothek.
+  (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`, ADR-011, `ll_render::picture`) und
+  Rahmen (`ll_render::frame::draw_border`, `--frame`-Flag) neu, **noch nicht auf Band
+  gedruckt**. `ll_render::png` + CLI `render ["Text"|--qr|--barcode|--image <datei>] [--frame]
+  -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_code128`/
+  `print_image` teilen sich die Protokoll-Sequenz (`ll-core::print::send_bitmap()`) und das
+  optionale Rahmenzeichnen. Noch offen: weitere Barcode-Symbologien (EAN/UPC/Code39/ITF),
+  SVG-Import, Symbolbibliothek.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -48,15 +49,18 @@
 | – | – | – | – |
 
 ## Nächste Schritte
-1. **Hardware-Test Bildimport (auf dem Gerät mit dem Drucker):** `labellab print --image
-   pfad\zu\bild.png --bt --device <ID>` — ein echtes Foto/Logo drucken, Dithering-Qualität auf
-   Band prüfen (PNG-Vorschau sah gut aus, aber Papier ist nicht Bildschirm).
-2. M5 weiter: Rahmen/Linien, weitere Barcode-Symbologien (EAN/UPC/Code39/ITF via `barcoders`),
-   SVG-Import (braucht `resvg`), Symbolbibliothek.
-3. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
-4. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
+1. **Hardware-Test Bildimport (auf dem Gerät mit dem Drucker):** erster Versuch scheiterte an
+   einem falschen/nicht gefundenen Dateipfad (`labellab print --image ...` →
+   „Datei nicht gefunden“, vermutlich OneDrive-Pictures-Redirect) — Pfad mit `Test-Path`
+   prüfen und erneut versuchen, Dithering-Qualität auf echtem Band beurteilen.
+2. **Hardware-Test Rahmen:** `labellab print "Text" --frame --bt --device <ID>` — druckt der
+   Rahmen sauber (2 Druckpunkte dick, bisher nur PNG-Vorschau verifiziert)?
+3. M5 weiter: weitere Barcode-Symbologien (EAN/UPC/Code39/ITF via `barcoders`), SVG-Import
+   (braucht `resvg`), Symbolbibliothek.
+4. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
+5. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
-5. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
+6. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
@@ -88,7 +92,10 @@
 - [ ] M5: Code128-Scan-Lesbarkeit mit einem echten Scanner/einer Scanner-App verifizieren
   (Nutzer hatte keinen Code128-fähigen Scanner zur Hand). Balkenbreite 3 Druckpunkte, ADR-010.
 - [ ] M5: `labellab print --image <datei> --bt` gegen echten Drucker testen — Dithering-Qualität
-  auf echtem Band, nicht nur PNG-Vorschau.
+  auf echtem Band, nicht nur PNG-Vorschau. Erster Versuch scheiterte an falschem Dateipfad
+  (Datei nicht gefunden, kein Code-Befund), noch nicht erfolgreich wiederholt.
+- [ ] M5: `labellab print "Text" --frame --bt` gegen echten Drucker testen — Rahmen (2
+  Druckpunkte) nur in PNG-Vorschau verifiziert.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -126,6 +133,27 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – Rahmen
+- `ll-render`: neues `frame`-Modul (`draw_border()` zeichnet ein Rechteck um das ganze Label:
+  kurze „Kappen“ an Anfang/Ende entlang der Pin-Achse, lange „Seiten“ entlang der
+  Bandbreiten-Grenzen über die volle Länge). Bewusst kein Element-Kompositionsmodell
+  (mehrere positionierbare Objekte pro Label) — das ist M6-Editor-Scope; deckt den
+  Standardfall „ein umrandetes Label“ ab (z. B. Warnschild). Visuell per Wegwerf-Beispiel
+  geprüft: Rahmen um „WARNUNG“-Text sauber gezeichnet, danach entfernt.
+- `ll-core::print`: jede `print_*`-Funktion bekommt einen neuen `frame: bool`-Parameter,
+  zeichnet bei `true` den Rahmen (fest 2 Druckpunkte dick) auf das bereits gerenderte Bitmap,
+  bevor es gesendet wird (gemeinsamer `maybe_draw_border()`-Helfer). Neuer Test
+  `frame_adds_more_ink_than_without` (vergleicht Anzahl leerer Rasterzeilen mit/ohne Rahmen).
+- `ll-cli`: `--frame` auf `print` und `render`, gilt für alle vier Inhaltsarten
+  (Text/QR/Barcode/Bild). Smoke-getestet: `render "WARNUNG" --frame -o out.png` zeigt
+  sauberen Rahmen um den Text.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (50 Unit-Tests, vorher 45).
+- **Noch nicht gemacht:** Rahmen auf echtes Band gedruckt (nur PNG-Vorschau verifiziert).
+  Bildimport-Hardware-Test vom Nutzer versucht, scheiterte an falschem Dateipfad (Datei nicht
+  gefunden, OneDrive-Pictures-Verdacht) — noch nicht erfolgreich wiederholt.
+- **M5 fast vollständig:** nur noch weitere Barcode-Symbologien (EAN/UPC/Code39/ITF),
+  SVG-Import und Symbolbibliothek offen.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – Bildimport + Dithering
 - `ll-render`: neues `picture`-Modul (`render_image()` lädt PNG/JPEG/BMP, `render_gray()` ist
   die reine, dateisystemfreie Kernlogik — testbar mit synthetischen `GrayImage`s statt echten

@@ -57,6 +57,9 @@ enum Command {
         /// Bild invertieren (nur mit --image).
         #[arg(long)]
         invert: bool,
+        /// Rahmen um das ganze Label zeichnen.
+        #[arg(long)]
+        frame: bool,
         #[arg(long)]
         template: Option<String>,
         #[arg(long)]
@@ -96,6 +99,9 @@ enum Command {
         /// Bild invertieren (nur mit --image).
         #[arg(long)]
         invert: bool,
+        /// Rahmen um das ganze Label zeichnen.
+        #[arg(long)]
+        frame: bool,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -125,6 +131,7 @@ async fn main() -> anyhow::Result<()> {
             barcode,
             image,
             invert,
+            frame,
             template,
             csv,
             cut,
@@ -146,6 +153,7 @@ async fn main() -> anyhow::Result<()> {
                     image,
                     invert,
                 },
+                frame,
                 cut,
                 copies,
                 ConnectOpts { device, bt, baud },
@@ -159,6 +167,7 @@ async fn main() -> anyhow::Result<()> {
             barcode,
             image,
             invert,
+            frame,
             output,
             width,
             model,
@@ -170,6 +179,7 @@ async fn main() -> anyhow::Result<()> {
                 image,
                 invert,
             },
+            frame,
             output,
             width,
             model,
@@ -333,6 +343,7 @@ impl Content {
 
 async fn print(
     content_args: ContentArgs,
+    frame: bool,
     cut: bool,
     copies: u32,
     connect: ConnectOpts,
@@ -368,7 +379,7 @@ async fn print(
         }
         match &content {
             Content::Text(text) => {
-                ll_core::print::print_text(transport.as_mut(), model, text, cut).await?
+                ll_core::print::print_text(transport.as_mut(), model, text, frame, cut).await?
             }
             Content::Qr(data) => {
                 ll_core::print::print_qr(
@@ -376,15 +387,17 @@ async fn print(
                     model,
                     data,
                     ll_render::QrErrorCorrection::Medium,
+                    frame,
                     cut,
                 )
                 .await?
             }
             Content::Code128(data) => {
-                ll_core::print::print_code128(transport.as_mut(), model, data, cut).await?
+                ll_core::print::print_code128(transport.as_mut(), model, data, frame, cut).await?
             }
             Content::Image(path, invert) => {
-                ll_core::print::print_image(transport.as_mut(), model, path, *invert, cut).await?
+                ll_core::print::print_image(transport.as_mut(), model, path, *invert, frame, cut)
+                    .await?
             }
         }
     }
@@ -396,6 +409,7 @@ async fn print(
 
 fn render(
     content_args: ContentArgs,
+    frame: bool,
     output: String,
     width_mm: u8,
     model_name: String,
@@ -434,7 +448,7 @@ fn render(
         std::process::exit(1);
     };
 
-    let bitmap = match &content {
+    let mut bitmap = match &content {
         Content::Text(text) => ll_render::render_text(
             text,
             model.head_pins,
@@ -462,6 +476,14 @@ fn render(
             *invert,
         )?,
     };
+    if frame {
+        ll_render::draw_border(
+            &mut bitmap,
+            geometry.left_offset_pins,
+            geometry.printable_pins,
+            2,
+        );
+    }
     let png = ll_render::png::to_png(&bitmap, geometry.left_offset_pins, geometry.printable_pins)?;
     std::fs::write(&output, png)?;
 

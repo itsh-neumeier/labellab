@@ -25,6 +25,10 @@ use crate::CoreError;
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// Border thickness in print dots when `frame` is set on any `print_*`
+/// function. Not yet configurable from the CLI.
+const BORDER_THICKNESS: u16 = 2;
+
 /// Resets the printer, reads its status, renders `text` to fit the
 /// currently loaded tape and prints it. Fails without sending raster data
 /// if the printer reports an error or the tape width isn't in `model`'s
@@ -33,15 +37,17 @@ pub async fn print_text(
     transport: &mut dyn Transport,
     model: &ModelInfo,
     text: &str,
+    frame: bool,
     auto_cut: bool,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let bitmap = ll_render::render_text(
+    let mut bitmap = ll_render::render_text(
         text,
         model.head_pins,
         geometry.printable_pins,
         geometry.left_offset_pins,
     )?;
+    maybe_draw_border(&mut bitmap, geometry, frame);
     send_bitmap(transport, &bitmap, width_mm, auto_cut).await
 }
 
@@ -53,16 +59,18 @@ pub async fn print_qr(
     model: &ModelInfo,
     data: &str,
     ec_level: QrErrorCorrection,
+    frame: bool,
     auto_cut: bool,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let bitmap = ll_render::render_qr(
+    let mut bitmap = ll_render::render_qr(
         data,
         model.head_pins,
         geometry.printable_pins,
         geometry.left_offset_pins,
         ec_level,
     )?;
+    maybe_draw_border(&mut bitmap, geometry, frame);
     send_bitmap(transport, &bitmap, width_mm, auto_cut).await
 }
 
@@ -73,15 +81,17 @@ pub async fn print_code128(
     transport: &mut dyn Transport,
     model: &ModelInfo,
     data: &str,
+    frame: bool,
     auto_cut: bool,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let bitmap = ll_render::render_code128(
+    let mut bitmap = ll_render::render_code128(
         data,
         model.head_pins,
         geometry.printable_pins,
         geometry.left_offset_pins,
     )?;
+    maybe_draw_border(&mut bitmap, geometry, frame);
     send_bitmap(transport, &bitmap, width_mm, auto_cut).await
 }
 
@@ -93,17 +103,30 @@ pub async fn print_image(
     model: &ModelInfo,
     path: &Path,
     invert: bool,
+    frame: bool,
     auto_cut: bool,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let bitmap = ll_render::render_image(
+    let mut bitmap = ll_render::render_image(
         path,
         model.head_pins,
         geometry.printable_pins,
         geometry.left_offset_pins,
         invert,
     )?;
+    maybe_draw_border(&mut bitmap, geometry, frame);
     send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+}
+
+fn maybe_draw_border(bitmap: &mut Bitmap, geometry: &TapeGeometry, frame: bool) {
+    if frame {
+        ll_render::draw_border(
+            bitmap,
+            geometry.left_offset_pins,
+            geometry.printable_pins,
+            BORDER_THICKNESS,
+        );
+    }
 }
 
 /// Invalidate -> initialize -> status request -> parse. Returns the loaded
@@ -216,7 +239,7 @@ mod tests {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
 
-        print_text(&mut transport, p710bt(), "HI", false)
+        print_text(&mut transport, p710bt(), "HI", false, false)
             .await
             .unwrap();
 
@@ -282,7 +305,7 @@ mod tests {
         status[8] = 0x01; // error1 != 0
         transport.push_response(status);
 
-        let err = print_text(&mut transport, p710bt(), "HI", false)
+        let err = print_text(&mut transport, p710bt(), "HI", false, false)
             .await
             .unwrap_err();
 
@@ -304,7 +327,7 @@ mod tests {
         status[10] = 200; // not in the model's geometry table
         transport.push_response(status);
 
-        let err = print_text(&mut transport, p710bt(), "HI", false)
+        let err = print_text(&mut transport, p710bt(), "HI", false, false)
             .await
             .unwrap_err();
 
@@ -325,6 +348,7 @@ mod tests {
             "https://example.com",
             QrErrorCorrection::Medium,
             false,
+            false,
         )
         .await
         .unwrap();
@@ -339,7 +363,7 @@ mod tests {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
 
-        print_code128(&mut transport, p710bt(), "LABELLAB-123", false)
+        print_code128(&mut transport, p710bt(), "LABELLAB-123", false, false)
             .await
             .unwrap();
 
@@ -357,7 +381,7 @@ mod tests {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
 
-        print_image(&mut transport, p710bt(), &path, false, false)
+        print_image(&mut transport, p710bt(), &path, false, false, false)
             .await
             .unwrap();
 
@@ -366,5 +390,29 @@ mod tests {
         let written = transport.written();
         assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());
         assert_eq!(*written.last().unwrap(), 0x1A);
+    }
+
+    #[tokio::test]
+    async fn frame_adds_more_ink_than_without() {
+        // Compares raw byte counts of two MockTransport runs: a bordered
+        // label has to send more non-empty raster rows (the border caps)
+        // than the same label without a border.
+        let mut with_frame = MockTransport::new();
+        with_frame.push_response(status_fixture_9mm_ok());
+        print_text(&mut with_frame, p710bt(), "HI", true, false)
+            .await
+            .unwrap();
+
+        let mut without_frame = MockTransport::new();
+        without_frame.push_response(status_fixture_9mm_ok());
+        print_text(&mut without_frame, p710bt(), "HI", false, false)
+            .await
+            .unwrap();
+
+        let empty_rows = |written: &[u8]| written.iter().filter(|&&b| b == 0x5A).count();
+        assert!(
+            empty_rows(with_frame.written()) < empty_rows(without_frame.written()),
+            "a bordered label should have fewer blank raster rows (border fills the caps)"
+        );
     }
 }
