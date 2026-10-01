@@ -9,8 +9,9 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes hardware-verifiziert,
-  Code128-Barcode fertig (Code grün, noch nicht auf Band gedruckt). Rahmen/Bilder/Symbole offen.
+- **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes hardware-verifiziert.
+  Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
+  (kein Code128-Scanner beim Nutzer verfügbar). Rahmen/Bilder/Symbole offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -80,8 +81,10 @@
 - [x] ~~M5: `labellab print --qr "..." --bt` gegen echten Drucker testen~~ – erfolgreich,
   2026-10-01: gedruckt und mit Handy gescannt, Link öffnete trotz schmaler Ruhezone (2 statt
   der spec-üblichen 4 Module, siehe ADR-009).
-- [ ] M5: `labellab print --barcode "..." --bt` gegen echten Drucker testen — druckt es, und
-  scannt der Code128-Barcode (Balkenbreite 3 Druckpunkte, siehe ADR-010)?
+- [x] ~~M5: `labellab print --barcode "..." --bt` gegen echten Drucker testen~~ – gedruckt,
+  2026-10-01: sauberes, optisch korrekt aussehendes Balkenmuster (Foto bestätigt).
+- [ ] M5: Code128-Scan-Lesbarkeit mit einem echten Scanner/einer Scanner-App verifizieren
+  (Nutzer hatte keinen Code128-fähigen Scanner zur Hand). Balkenbreite 3 Druckpunkte, ADR-010.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -114,6 +117,9 @@
 - 2026-10-01: QR-Code (M5) gegen echten Drucker getestet: `labellab print --qr "https://..."
   --bt` druckte einen sauberen QR-Code auf 9-mm-Band, mit Handy gescannt — Link öffnete. Die
   knappe Ruhezone (2 statt der spec-üblichen 4 Module, ADR-009) war in diesem Test kein Problem.
+- 2026-10-01: Code128-Barcode (M5) gedruckt: `labellab print --barcode "ABC-123" --bt`
+  erzeugte ein sauberes, optisch korrektes Balkenmuster auf Band. Scan-Lesbarkeit nicht
+  verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – Code128-Barcode
