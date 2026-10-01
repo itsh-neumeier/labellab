@@ -409,7 +409,7 @@ impl ContentArgs {
         let single = |element, desc: &str| Some((Label::single(element), desc.to_owned()));
         Ok(
             match (self.text, self.qr, self.barcode, self.image, self.template) {
-                (Some(t), None, None, None, None) => single(Element::Text { text: t.clone() }, &t),
+                (Some(t), None, None, None, None) => single(Element::text(t.clone()), &t),
                 (None, Some(q), None, None, None) => single(Element::Qr { data: q.clone() }, &q),
                 (None, None, Some(b), None, None) => single(
                     Element::Barcode {

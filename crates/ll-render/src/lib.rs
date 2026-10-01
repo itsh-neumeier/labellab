@@ -2,11 +2,13 @@
 //! fonts (`text`/`fontsrc`), QR codes (`barcode`) and linear barcodes —
 //! Code128/EAN-13/EAN-8/UPC-A/Code39/ITF (`linear_barcode`), imported
 //! images including SVG (`picture`), a whole-label border (`frame`) and
-//! PNG export for preview (`png`). A bundled symbol library is the last
+//! PNG export for preview (`png`), and box-fitted rendering of every
+//! element type for free layout (`boxed`). A bundled symbol library is the last
 //! open M5 piece.
 
 pub mod barcode;
 mod bitmap;
+pub mod boxed;
 mod error;
 pub mod fontsrc;
 pub mod frame;
@@ -17,6 +19,7 @@ pub mod text;
 
 pub use barcode::{render_qr, QrErrorCorrection};
 pub use bitmap::Bitmap;
+pub use boxed::TextAlign;
 pub use error::RenderError;
 pub use frame::draw_border;
 pub use linear_barcode::{render_barcode, render_code128, Symbology};

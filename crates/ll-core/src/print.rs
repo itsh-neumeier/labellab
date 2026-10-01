@@ -89,7 +89,7 @@ pub async fn print_text(
     text: &str,
     options: &PrintOptions,
 ) -> Result<(), CoreError> {
-    let label = Label::single(Element::Text { text: text.into() });
+    let label = Label::single(Element::text(text));
     print_label(transport, model, &label, options).await
 }
 

@@ -23,20 +23,25 @@ pub fn render_image(
     left_offset_pins: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
+    let gray = load_gray(path, printable_pins)?;
+    render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
+}
+
+/// Loads `path` as grayscale: PNG/JPEG/BMP via `image`, SVG (by
+/// extension) rasterized `svg_height_px` tall via `resvg`.
+pub(crate) fn load_gray(path: &Path, svg_height_px: u16) -> Result<GrayImage, RenderError> {
     let is_svg = path
         .extension()
         .and_then(|e| e.to_str())
         .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
 
-    let gray = if is_svg {
-        render_svg_to_gray(path, printable_pins)?
+    if is_svg {
+        render_svg_to_gray(path, svg_height_px)
     } else {
-        image::open(path)
+        Ok(image::open(path)
             .map_err(|e| RenderError::Image(e.to_string()))?
-            .to_luma8()
-    };
-
-    render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
+            .to_luma8())
+    }
 }
 
 /// Rasterizes an SVG file to a grayscale image `target_height_px` pixels
@@ -112,7 +117,7 @@ pub fn render_gray(
 
 /// Classic Floyd-Steinberg error diffusion. Returns one `bool` per pixel
 /// (row-major), `true` = ink.
-fn floyd_steinberg_dither(img: &GrayImage, invert: bool) -> Vec<bool> {
+pub(crate) fn floyd_steinberg_dither(img: &GrayImage, invert: bool) -> Vec<bool> {
     let (w, h) = img.dimensions();
     let (w, h) = (w as usize, h as usize);
     let mut errors: Vec<f32> = img.pixels().map(|Luma([v])| *v as f32).collect();

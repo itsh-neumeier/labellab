@@ -48,7 +48,18 @@ pub fn render_barcode(
     printable_pins: u16,
     left_offset_pins: u16,
 ) -> Result<Bitmap, RenderError> {
-    let modules = match symbology {
+    let modules = encode_modules(symbology, data)?;
+    Ok(render_modules(
+        &modules,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+    ))
+}
+
+/// Encodes `data` to one entry per barcode module (`1` = bar, `0` = space).
+pub(crate) fn encode_modules(symbology: Symbology, data: &str) -> Result<Vec<u8>, RenderError> {
+    Ok(match symbology {
         Symbology::Code128 => {
             let prefixed = ensure_start_charset(data);
             Code128::new(&prefixed)
@@ -70,13 +81,7 @@ pub fn render_barcode(
         Symbology::Itf => TF::interleaved(data)
             .map_err(|e| RenderError::Barcode(e.to_string()))?
             .encode(),
-    };
-    Ok(render_modules(
-        &modules,
-        head_pins,
-        printable_pins,
-        left_offset_pins,
-    ))
+    })
 }
 
 /// Renders `data` as a Code128 barcode. Shorthand for
