@@ -12,6 +12,15 @@ pub enum CoreError {
     #[error(transparent)]
     Render(#[from] ll_render::RenderError),
 
+    #[error("invalid label template: {0}")]
+    Template(String),
+
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    #[error("not supported: {0}")]
+    Unsupported(&'static str),
+
     #[error("no printer connected")]
     NoDevice,
 

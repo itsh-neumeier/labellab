@@ -5,6 +5,26 @@
 //! `TODO(verify)` and must not be used for production printing decisions
 //! without a hardware test confirming them.
 
+/// Print resolution in dots per inch, both across the head and along the
+/// feed. Source: Raster Command Reference (180 dpi, documented), see
+/// `docs/PROTOCOL.md`. Shared by every model in [`MODELS`].
+pub const DOTS_PER_INCH: u32 = 180;
+
+/// Converts a length in millimeters to print dots (rounded).
+pub fn mm_to_dots(mm: f32) -> u32 {
+    (mm.max(0.0) * DOTS_PER_INCH as f32 / 25.4).round() as u32
+}
+
+/// Converts print dots to millimeters.
+pub fn dots_to_mm(dots: u32) -> f32 {
+    dots as f32 * 25.4 / DOTS_PER_INCH as f32
+}
+
+/// Converts a font size in typographic points (1/72 inch) to print dots.
+pub fn pt_to_dots(pt: f32) -> f32 {
+    pt.max(0.0) * DOTS_PER_INCH as f32 / 72.0
+}
+
 /// Printable pins and left pin offset for one tape width, in print dots.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TapeGeometry {

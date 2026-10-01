@@ -10,6 +10,9 @@ description = "labellab command-line interface"
 name = "labellab"
 path = "src/main.rs"
 
+[build-dependencies]
+static_vcruntime = "3"
+
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
@@ -17,5 +20,4 @@ tokio.workspace = true
 serde_json.workspace = true
 ll-core = { path = "../ll-core" }
 ll-protocol = { path = "../ll-protocol" }
-ll-transport = { path = "../ll-transport" }
 ll-render = { path = "../ll-render" }

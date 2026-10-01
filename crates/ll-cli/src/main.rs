@@ -1,7 +1,11 @@
 use clap::{Parser, Subcommand};
 use ll_core::device;
+use std::ops::RangeInclusive;
+use std::path::Path;
+
+use ll_core::label::{Element, Label};
+use ll_core::series::{self, DataSet};
 use ll_protocol::status::{StatusBlock, StatusType};
-use ll_transport::Transport;
 
 /// Default baud rate for serial/COM-port connections. Virtual Bluetooth-SPP
 /// ports generally ignore it, but the OS API still requires a value.
@@ -48,7 +52,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Gefundene Drucker (aktuell: serielle/COM-Ports) auflisten.
+    /// Gefundene Drucker (COM-Ports, gekoppeltes Bluetooth, USB) auflisten.
     Devices {
         #[arg(long)]
         json: bool,
@@ -61,12 +65,16 @@ enum Command {
         /// (nur Windows; `device` ist dann die Geraete-ID aus `devices`).
         #[arg(long)]
         bt: bool,
+        /// USB statt seriellem COM-Port verwenden. `device` ist dann optional:
+        /// Modellname, `VVVV:PPPP` oder Seriennummer (ohne: erster gefundener).
+        #[arg(long, conflicts_with = "bt")]
+        usb: bool,
         #[arg(long, default_value_t = DEFAULT_BAUD_RATE)]
         baud: u32,
         #[arg(long)]
         json: bool,
     },
-    /// Textlabel drucken.
+    /// Label drucken (Text, QR, Barcode, Bild oder `.llabel`-Vorlage).
     Print {
         text: Option<String>,
         /// QR-Code statt Text drucken (Daten für den Code, z. B. eine URL).
@@ -95,12 +103,23 @@ enum Command {
         /// schneidet direkt am letzten bedruckten Punkt.
         #[arg(long, default_value_t = ll_core::print::PrintOptions::default().margin_dots)]
         margin: u16,
-        #[arg(long)]
+        /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
         template: Option<String>,
-        #[arg(long)]
+        /// CSV-Datei für Serien: Platzhalter `{{Spalte}}` und `{{#}}` (Nummer)
+        /// in der Vorlage werden je Datensatz ersetzt, ein Label pro Datensatz.
+        #[arg(long, requires = "template")]
         csv: Option<String>,
+        /// Nur diese Datensätze drucken (1-basiert): `5`, `1-10`, `3-`.
+        #[arg(long, requires = "csv")]
+        rows: Option<String>,
+        /// Abschneiden (ohne --chain nach jedem Label, mit --chain nur am Ende).
         #[arg(long)]
         cut: bool,
+        /// Fortlaufend drucken: alle Labels (Serie, Kopien, Mehrband-Streifen)
+        /// in einem Auftrag ohne Schnitt dazwischen.
+        #[arg(long)]
+        chain: bool,
         #[arg(long, default_value_t = 1)]
         copies: u32,
         #[arg(long)]
@@ -109,16 +128,17 @@ enum Command {
         /// (nur Windows; `device` ist dann die Geraete-ID aus `devices`).
         #[arg(long)]
         bt: bool,
+        /// USB statt seriellem COM-Port verwenden. `device` ist dann optional:
+        /// Modellname, `VVVV:PPPP` oder Seriennummer (ohne: erster gefundener).
+        #[arg(long, conflicts_with = "bt")]
+        usb: bool,
         #[arg(long, default_value_t = DEFAULT_BAUD_RATE)]
         baud: u32,
         #[arg(long, default_value = DEFAULT_MODEL)]
         model: String,
     },
-    /// Text ohne Drucker in eine PNG-Datei rendern (Vorschau).
-    ///
-    /// Provisorisch: nimmt reinen Text statt eines `.llabel`-Vorlagenformats
-    /// (das kommt erst mit dem GUI-Editor in M6) — daher `--width` statt
-    /// einer live abgefragten Bandbreite.
+    /// Label ohne Drucker in eine PNG-Datei rendern (Vorschau). `--width`
+    /// statt live abgefragter Bandbreite, da kein Drucker verbunden ist.
     Render {
         text: Option<String>,
         /// QR-Code statt Text rendern (Daten für den Code, z. B. eine URL).
@@ -143,6 +163,15 @@ enum Command {
         /// Rahmen um das ganze Label zeichnen.
         #[arg(long)]
         frame: bool,
+        /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
+        template: Option<String>,
+        /// CSV-Datei: Platzhalter mit Datensatz `--row` füllen.
+        #[arg(long, requires = "template")]
+        csv: Option<String>,
+        /// Datensatz für die Vorschau (1-basiert).
+        #[arg(long, default_value_t = 1, requires = "csv")]
+        row: usize,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -161,13 +190,25 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Devices { json } => devices(json),
+        Command::Devices { json } => devices(json).await,
         Command::Status {
             device,
             bt,
+            usb,
             baud,
             json,
-        } => status(device, bt, baud, json).await,
+        } => {
+            status(
+                ConnectOpts {
+                    device,
+                    bt,
+                    usb,
+                    baud,
+                },
+                json,
+            )
+            .await
+        }
         Command::Print {
             text,
             qr,
@@ -180,17 +221,16 @@ async fn main() -> anyhow::Result<()> {
             margin,
             template,
             csv,
+            rows,
             cut,
+            chain,
             copies,
             device,
             bt,
+            usb,
             baud,
             model,
         } => {
-            if template.is_some() || csv.is_some() {
-                eprintln!("--template/--csv sind noch nicht implementiert (folgt in M7).");
-                std::process::exit(1);
-            }
             print(
                 ContentArgs {
                     text,
@@ -200,14 +240,22 @@ async fn main() -> anyhow::Result<()> {
                     image,
                     symbol,
                     invert,
+                    template,
                 },
                 ll_core::print::PrintOptions {
                     frame,
                     auto_cut: cut,
+                    chain,
                     margin_dots: margin,
                 },
                 copies,
-                ConnectOpts { device, bt, baud },
+                series_args(csv, rows.as_deref())?,
+                ConnectOpts {
+                    device,
+                    bt,
+                    usb,
+                    baud,
+                },
                 model,
             )
             .await
@@ -221,6 +269,9 @@ async fn main() -> anyhow::Result<()> {
             symbol,
             invert,
             frame,
+            template,
+            csv,
+            row,
             output,
             width,
             model,
@@ -233,8 +284,10 @@ async fn main() -> anyhow::Result<()> {
                 image,
                 symbol,
                 invert,
+                template,
             },
             frame,
+            series_args(csv, Some(&row.to_string()))?,
             output,
             width,
             model,
@@ -249,41 +302,50 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-/// `--device`/`--bt`/`--baud`, grouped so `print`/`status` don't need a
+/// `--device`/`--bt`/`--usb`/`--baud`, grouped so `print`/`status` don't need a
 /// handful of separate parameters each (keeps `clippy::too_many_arguments`
 /// happy too).
 struct ConnectOpts {
     device: Option<String>,
     bt: bool,
+    usb: bool,
     baud: u32,
 }
 
-/// Opens a transport by CLI args: `--bt` picks native Bluetooth RFCOMM
-/// (Windows only), otherwise a serial/COM port at `baud`.
-async fn open_transport(device: &str, bt: bool, baud: u32) -> anyhow::Result<Box<dyn Transport>> {
-    if bt {
-        #[cfg(windows)]
-        {
-            Ok(Box::new(
-                ll_transport::bluetooth::BluetoothTransport::connect(device).await?,
-            ))
+impl ConnectOpts {
+    /// Maps CLI flags to a [`device::Connection`]: `--usb` (device
+    /// optional), `--bt` (native Bluetooth), otherwise a serial port.
+    /// Exits with a hint if a required `--device` is missing.
+    fn into_connection(self) -> device::Connection {
+        if self.usb {
+            return device::Connection::Usb { spec: self.device };
         }
-        #[cfg(not(windows))]
-        {
-            let _ = device;
-            anyhow::bail!(
-                "Natives Bluetooth ist unter Linux noch nicht implementiert (BlueZ folgt)."
+        let Some(device) = self.device else {
+            eprintln!(
+                "Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`), \
+                 oder --usb verwenden."
             );
+            std::process::exit(1);
+        };
+        if self.bt {
+            device::Connection::Bluetooth { device_id: device }
+        } else {
+            device::Connection::Serial {
+                port: device,
+                baud_rate: self.baud,
+            }
         }
-    } else {
-        Ok(Box::new(ll_transport::serial::SerialTransport::open(
-            device, baud,
-        )?))
     }
 }
 
-fn devices(json: bool) -> anyhow::Result<()> {
+async fn devices(json: bool) -> anyhow::Result<()> {
     let ports = device::list_serial_devices()?;
+    // USB enumeration can fail where the other transports still work (no
+    // USB subsystem, missing permissions); report it instead of aborting.
+    let usb_printers = device::list_usb_printers().await.unwrap_or_else(|e| {
+        eprintln!("USB-Geräte konnten nicht aufgelistet werden: {e}");
+        Vec::new()
+    });
 
     #[cfg(windows)]
     let bt_devices: Vec<(String, String)> = device::list_bluetooth_devices()?
@@ -298,7 +360,17 @@ fn devices(json: bool) -> anyhow::Result<()> {
             .iter()
             .map(|(id, name)| serde_json::json!({"id": id, "name": name}))
             .collect();
-        let value = serde_json::json!({ "serial": ports, "bluetooth": bt_json });
+        let usb_json: Vec<_> = usb_printers
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "model": p.model.name,
+                    "id": p.usb_id(),
+                    "serial_number": p.serial_number,
+                })
+            })
+            .collect();
+        let value = serde_json::json!({ "serial": ports, "bluetooth": bt_json, "usb": usb_json });
         println!("{}", serde_json::to_string_pretty(&value)?);
         return Ok(());
     }
@@ -317,37 +389,36 @@ fn devices(json: bool) -> anyhow::Result<()> {
     } else {
         println!("Gekoppelte Bluetooth-Geräte (SPP), mit --bt verwendbar:");
         for (id, name) in bt_devices {
-            println!("  {name} ({id})");
+            let model = device::model_for_device_name(&name)
+                .map(|m| format!(" – Drucker {}", m.name))
+                .unwrap_or_default();
+            println!("  {name}{model}  (--bt --device \"{name}\")");
+            println!("      ID: {id}");
+        }
+    }
+
+    if usb_printers.is_empty() {
+        println!("Keine USB-Drucker gefunden.");
+    } else {
+        println!("USB-Drucker, mit --usb verwendbar:");
+        for p in usb_printers {
+            match &p.serial_number {
+                Some(serial) => println!("  {} ({}, SN {serial})", p.model.name, p.usb_id()),
+                None => println!("  {} ({})", p.model.name, p.usb_id()),
+            }
         }
     }
     Ok(())
 }
 
-async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyhow::Result<()> {
-    let Some(device) = device else {
-        eprintln!(
-            "Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`). \
-             Automatische Erkennung folgt später."
-        );
-        std::process::exit(1);
-    };
+async fn status(connect: ConnectOpts, json: bool) -> anyhow::Result<()> {
+    let status = device::query_status_on(&connect.into_connection()).await?;
+    print_status(&status, json)
+}
 
-    let status = if bt {
-        #[cfg(windows)]
-        {
-            device::query_status_over_bluetooth(&device).await?
-        }
-        #[cfg(not(windows))]
-        {
-            eprintln!("Natives Bluetooth ist unter Linux noch nicht implementiert (BlueZ folgt).");
-            std::process::exit(1);
-        }
-    } else {
-        device::query_status_over_serial(&device, baud).await?
-    };
-
+fn print_status(status: &StatusBlock, json: bool) -> anyhow::Result<()> {
     if json {
-        println!("{}", status_to_json(&status));
+        println!("{}", status_to_json(status));
         return Ok(());
     }
 
@@ -363,7 +434,7 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
     Ok(())
 }
 
-/// `text`/`--qr`/`--barcode`(`-type`)/`--image`/`--symbol` from
+/// `text`/`--qr`/`--barcode`(`-type`)/`--image`/`--symbol`/`--template` from
 /// `print`/`render`, grouped so those commands don't need seven separate
 /// parameters each (`clap`'s `conflicts_with_all` keeps more than one of
 /// them from being set at once).
@@ -375,141 +446,168 @@ struct ContentArgs {
     image: Option<String>,
     symbol: Option<String>,
     invert: bool,
+    template: Option<String>,
 }
 
-/// What to render: plain text, a QR code, a linear barcode, an image or a
-/// bundled symbol.
-enum Content {
-    Text(String),
-    Qr(String),
-    Barcode(ll_render::Symbology, String),
-    Image(std::path::PathBuf, bool),
-    Symbol(String, bool),
+impl ContentArgs {
+    /// Builds the label to render plus a short description for messages.
+    /// `None` if no content was given.
+    fn into_label(self) -> anyhow::Result<Option<(Label, String)>> {
+        let single = |element, desc: &str| Some((Label::single(element), desc.to_owned()));
+        Ok(
+            match (
+                self.text,
+                self.qr,
+                self.barcode,
+                self.image,
+                self.symbol,
+                self.template,
+            ) {
+                (Some(t), None, None, None, None, None) => single(Element::text(t.clone()), &t),
+                (None, Some(q), None, None, None, None) => {
+                    single(Element::Qr { data: q.clone() }, &q)
+                }
+                (None, None, Some(b), None, None, None) => single(
+                    Element::Barcode {
+                        symbology: self.barcode_type.into(),
+                        data: b.clone(),
+                    },
+                    &b,
+                ),
+                (None, None, None, Some(i), None, None) => single(
+                    Element::Image {
+                        path: i.clone().into(),
+                        invert: self.invert,
+                    },
+                    &i,
+                ),
+                (None, None, None, None, Some(name), None) => single(
+                    Element::Symbol {
+                        name: name.clone(),
+                        invert: self.invert,
+                    },
+                    &name,
+                ),
+                (None, None, None, None, None, Some(t)) => {
+                    Some((Label::load(std::path::Path::new(&t))?, t))
+                }
+                _ => None,
+            },
+        )
+    }
 }
 
-impl Content {
-    fn from_args(args: ContentArgs) -> Option<Self> {
-        match (args.text, args.qr, args.barcode, args.image, args.symbol) {
-            (Some(t), None, None, None, None) => Some(Content::Text(t)),
-            (None, Some(q), None, None, None) => Some(Content::Qr(q)),
-            (None, None, Some(b), None, None) => {
-                Some(Content::Barcode(args.barcode_type.into(), b))
-            }
-            (None, None, None, Some(i), None) => Some(Content::Image(i.into(), args.invert)),
-            (None, None, None, None, Some(s)) => Some(Content::Symbol(s, args.invert)),
-            _ => None,
-        }
+fn find_model(model_name: &str) -> &'static ll_protocol::model::ModelInfo {
+    if let Some(model) = ll_protocol::model::find_by_name(model_name) {
+        return model;
     }
+    eprintln!(
+        "Unbekanntes Modell '{model_name}'. Bekannt: {}",
+        ll_protocol::model::MODELS
+            .iter()
+            .map(|m| m.name)
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    std::process::exit(1);
+}
 
-    fn label(&self) -> String {
-        match self {
-            Content::Text(t) => t.clone(),
-            Content::Qr(d) => d.clone(),
-            Content::Barcode(_, d) => d.clone(),
-            Content::Image(p, _) => p.display().to_string(),
-            Content::Symbol(name, _) => name.clone(),
-        }
+/// `--csv`/`--rows`: the data set and the selected record numbers.
+struct Series {
+    data: DataSet,
+    rows: RangeInclusive<usize>,
+}
+
+/// Parses `5`, `1-10` or `3-` (1-based, inclusive).
+fn parse_rows(spec: &str) -> anyhow::Result<RangeInclusive<usize>> {
+    let num = |s: &str| -> anyhow::Result<usize> {
+        s.trim()
+            .parse()
+            .map_err(|_| anyhow::anyhow!("ungültige Zeilenangabe '{spec}' (z. B. 5, 1-10, 3-)"))
+    };
+    Ok(match spec.split_once('-') {
+        None => num(spec)?..=num(spec)?,
+        Some((a, b)) if b.trim().is_empty() => num(a)?..=usize::MAX,
+        Some((a, b)) => num(a)?..=num(b)?,
+    })
+}
+
+fn series_args(csv: Option<String>, rows: Option<&str>) -> anyhow::Result<Option<Series>> {
+    let Some(path) = csv else { return Ok(None) };
+    let data = DataSet::load(Path::new(&path))?;
+    let rows = data.select(rows.map(parse_rows).transpose()?);
+    if rows.is_empty() {
+        anyhow::bail!(
+            "Keine Datensätze im gewählten Bereich ({} vorhanden).",
+            data.rows.len()
+        );
     }
+    Ok(Some(Series { data, rows }))
 }
 
 async fn print(
     content_args: ContentArgs,
     options: ll_core::print::PrintOptions,
     copies: u32,
+    series: Option<Series>,
     connect: ConnectOpts,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(content_args) else {
+    let Some((label, description)) = content_args.into_label()? else {
         eprintln!(
-            "Bitte Text, --qr, --barcode, --image oder --symbol angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
+            "Bitte Text, --qr, --barcode, --image, --symbol oder --template angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
         );
         std::process::exit(1);
     };
-    let Some(device) = connect.device else {
-        eprintln!("Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`).");
-        std::process::exit(1);
-    };
-    let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
-        eprintln!(
-            "Unbekanntes Modell '{model_name}'. Bekannt: {}",
-            ll_protocol::model::MODELS
-                .iter()
-                .map(|m| m.name)
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        std::process::exit(1);
-    };
+    let model = find_model(&model_name);
 
-    let mut transport = open_transport(&device, connect.bt, connect.baud).await?;
-
-    for copy in 1..=copies {
-        if copies > 1 {
-            eprintln!("Drucke Kopie {copy}/{copies} ...");
-        }
-        match &content {
-            Content::Text(text) => {
-                ll_core::print::print_text(transport.as_mut(), model, text, &options).await?
+    let labels: Vec<Label> = match &series {
+        Some(s) => s
+            .rows
+            .clone()
+            .map(|n| series::apply(&label, &s.data, n))
+            .collect(),
+        None => vec![label],
+    };
+    let mut transport = device::connect(&connect.into_connection()).await?;
+    let mut printed = 0;
+    ll_core::print::print_labels(
+        transport.as_mut(),
+        model,
+        &labels,
+        copies,
+        &options,
+        &mut |done, total| {
+            printed = total;
+            if total > 1 && done > 0 {
+                eprintln!("Label {done}/{total} gesendet");
             }
-            Content::Qr(data) => {
-                ll_core::print::print_qr(
-                    transport.as_mut(),
-                    model,
-                    data,
-                    ll_render::QrErrorCorrection::Medium,
-                    &options,
-                )
-                .await?
-            }
-            Content::Barcode(symbology, data) => {
-                ll_core::print::print_barcode(transport.as_mut(), model, *symbology, data, &options)
-                    .await?
-            }
-            Content::Image(path, invert) => {
-                ll_core::print::print_image(transport.as_mut(), model, path, *invert, &options)
-                    .await?
-            }
-            Content::Symbol(name, invert) => {
-                ll_core::print::print_symbol(transport.as_mut(), model, name, *invert, &options)
-                    .await?
-            }
-        }
-    }
+        },
+    )
+    .await?;
     transport.close().await?;
 
-    println!("Gedruckt: \"{}\" ({copies}x)", content.label());
+    let total = printed;
+    println!("Gedruckt: \"{description}\" ({total} Label)");
     Ok(())
 }
 
 fn render(
     content_args: ContentArgs,
     frame: bool,
+    series: Option<Series>,
     output: String,
     width_mm: u8,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(content_args) else {
+    let Some((mut label, _)) = content_args.into_label()? else {
         eprintln!(
-            "Bitte Text, --qr, --barcode, --image oder --symbol angeben: labellab render \"Text\" -o datei.png"
+            "Bitte Text, --qr, --barcode, --image, --symbol oder --template angeben: labellab render \"Text\" -o datei.png"
         );
         std::process::exit(1);
     };
-    let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
-        eprintln!(
-            "Unbekanntes Modell '{model_name}'. Bekannt: {}",
-            ll_protocol::model::MODELS
-                .iter()
-                .map(|m| m.name)
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        std::process::exit(1);
-    };
-    let Some(geometry) = model
-        .tape_geometries
-        .iter()
-        .find(|g| g.width_mm == width_mm)
-    else {
+    let model = find_model(&model_name);
+    if model.tape_geometries.iter().all(|g| g.width_mm != width_mm) {
         eprintln!(
             "Bandbreite {width_mm} mm nicht bekannt für {model_name}. Bekannt: {}",
             model
@@ -520,53 +618,13 @@ fn render(
                 .join(", ")
         );
         std::process::exit(1);
-    };
-
-    let mut bitmap = match &content {
-        Content::Text(text) => ll_render::render_text(
-            text,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-        )?,
-        Content::Qr(data) => ll_render::render_qr(
-            data,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-            ll_render::QrErrorCorrection::Medium,
-        )?,
-        Content::Barcode(symbology, data) => ll_render::render_barcode(
-            *symbology,
-            data,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-        )?,
-        Content::Image(path, invert) => ll_render::render_image(
-            path,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-            *invert,
-        )?,
-        Content::Symbol(name, invert) => ll_render::render_symbol(
-            name,
-            model.head_pins,
-            geometry.printable_pins,
-            geometry.left_offset_pins,
-            *invert,
-        )?,
-    };
-    if frame {
-        ll_render::draw_border(
-            &mut bitmap,
-            geometry.left_offset_pins,
-            geometry.printable_pins,
-            2,
-        );
     }
-    let png = ll_render::png::to_png(&bitmap, geometry.left_offset_pins, geometry.printable_pins)?;
+
+    if let Some(s) = &series {
+        label = series::apply(&label, &s.data, *s.rows.start());
+    }
+    label.frame |= frame;
+    let png = ll_core::label::render_label_png(&label, model, width_mm)?;
     std::fs::write(&output, png)?;
 
     println!("Geschrieben: {output}");
@@ -596,4 +654,18 @@ fn status_to_json(status: &StatusBlock) -> String {
         "text_color": status.text_color(),
     });
     serde_json::to_string_pretty(&value).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::Cli;
+
+    /// Catches inconsistent argument definitions (e.g. an argument that
+    /// conflicts with itself), which clap only reports at runtime.
+    #[test]
+    fn cli_definition_is_consistent() {
+        Cli::command().debug_assert();
+    }
 }

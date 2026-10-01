@@ -168,8 +168,164 @@ Vorlage:
   Symbolbibliothek selbst (echte Icon-Dateien bündeln) ist jetzt technisch möglich, aber noch
   nicht umgesetzt — braucht eine explizite Entscheidung zu Lizenz/Icon-Set.
 
-## ADR-013: Material Symbols (kuratierte Auswahl) als Symbolbibliothek (M5)
+## ADR-013: `nusb` für den USB-Transport (M4)
 - Datum / Status: 2026-10-01 · angenommen
+- Kontext: M4 verlangt USB-Direktdruck auf Windows und Linux. `MASTER_PROMPT.md` nennt `nusb`
+  (pure Rust) bzw. `rusb` (libusb-Bindings).
+- Entscheidung: `nusb` 0.2 (MIT/Apache-2.0) mit `tokio`-Feature. Kein C-Toolchain-/libusb-Bedarf,
+  `EndpointRead`/`EndpointWrite` implementieren `AsyncRead`/`AsyncWrite`, passt also direkt zum
+  async `Transport`-Trait (ADR-005). `ll_transport::usb::UsbTransport` sucht in der aktiven
+  Konfiguration das erste Interface der Druckerklasse (`0x07`) mit Bulk-OUT und Bulk-IN,
+  übernimmt es (`detach_and_claim_interface`, löst unter Linux `usblp`) und liest den
+  Statusblock mit `tokio::time::timeout`. VID/PID-Filter bleibt in `ll-core` über die
+  Modelltabelle (`ll-protocol`), damit `ll-transport` keine Protokollwerte kennt.
+- Konsequenzen: Unter Windows kann `nusb` nur WinUSB-gebundene Interfaces öffnen; mit
+  `usbprint.sys` oder dem Brother-Treiber scheitert das Öffnen. TODO(verify): ob der PT-P710BT
+  mit WinUSB (z. B. per Zadig) sauber druckt. Unter Linux braucht Nicht-root-Zugriff eine
+  udev-Regel (`docs/PROTOCOL.md`). Noch nicht gegen echte Hardware getestet.
+
+## ADR-014: Label-Layoutmodell, `.llabel`-Format und Tauri-App-Struktur (M6)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Der Editor braucht mehrere Elemente pro Label und ein Speicherformat; bisher konnte
+  der Renderer nur genau einen Inhalt (Text/QR/Barcode/Bild) pro Label.
+- Entscheidung:
+  - `ll_core::label::Label`: Elemente werden **nacheinander entlang des Bandes** angeordnet
+    (Abstand, Rand, Mindestlänge mit Zentrierung, Rahmen), jedes füllt die bedruckbare Höhe.
+    Das deckt typische Bandlabels ab und ist einfach zu bedienen. Frei positionierbare Elemente
+    (`MASTER_PROMPT.md` Abschnitt 3) bleiben späterer Ausbau; das Format ist dafür versioniert.
+  - `.llabel` = JSON über `serde` (`version`, `elements` mit `"type"`-Tag, `gap_mm`,
+    `padding_mm`, `min_length_mm`, `frame`). Neuere Versionen werden abgelehnt, unbekannte
+    Felder ignoriert. Relative Bildpfade gelten relativ zur Vorlagendatei.
+  - `render_label()` ist der eine Renderpfad für Vorschau (`render_label_png`), Druck
+    (`print_label`) und CLI (`--template`); `print_text` usw. sind Ein-Element-Abkürzungen.
+  - Verbindungswahl (`ll_core::device::Connection`) zentral in `ll-core` für CLI und GUI.
+  - GUI unter `app/`: Tauri 2, Frontend **Vite + reines TypeScript ohne UI-Framework**
+    (kleines Bundle, schneller Kaltstart, Ziel < 1 s), i18n über flache JSON-Wörterbücher
+    (`app/src/i18n/{de,en}.json`, Deutsch Standard). `app/src-tauri` ist ein **eigener
+    Cargo-Workspace** (WebKitGTK-Abhängigkeit unter Linux soll den Bibliotheks-CI-Job nicht
+    belasten), eigener CI-Job `app`. Vorschau-PNG geht als rohe IPC-Antwort (`ArrayBuffer`)
+    ohne Base64. Einzige Tauri-Plugin-Abhängigkeit: `tauri-plugin-dialog` (Öffnen/Speichern).
+- Konsequenzen: Kein freies Positionieren, keine Textformatierung (fett/Größe/mehrzeilig) in
+  dieser ersten Editor-Stufe. WinRT-Bluetooth blockiert beim Verbinden einen Worker-Thread
+  (TODO `spawn_blocking`).
+
+## ADR-015: Windows-Auslieferung als eigenständige `.exe` (portabel)
+- **Nachtrag 2026-10-01:** Nutzerwunsch „reine portable ohne Installer“: NSIS/MSI entfernt
+  (`bundle.active = false`), Artefakt `LabelLab-windows-x64-portable` mit `LabelLab.exe`,
+  `labellab.exe` und `LIESMICH.txt`. Die statische C-Laufzeit für die CLI kommt jetzt aus
+  `static_vcruntime` (Build-Abhängigkeit von `ll-cli`, MIT/Apache-2.0/Zlib) statt aus einer
+  Workspace-`.cargo/config.toml` mit `+crt-static`: die galt auch für `app/src-tauri` und
+  kollidierte dort beim Linken mit tauri-builds eigener CRT-Einstellung.
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Nutzer will LabelLab unter Windows als fertige `.exe` ohne Entwicklungsumgebung.
+- Entscheidung: GitHub-Actions-Workflow `windows-build.yml` (bei jedem Push, manuell, Tags `v*`
+  zusätzlich als Release) baut auf `windows-latest`: `LabelLab.exe` (GUI, Frontend eingebettet),
+  NSIS-Setup (`installMode: currentUser`, Deutsch/Englisch, keine Adminrechte), MSI (de-DE) und
+  `labellab.exe` (CLI) als Artefakt `LabelLab-windows-x64`. C-Laufzeit statisch gelinkt
+  (`.cargo/config.toml`, `+crt-static` für MSVC; Tauri macht das für die GUI selbst), damit kein
+  Visual-C++-Redistributable nötig ist. WebView2: vorinstalliert auf Windows 11/aktuellem
+  Windows 10, der Installer lädt den Bootstrapper bei Bedarf (`downloadBootstrapper`).
+  `mainBinaryName = "LabelLab"`.
+- Konsequenzen: Binärdateien unsigniert → SmartScreen-Warnung beim ersten Start (Signierung
+  ist M8-Thema). Lokaler Cross-Build von Linux geht auch (`cargo-xwin`, `clang`/`lld`, `nsis`:
+  `npx tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis`), gilt
+  bei Tauri aber als experimentell — maßgeblich ist der Windows-Runner.
+
+## ADR-016: Freies Layout mit Boxen, Schriftgrößen, mehrzeiliger Text (M6)
+- Datum / Status: 2026-10-01 · angenommen (ergänzt ADR-014)
+- Kontext: Nutzer-Feedback nach dem ersten Windows-Test: Elemente müssen frei als Boxen
+  positionierbar und skalierbar sein, Schriftgrößen angebbar, Text mehrzeilig, Boxen sollen
+  sich bündig aneinanderlegen lassen. Außerdem blieb die Vorschau unter Windows leer.
+- Entscheidung:
+  - `Item { element, rect: Option<Rect> }` (`rect` in mm: `x_mm` entlang, `y_mm` quer ab
+    Oberkante des bedruckbaren Bereichs). Ohne `rect` gilt weiter das Fluss-Layout
+    (CLI-Abkürzungen, v1-Vorlagen unverändert, Golden-Tests unberührt). `.llabel` Version 2,
+    v1 wird gelesen.
+  - `ll_render::boxed`: jedes Element wird in seine Box gerendert und per `Bitmap::blit` auf
+    das Label gelegt, außerhalb des bedruckbaren Bereichs abgeschnitten. Text: `size_pt`
+    (1 pt = 2,5 Druckpunkte bei 180 dpi, `pt_to_dots`) oder automatisch größtmöglich ohne
+    Zusatzumbruch; `\n` = neue Zeile; feste Größe bricht an Wortgrenzen um; Ausrichtung
+    links/Mitte/rechts, vertikal zentriert. Messung und Rendern nutzen dieselben
+    fontdue-Layout-Einstellungen. QR/Bild seitenverhältnistreu eingepasst; Barcode-Modulbreite
+    = größte ganze Zahl Druckpunkte, die in die Box passt (Lesbarkeit).
+  - Labellänge mit Boxen: Ende der rechtesten Box + `padding_mm`, mindestens `min_length_mm`.
+  - `resolved_rects()` liefert für Fluss-Elemente die Box, die sie im Fluss bekommen; der Editor
+    wandelt damit alte Vorlagen ohne optische Änderung in Boxen um.
+  - Editor: Boxen als Overlay über der echten 1-Bit-Vorschau, Ziehen/Skalieren (Kante rechts,
+    unten, Ecke), magnetisches Einrasten (`app/src/snap.ts`) an Labelanfang, Bandkanten/-mitte
+    und Kanten/Mitten anderer Boxen mit Hilfslinien (Alt = aus), Pfeiltasten, X/Y/B/H-Felder,
+    Duplizieren, Entfernen-Taste. X wird auf ≥ 0 begrenzt.
+  - Vorschau als Base64-String statt roher IPC-Bytes (`base64`-Crate, MIT/Apache-2.0): der
+    Binärweg kam im Windows-Build nicht als Bild an.
+- Konsequenzen: Kein Fett/Kursiv (nur die eine Systemschrift aus `fontsrc`), keine Rotation,
+  keine Warnung, wenn Text mit fester Größe nicht in seine Box passt (wird abgeschnitten).
+
+## ADR-017: Systemschriften, CSV-Serien, Vor-/Nachschnitt, BT-Gerätenamen
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Nutzerwünsche nach dem ersten erfolgreichen GUI-Druck unter Windows: Schriftarten
+  inkl. fett/kursiv aus den installierten Systemschriften; Drucker heißt in der Liste immer
+  „SPP SERVER“; Checkboxen Vorschnitt/Nachschnitt; Serien mit Variablen aus CSV inkl.
+  Bereichsauswahl; sichtbarer „Wird gedruckt“-Zustand.
+- Entscheidung:
+  - Schriften: `ll_render::fonts` mit `fontdb` (MIT, war über `resvg` schon im Baum):
+    Systemschriften einmal pro Prozess scannen (`OnceLock`), Abfrage nach Familie/fett/kursiv.
+    Fehlt die Familie → Standardschrift; fehlt der Schnitt → synthetisch (Glyphen um 1 Punkt
+    je 24 px verbreitert bzw. ~12° geschert), damit fett/kursiv auf dem Band immer sichtbar ist.
+    `Element::Text` bekommt `font`, `bold`, `italic` (nur geschrieben, wenn gesetzt).
+  - CSV-Serien: `ll_core::series` (`csv`-Crate, MIT/Unlicense). Platzhalter `{{Spalte}}`
+    (Groß/Klein egal) und `{{#}}` (Datensatznummer) in Text, QR-/Barcode-Daten und Bildpfad;
+    unbekannte Platzhalter bleiben sichtbar stehen. Trennzeichen `;`/`,`/Tab aus der Kopfzeile
+    erkannt, UTF-8 (mit/ohne BOM) oder Windows-1252 (Excel „ANSI“). Bereich 1-basiert,
+    inklusive, auf die Daten begrenzt. Vorschau und Druck füllen denselben `Label` aus
+    (gleicher Renderpfad). GUI hält die CSV im Backend (`SeriesState`), Vorschau zeigt einen
+    wählbaren Datensatz; Druck aller oder Von–Bis, Fortschritt per Event `print-progress`.
+    Jedes Label ist ein eigener Druckauftrag über dieselbe Verbindung (Kettendruck = M7-Rest).
+  - Vorschnitt: zunächst als leere Ein-Zeilen-Seite mit Auto-Cut umgesetzt — auf Hardware
+    3 Schnitte statt einem, daher **wieder entfernt** (ADR-018).
+  - Bluetooth-Liste zeigt den Gerätenamen hinter dem SPP-Dienst (`RfcommDeviceService.Device()
+    .Name()`, Fallback Dienstname, TODO(verify)); `model_for_device_name()` erkennt das Modell am
+    Namenspräfix; erkannte Drucker stehen oben, werden nach „Suchen“ vorausgewählt, das Modell
+    wird übernommen und der Bandstatus automatisch gelesen. `--bt --device` akzeptiert Namen.
+- Konsequenzen: Erster Schriftscan kann unter Windows spürbar dauern (läuft im Hintergrund,
+  Schriftliste erscheint verzögert). Vorschnitt und Mehrfach-Aufträge pro Verbindung sind
+  hardware-unbestätigt.
+
+## ADR-018: Mehrband-Labels, Kettendruck, Bandfarben-Vorschau, glatte Vorschau
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Nutzerwünsche: Labels über 2×/3× Band (überlappend aufkleben), Serien fortlaufend
+  ohne Schnitt, weniger pixelige Vorschau, Vorschau in allen gängigen Bandfarben. Hardware-
+  Befund: Vorschnitt per Leerseite schneidet dreimal.
+- Entscheidung:
+  - `Label::strips` (Standard 1): Entwurf ist `strips` × bedruckbare Höhe hoch, auf einer
+    virtuellen Zeichenfläche (`Canvas`, Kopfbreite = gestapelte Höhe, Offset 0) gerendert;
+    `render_label_pages` schneidet ihn in Streifen und legt jeden an den Pin-Offset des echten
+    Kopfes. Oberster Streifen zuerst. Rahmen umschließt das Gesamtlabel. Überlappung beim
+    Aufkleben ≈ Bandbreite − bedruckbare Höhe (Hinweis in der GUI).
+  - `print_labels`: ohne `chain` jeder Streifen/jede Kopie/jeder Datensatz als eigener Auftrag
+    (bisheriger, hardware-erprobter Weg, Status je Auftrag); mit `chain` ein mehrseitiger
+    Auftrag nach Raster Command Reference (`0C` zwischen Seiten, `1A` am Ende, `n9`), Auto-Cut
+    nur in den Steuercodes der letzten Seite, da `ESC i A` (Schnitt nach n Labels) laut Referenz
+    beim PT-P710BT nicht unterstützt ist. Fortschritt per Callback. Vorschnitt-Leerseite
+    entfernt (`PrintOptions::pre_cut` weg, CLI `--pre-cut` → `--chain`).
+  - Statusbyte 24/25 als Farbtabellen in `ll_protocol::media` (Quelle Raster Command Reference
+    v1.02); GUI übernimmt die Bandfarbe nach „Status lesen“ automatisch.
+  - Vorschau: `render_label_preview(.., scale)` rendert dasselbe Layout über denselben Code mit
+    `scale`-facher Auflösung (Standard 4 = 720 dpi, „Glatt“) oder exakt (1, „Druckraster“) als
+    transparente PNG-Maske; die GUI legt sie per CSS-Maske in Schriftfarbe auf die Bandfarbe
+    (transparentes Band als Schachbrett). Skaliert werden mm-Umrechnung, Schriftgrößen,
+    Rahmenstärke und die Fluss-Barcode-Modulbreite; Dithering von Bildern ist bei „Glatt“
+    feiner als im Druck — maßgeblich bleibt „Druckraster“.
+- Konsequenzen: Kettendruck und Mehrseiten-Aufträge sind hardware-unbestätigt; ob Auto-Cut nur
+  auf der letzten Seite genau einen Schnitt am Ende ergibt, ist offen.
+
+## ADR-019: Material Symbols (kuratierte Auswahl) als Symbolbibliothek (M5)
+- Datum / Status: 2026-10-01 · angenommen (parallel auf `main` entstanden, beim Zusammenführen
+  von ADR-013 auf ADR-019 umnummeriert, da ADR-013 bereits `nusb` belegt)
+- **Offener Abgleich:** In der parallelen Session hatte der Nutzer **Tabler Icons (MIT)** für
+  Elektro/IT plus **selbst gezeichnete Warnzeichen im Stil DIN EN ISO 7010** gewählt (offizielle
+  ISO-Grafiken wegen Urheberrecht nicht übernehmen). Material Symbols bleibt vorerst; ob ergänzt
+  oder ersetzt wird, mit dem Nutzer klären. Symbole sind seit dem Merge auch als Label-Element
+  (`{"type": "symbol", "name": ...}`, `ll_render::boxed::symbol_in_box`) nutzbar.
 - Kontext: Letztes offenes M5-Stück. Nutzer wollte sowohl eine mitgelieferte Bibliothek als
   auch eigene SVGs nutzen können — Letzteres war mit ADR-012 (`--image icon.svg`) bereits
   fertig. Für die Bibliothek selbst: keine geratenen URLs (Projektregel), echte Icon-Dateien

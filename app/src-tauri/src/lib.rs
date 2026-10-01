@@ -1,0 +1,353 @@
+//! Tauri backend: thin command layer over `ll-core`. All rendering,
+//! protocol and transport logic stays in the library crates; the preview
+//! and the print job both go through `ll_core::label::render_label`
+//! (`AGENTS.md`: "Vorschau und Druck nutzen denselben Renderpfad").
+//!
+//! Errors are returned to the frontend as plain strings; the frontend
+//! shows them under a localized heading.
+
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+use base64::Engine;
+use ll_core::device::{self, Connection};
+use ll_core::label::{self, Label, Rect};
+use ll_core::print::PrintOptions;
+use ll_core::series::{self, DataSet};
+use ll_protocol::model::{self, dots_to_mm, ModelInfo, MODELS};
+use serde::{Deserialize, Serialize};
+use tauri::{Emitter, State};
+
+/// CSV data loaded for series printing, shared by preview and print.
+#[derive(Default)]
+struct SeriesState(Mutex<Option<DataSet>>);
+
+impl SeriesState {
+    fn get(&self) -> Option<DataSet> {
+        self.0.lock().ok().and_then(|g| g.clone())
+    }
+}
+
+/// `label` with placeholders filled from record `row` of the loaded CSV,
+/// or unchanged without CSV/row.
+fn with_record(label: Label, series: &SeriesState, row: Option<usize>) -> Label {
+    match (series.get(), row) {
+        (Some(data), Some(n)) => series::apply(&label, &data, n),
+        _ => label,
+    }
+}
+
+/// Baud rate for serial ports picked in the GUI. Virtual Bluetooth-SPP
+/// ports ignore it, but the OS API needs one (same as the CLI default).
+const SERIAL_BAUD_RATE: u32 = 9600;
+
+fn err(e: impl std::fmt::Display) -> String {
+    e.to_string()
+}
+
+fn find_model(name: &str) -> Result<&'static ModelInfo, String> {
+    model::find_by_name(name).ok_or_else(|| format!("unknown model {name:?}"))
+}
+
+#[derive(Serialize)]
+struct TapeDto {
+    width_mm: u8,
+    /// Height of the printable area across the tape, in mm (the editor's
+    /// vertical extent).
+    printable_mm: f32,
+}
+
+#[derive(Serialize)]
+struct ModelDto {
+    name: &'static str,
+    tapes: Vec<TapeDto>,
+}
+
+/// Known printer models and their supported tapes.
+#[tauri::command]
+fn models() -> Vec<ModelDto> {
+    MODELS
+        .iter()
+        .map(|m| ModelDto {
+            name: m.name,
+            tapes: m
+                .tape_geometries
+                .iter()
+                .map(|g| TapeDto {
+                    width_mm: g.width_mm,
+                    printable_mm: dots_to_mm(g.printable_pins as u32),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+/// Renders `label` for a `width_mm` tape as a PNG, base64-encoded. A plain
+/// string survives every IPC transport (raw binary responses arrived
+/// broken in the Windows WebView2 build, preview stayed empty).
+#[tauri::command]
+fn render_preview(
+    label: Label,
+    model: String,
+    width_mm: u8,
+    row: Option<usize>,
+    scale: u32,
+    series: State<'_, SeriesState>,
+) -> Result<String, String> {
+    let label = with_record(label, &series, row);
+    let png = label::render_label_preview(&label, find_model(&model)?, width_mm, scale.clamp(1, 8))
+        .map_err(err)?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(png))
+}
+
+/// Every element's box in mm as rendered (flow elements get the box the
+/// flow layout gives them), so the editor can make them movable.
+#[tauri::command]
+fn resolve_rects(label: Label, model: String, width_mm: u8) -> Result<Vec<Rect>, String> {
+    let model = find_model(&model)?;
+    let geometry = label::geometry_for(model, width_mm).map_err(err)?;
+    label::resolved_rects(&label, model, geometry).map_err(err)
+}
+
+#[derive(Serialize)]
+struct DeviceDto {
+    /// Human-readable name for the device picker.
+    name: String,
+    connection: Connection,
+    /// Recognized printer model, if any (USB VID:PID or Bluetooth name).
+    model: Option<&'static str>,
+}
+
+#[derive(Serialize)]
+struct DeviceListDto {
+    /// Recognized printers first, then other Bluetooth devices, then
+    /// serial ports.
+    devices: Vec<DeviceDto>,
+    /// Non-fatal enumeration failures (e.g. no USB access).
+    warnings: Vec<String>,
+}
+
+/// Lists USB printers, paired Bluetooth devices (Windows) and serial
+/// ports. One failing transport doesn't hide the others.
+#[tauri::command]
+async fn list_devices() -> DeviceListDto {
+    let mut devices = Vec::new();
+    let mut warnings = Vec::new();
+
+    match device::list_usb_printers().await {
+        Ok(printers) => devices.extend(printers.into_iter().map(|p| {
+            let spec = p.serial_number.clone().unwrap_or_else(|| p.usb_id());
+            DeviceDto {
+                name: format!("{} (USB)", p.model.name),
+                connection: Connection::Usb { spec: Some(spec) },
+                model: Some(p.model.name),
+            }
+        })),
+        Err(e) => warnings.push(format!("USB: {e}")),
+    }
+
+    #[cfg(windows)]
+    match device::list_bluetooth_devices() {
+        Ok(bt) => devices.extend(bt.into_iter().map(|d| DeviceDto {
+            model: device::model_for_device_name(&d.name).map(|m| m.name),
+            name: format!("{} (Bluetooth)", d.name),
+            connection: Connection::Bluetooth { device_id: d.id },
+        })),
+        Err(e) => warnings.push(format!("Bluetooth: {e}")),
+    }
+
+    match device::list_serial_devices() {
+        Ok(ports) => devices.extend(ports.into_iter().map(|port| DeviceDto {
+            name: port.clone(),
+            connection: Connection::Serial {
+                port,
+                baud_rate: SERIAL_BAUD_RATE,
+            },
+            model: None,
+        })),
+        Err(e) => warnings.push(format!("Serial: {e}")),
+    }
+
+    // Stable sort: recognized printers first, original order otherwise.
+    devices.sort_by_key(|d| d.model.is_none());
+    DeviceListDto { devices, warnings }
+}
+
+#[derive(Serialize)]
+struct StatusDto {
+    width_mm: u8,
+    media_type: u8,
+    tape_color: u8,
+    text_color: u8,
+    /// Ids from `ll_protocol::media` (e.g. "white", "black"), if known.
+    tape_color_id: Option<&'static str>,
+    text_color_id: Option<&'static str>,
+    has_error: bool,
+    error1: u8,
+    error2: u8,
+}
+
+/// Connects and reads the tape status.
+///
+/// TODO: WinRT Bluetooth blocks the calling thread while connecting (see
+/// `ll_transport::bluetooth`); fine for now since Tauri runs async
+/// commands on a worker pool, but worth a `spawn_blocking` later.
+#[tauri::command]
+async fn query_status(connection: Connection) -> Result<StatusDto, String> {
+    let s = device::query_status_on(&connection).await.map_err(err)?;
+    Ok(StatusDto {
+        width_mm: s.media_width_mm(),
+        media_type: s.media_type(),
+        tape_color: s.tape_color(),
+        text_color: s.text_color(),
+        tape_color_id: ll_protocol::media::tape_color_id(s.tape_color()),
+        text_color_id: ll_protocol::media::text_color_id(s.text_color()),
+        has_error: s.has_error(),
+        error1: s.error1(),
+        error2: s.error2(),
+    })
+}
+
+/// Print job settings from the print bar.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PrintJob {
+    copies: u32,
+    /// Cut (after every label, or only at the end when chained).
+    cut: bool,
+    /// All labels in one job without cuts in between.
+    chain: bool,
+    margin_dots: u16,
+    /// Record numbers (1-based, inclusive) of the loaded CSV; `None`
+    /// without CSV prints the label as is, with CSV all records.
+    rows: Option<(usize, usize)>,
+}
+
+/// Progress event payload (`print-progress`).
+#[derive(Clone, Serialize)]
+struct Progress {
+    done: u32,
+    total: u32,
+}
+
+/// Prints `label` (per selected CSV record, if a CSV is loaded) `copies`
+/// times each over one connection, emitting `print-progress` events.
+#[tauri::command]
+async fn print_label(
+    app: tauri::AppHandle,
+    label: Label,
+    connection: Connection,
+    model: String,
+    job: PrintJob,
+    series: State<'_, SeriesState>,
+) -> Result<(), String> {
+    let model = find_model(&model)?;
+    let labels: Vec<Label> = match series.get() {
+        Some(data) => {
+            let range = data.select(job.rows.map(|(a, b)| a..=b));
+            if range.is_empty() {
+                return Err("no records in the selected range".into());
+            }
+            range.map(|n| series::apply(&label, &data, n)).collect()
+        }
+        None => vec![label],
+    };
+    let options = PrintOptions {
+        frame: false,
+        auto_cut: job.cut,
+        chain: job.chain,
+        margin_dots: job.margin_dots,
+    };
+
+    let mut transport = device::connect(&connection).await.map_err(err)?;
+    ll_core::print::print_labels(
+        transport.as_mut(),
+        model,
+        &labels,
+        job.copies.max(1),
+        &options,
+        &mut |done, total| {
+            let _ = app.emit("print-progress", Progress { done, total });
+        },
+    )
+    .await
+    .map_err(err)?;
+    transport.close().await.map_err(err)
+}
+
+#[derive(Serialize)]
+struct CsvDto {
+    headers: Vec<String>,
+    rows: Vec<Vec<String>>,
+}
+
+/// Loads a CSV for series printing (replaces a previously loaded one).
+#[tauri::command]
+fn load_csv(path: PathBuf, series: State<'_, SeriesState>) -> Result<CsvDto, String> {
+    let data = DataSet::load(&path).map_err(err)?;
+    let dto = CsvDto {
+        headers: data.headers.clone(),
+        rows: data.rows.clone(),
+    };
+    if let Ok(mut guard) = series.0.lock() {
+        *guard = Some(data);
+    }
+    Ok(dto)
+}
+
+#[tauri::command]
+fn clear_csv(series: State<'_, SeriesState>) {
+    if let Ok(mut guard) = series.0.lock() {
+        *guard = None;
+    }
+}
+
+/// Installed font families (scans system fonts once, can take a moment).
+#[tauri::command]
+async fn font_families() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(ll_render::fonts::families)
+        .await
+        .unwrap_or_default()
+}
+
+/// Default feed margin before the cut, for the GUI's initial value.
+#[tauri::command]
+fn default_margin_dots() -> u16 {
+    PrintOptions::default().margin_dots
+}
+
+#[tauri::command]
+fn load_label(path: PathBuf) -> Result<Label, String> {
+    Label::load(&path).map_err(err)
+}
+
+#[tauri::command]
+fn save_label(path: PathBuf, label: Label) -> Result<(), String> {
+    label.save(&path).map_err(err)
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .manage(SeriesState::default())
+        .invoke_handler(tauri::generate_handler![
+            models,
+            render_preview,
+            resolve_rects,
+            list_devices,
+            query_status,
+            print_label,
+            load_csv,
+            clear_csv,
+            font_families,
+            default_margin_dots,
+            load_label,
+            save_label,
+        ])
+        .run(tauri::generate_context!())
+        .unwrap_or_else(|e| {
+            eprintln!("error while running LabelLab: {e}");
+            std::process::exit(1);
+        });
+}

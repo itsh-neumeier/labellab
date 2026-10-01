@@ -4,20 +4,24 @@
 > aktualisiert (siehe `AGENTS.md`). Neueste Einträge im Session-Log oben.
 
 ## Aktueller Stand
-- **Phase:** M1/M2 abgeschlossen. M4-Teilstand (natives Windows-BT-RFCOMM) hardware-verifiziert.
-  **M3 hardware-verifiziert:** `labellab print "TEST" --bt` hat echten, lesbaren Text auf
-  9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
-  Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
-  end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** **M5 code-vollständig** (alle Teile implementiert, Unit-Tests
-  grün). Schriften und QR-Codes hardware-verifiziert (gedruckt). Code128 gedruckt
-  (Scan-Lesbarkeit offen, kein Scanner verfügbar). Rahmen, 4 weitere Barcode-Symbologien,
-  Bildimport inkl. SVG und die neue Symbolbibliothek (10 Material-Symbols-Icons,
-  Apache-2.0, ADR-013) **noch nicht auf Band gedruckt** — PNG-Vorschau sieht für alles korrekt
-  aus. Nächster sinnvoller Schritt: M5-Hardware-Tests nachholen, dann M4-Rest oder M6.
-  **Bugfix:** Nutzer meldete, der Cutter schneidet direkt am Ende des Inhalts (kein Nachlauf) —
-  Ursache war `margin(0)` fest einprogrammiert; jetzt konfigurierbar (`--margin`, Default 28
-  Druckpunkte statt 0), noch nicht erneut hardware-getestet.
+- **Kurzfassung (2026-10-01):** CLI und Windows-GUI drucken per nativem Bluetooth auf echtem
+  PT-P710BT (hardware-bestätigt: Text, QR, Code128-Optik, GUI-Druck, Serie mit 2 Labels,
+  Bluetooth-Gerätename „PT-P710BT5265“). Auslieferung als **portable** `LabelLab.exe` +
+  `labellab.exe` (GitHub Actions „Windows build“, ADR-015).
+- **GUI (M6, weit fortgeschritten):** freies Layout mit Boxen + Einrasten, Text mehrzeilig mit
+  pt-Größe/Ausrichtung/Systemschrift/fett/kursiv, QR/Barcode/Bild, Bandfarben-Vorschau
+  (automatisch aus Status), glatte 4×-Vorschau oder Druckraster, Mehrband 1×–4×, CSV-Serien,
+  Kettendruck („Fortlaufend“), Fortschritt beim Drucken. Details: ADR-014/016/017/018.
+- **M7 teilweise vorgezogen:** CSV-Serien und Kettendruck fertig (Kettendruck hardware-offen);
+  Kabelfahne/-wickel, Patchpanel, Nummernfolgen `{n:03}` fehlen.
+- **M5 code-vollständig:** Symbolbibliothek (10 Material-Symbols-Icons, Apache-2.0, ADR-019)
+  parallel auf `main` entstanden und beim Merge übernommen, auch als Label-Element im Editor
+  nutzbar (`type: symbol`). **Offen:** Abgleich mit der Nutzerwahl in dieser Session — Tabler
+  Icons (MIT) + selbst gezeichnete Warnzeichen im Stil DIN EN ISO 7010 (ergänzen oder ersetzen?).
+- **Wichtigster Hardware-Befund zuletzt:** Vorschnitt per Leerseite ergab 3 Schnitte → entfernt;
+  der Drucker schneidet bei Auto-Cut den Vorlauf vermutlich selbst (Bestätigung offen).
+- **Offen/ungetestet am Gerät:** Kettendruck, Mehrband-Streifen, Farberkennung anderer Bänder,
+  USB, Bildimport/Rahmen/EAN usw. — siehe „Hardware-Tests offen“.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -33,22 +37,43 @@
 - [ ] **M4 – Native Bluetooth/USB:** WinRT-RFCOMM inkl. Kopplung, BlueZ, USB (`nusb`)
   **Teilstand:** WinRT-RFCOMM-Connect (ohne programmatisches Pairing) fertig, **hardware-verifiziert
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
-  App, BlueZ (Linux), USB fehlen noch.
+  App, BlueZ (Linux) fehlen noch. **USB-Transport (`nusb`, ADR-013) fertig** (Code + Unit-Tests
+  grün, CLI `--usb`), noch nicht gegen echten Drucker getestet.
 - [x] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
   Echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt + gescannt). 6
   Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010, `ll_render::Symbology`,
   CLI `--barcode-type`) — Code128 gedruckt (Scan-Lesbarkeit offen), Rest nur PNG-Vorschau.
   Bildimport inkl. SVG (PNG/JPEG/BMP/SVG, Floyd-Steinberg-Dithering, `--invert`, ADR-011/012)
   und Rahmen (`ll_render::frame::draw_border`, `--frame`) fertig, noch nicht auf Band gedruckt.
-  Symbolbibliothek (10 Material-Symbols-Icons, Apache-2.0, `ll_render::symbols`, ADR-013, CLI
+  Symbolbibliothek (10 Material-Symbols-Icons, Apache-2.0, `ll_render::symbols`, ADR-019, CLI
   `--symbol <name>` + `labellab symbols`-Listenbefehl) neu, ebenfalls nur PNG-Vorschau. Alle
   fünf Inhaltsarten (`text`/`--qr`/`--barcode`/`--image`/`--symbol`) teilen sich dieselbe
-  `ContentArgs`/`Content`-CLI-Struktur und dieselbe `ll-core::print::send_bitmap()`-
-  Protokoll-Sequenz samt optionalem Rahmenzeichnen (`print_text`/`print_qr`/`print_barcode`/
-  `print_image`/`print_symbol`). **M5 ist damit code-seitig vollständig** — offene
+  `ContentArgs`-CLI-Struktur und denselben Druckpfad (`ll-core::print::print_labels`;
+  `print_text`/`print_qr`/`print_barcode`/`print_image`/`print_symbol`). **M5 ist damit code-seitig vollständig** — offene
   Hardware-Tests siehe unten, kein offener Code-Teil mehr.
+  Seit dem Merge (2026-10-01) außerdem: Box-Rendering (`ll_render::boxed`, inkl.
+  `symbol_in_box`), Systemschriften (`ll_render::fonts`), Symbole als `.llabel`-Element.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
+  **Teilstand (2026-10-01):** `ll_core::label` (Elemente nacheinander entlang des Bandes,
+  Abstand/Rand/Mindestlänge/Rahmen, `.llabel`-JSON v1, `render_label` = einziger Renderpfad für
+  Vorschau, Druck, CLI `--template`). App `app/` (Tauri 2, Vite + TypeScript, eigener Workspace,
+  CI-Job `app`): Geräteliste (USB/BT/seriell), „Status lesen“ setzt die Bandbreite, Modell-/
+  Bandwahl, Elementkarten (Text/QR/Barcode/Bild) mit Verschieben/Entfernen, Live-Vorschau mit
+  Zoom (automatisch an die Bandhöhe angepasst) und Fehleranzeige, Rückgängig/Wiederholen
+  (Strg+Z/Y), Öffnen/Speichern (Strg+O/S), Drucken mit Kopien/Schnitt/Nachlauf (Strg+P),
+  i18n de/en. **Neu (ADR-016):** freies Layout mit Boxen (Ziehen, Skalieren, Einrasten mit
+  Hilfslinien, Pfeiltasten, X/Y/B/H-Felder, Duplizieren), Text mehrzeilig mit Größe in pt oder
+  auto und Ausrichtung, `.llabel` v2. Nutzer hat aus der Windows-GUI gedruckt („Gedruckt.“),
+  aber die Vorschau war dort leer → behoben (Base64-Vorschau), **noch nicht erneut unter
+  Windows bestätigt** (inzwischen bestätigt). Seitdem: Schriftwahl + fett/kursiv, CSV-Serien,
+  Bandfarben, glatte Vorschau, Mehrband (ADR-017/018). **Fehlt:** Symbol-Auswahl in der GUI,
+  Rotation, Warnung bei überlaufendem Text, zuletzt verwendete Labels, verständliche
+  Fehlertexte für Statusbits.
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
+  **Teilstand:** CSV-Serien (`ll_core::series`, `{{Spalte}}`/`{{#}}`, Bereich, GUI + CLI
+  `--csv/--rows`, ADR-017) und Kettendruck (`PrintOptions::chain`, `--chain`, ADR-018) fertig.
+  Mehrband-Labels (ADR-018) zusätzlich. Fehlen: Kabelfahne, Kabelwickel, Patchpanel/Port-Raster,
+  Nummernfolgen mit Format (`{n:03}`, Buchstabenfolgen), Vorschau aller Datensätze.
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
 
 ## In Arbeit
@@ -71,10 +96,20 @@
    keine auf echtem Band gedruckt.
 3a. **Hardware-Test SVG:** `labellab print --image icon.svg --bt` — bisher nur PNG-Vorschau
     (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
-4. **Hardware-Test Symbolbibliothek:** `labellab print --symbol warning --bt` (Liste:
-   `labellab symbols`) — bisher nur PNG-Vorschau (4 Symbole stichprobenartig geprüft).
-5. M5 ist code-seitig fertig — als Nächstes M4-Rest (programmatisches Pairing, BlueZ/Linux,
-   USB `nusb`) oder M6 (Tauri-GUI) angehen, je nach Priorität.
+4. Symbole: Material Symbols (ADR-019) ist im Code; mit Nutzer klären, ob Tabler Icons (MIT) +
+   eigene Warnzeichen im Stil DIN EN ISO 7010 ergänzt werden. GUI-Auswahl für das Element
+   `{"type": "symbol", "name": ...}` fehlt noch (Backend/Renderer fertig). Hardware-Test:
+   `labellab print --symbol warning --bt` (Liste: `labellab symbols`).
+4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64-portable“ des
+    Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
+    Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
+4b. GUI-Ausbau: verständliche (deutsche) Fehlertexte für Druckerfehler/Timeouts, zuletzt
+    verwendete Labels, Rotation, Warnung bei überlaufendem Text, Kettendruck für Serien (M7).
+5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
+   `labellab status --usb`, dann `labellab print "TEST" --usb`. Unter Windows wird das Öffnen
+   vermutlich scheitern, solange `usbprint.sys`/Brother-Treiber gebunden ist (WinUSB per Zadig
+   nötig, ADR-013); unter Linux udev-Regel aus `docs/PROTOCOL.md`.
+5a. M4-Rest (programmatisches Pairing, BlueZ/Linux) — wann immer eingeschoben.
 6. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
 7. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
@@ -119,6 +154,21 @@
   Inhaltsende (keine Lücke zum Schnitt). Ursache gefunden: `margin(0)` war fest einprogrammiert.
   Jetzt `PrintOptions::margin_dots` konfigurierbar (CLI `--margin`, Default 28 Druckpunkte statt
   0, TODO(verify) ob 28 ausreicht). Noch nicht erneut gegen echten Drucker getestet.
+- [ ] M4: USB-Transport gegen echten Drucker testen (`labellab status --usb`, `print --usb`):
+  Endpunkt-Erkennung (Druckerklasse `0x07`, Bulk IN/OUT), Windows mit WinUSB vs.
+  `usbprint.sys`, Linux mit udev-Regel und `usblp`-Detach.
+- [x] ~~Vorschnitt per Leerseite~~ – Hardware-Test 2026-10-01: 3 Schnitte statt einem →
+  entfernt. Offen: Bestätigen, dass mit nur „Abschneiden“ genau ein Schnitt vorn (Vorlauf,
+  vom Drucker selbst) und einer hinten entsteht.
+- [x] ~~Serien über dieselbe BT-Verbindung (je eigener Auftrag)~~ – Hardware 2026-10-01:
+  „2 Label gedruckt“ aus der GUI (Nutzer-Screenshot).
+- [x] ~~Bluetooth-Liste zeigt Gerätenamen~~ – Hardware 2026-10-01: „PT-P710BT5265 (Bluetooth) –
+  PT-P710BT“ (Nutzer-Screenshot).
+- [ ] Kettendruck („Fortlaufend“ / `--chain`): mehrseitiger Auftrag (`0C`/`1A`) — druckt der
+  P710BT alle Labels ohne Schnitt, und schneidet „Abschneiden“ nur am Ende?
+- [ ] Mehrband (2×/3×): Streifen in richtiger Reihenfolge/Lage, Überlappung ≈ 2,1 mm (12 mm)
+  passt beim Aufkleben?
+- [ ] Bandfarben-Erkennung jenseits von Weiß/Schwarz (z. B. Gelb `06`, Transparent `03`).
 - [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
   bisher nur PNG-Vorschau.
 - [ ] M5: Symbolbibliothek (`labellab print --symbol <name> --bt`, Namen via `labellab
@@ -160,6 +210,117 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, Merge nach `main`
+- Branch `claude/modest-euler-hx5zk9` mit `main` zusammengeführt; dort war parallel die
+  Symbolbibliothek (Material Symbols) entstanden. Konflikte gelöst: deren ADR-013 → ADR-019
+  (013 = `nusb`), `print_symbol` und CLI `--symbol` auf den neuen Label-/Druckpfad umgestellt,
+  `Element::Symbol` + `boxed::symbol_in_box` ergänzt (Symbole in Vorlagen/Serien nutzbar).
+  106 Tests grün.
+
+### 2026-10-01 – Claude Code, Mehrband, Kettendruck, Bandfarben, glatte Vorschau (ADR-018)
+- Nutzer-Screenshot: BT-Name „PT-P710BT5265“ wird angezeigt, Serie mit 2 Labels gedruckt.
+  Hardware-Befund: Vorschnitt per Leerseite → 3 Schnitte → entfernt.
+- Raster Command Reference (PT-E550W/P750W/P710BT v1.02) gelesen (nur lokal, nicht im Repo):
+  Farbtabellen Statusbyte 24/25, Mehrseiten-Aufbau, `ESC i A` beim P710BT nicht unterstützt,
+  Half-Cut nicht verwendet → `docs/PROTOCOL.md`.
+- `ll-protocol::media` (Farbcodes), `command::print_page()` (`0C`). `ll-render`:
+  `render_barcode_with_module`, `png::to_png_mask`. `ll-core::label`: `Canvas`, `strips`,
+  `render_label_pages`, `render_label_preview(scale)`. `ll-core::print`: `print_labels` mit
+  `chain` + Fortschritt, `send_page` (erste/letzte Seite), `pre_cut` entfernt.
+- CLI `--chain` statt `--pre-cut`. App: Bandfarben-Auswahl (32 Kombinationen, Auto aus Status),
+  Vorschau „Glatt“ (4×) / „Druckraster“, Mehrband 1×–4× mit Streifenlinien, Einrasten an
+  Streifengrenzen, Überlappungs-Hinweis, Checkboxen „Abschneiden“ + „Fortlaufend“.
+- Geprüft: 102 Tests grün, fmt/clippy grün (auch Windows-Cross-Check), App unter Xvfb: glatte
+  Vorschau, Weiß auf Schwarz, 2× Mehrband, Box über beide Streifen gezogen.
+
+### 2026-10-01 – Claude Code, Schriften, CSV-Serien, Schnittoptionen, Gerätenamen (ADR-017)
+- Nutzer-Feedback (Screenshot): Vorschau unter Windows jetzt ok, Druck klappt. Neue Wünsche
+  umgesetzt: Systemschriften + fett/kursiv (`ll_render::fonts`, fontdb, synthetischer
+  Ersatz), Bluetooth-Gerätename statt „SPP SERVER“ + Drucker-Erkennung + Auto-Status nach
+  „Suchen“, Checkboxen Vor-/Nachschnitt (`PrintOptions::pre_cut`), CSV-Serien
+  (`ll_core::series`, `{{Spalte}}`/`{{#}}`, Bereich), Druckknopf „Wird gedruckt … n/m“ gesperrt.
+- CLI: `print --csv --rows 1-10 --pre-cut`, `render --csv --row N`, `devices` zeigt Modell und
+  Namen, `--bt --device <Name>`.
+- Geprüft: 98 Workspace-Tests grün, fmt/clippy (Linux + Windows-Cross-Check) grün, App unter
+  Xvfb: Schriftzeile, Fett, CSV laden, Spalten-Chips einfügen, Vorschau mit Datensatz,
+  Druckknopf-Zustand (Fehlerfall). Windows-`.exe` neu gebaut. **Nicht** hardware-getestet:
+  Vorschnitt, Serien über BT, Gerätenamen.
+- **Stolperstein:** Fokus nach Chip-Klick scrollte das Seitenpanel → `preventScroll`.
+
+### 2026-10-01 – Claude Code, M6 (Teil) – freies Layout, Schriftgrößen, mehrzeiliger Text
+- Nutzer-Feedback (Screenshot Windows-GUI): Vorschau leer, Druck klappte; Wunsch nach frei
+  positionierbaren Boxen, Schriftgrößen, mehrzeiligem Text und bündigem Aneinanderlegen.
+- `ll-render::boxed` (neu): `text_in_box`/`text_natural_width`/`qr_in_box`/`barcode_in_box`/
+  `image_in_box`, `TextAlign`; `Bitmap::blit`; `picture::load_gray` und
+  `linear_barcode::encode_modules` zur Wiederverwendung herausgelöst. `ll-protocol`:
+  `dots_to_mm`, `pt_to_dots`.
+- `ll-core::label`: `Item`/`Rect`, `Element::Text { size_pt, align }`, `Element::text()`,
+  `resolved_rects()`, Format v2 (v1 lesbar). Fluss-Layout unverändert für Elemente ohne Box.
+- App: `resolve_rects`-Befehl, `models()` liefert `tapes[{width_mm, printable_mm}]`, Vorschau
+  als Base64 (Windows-Fix). Editor neu (`main.ts`, `snap.ts`), siehe ADR-016.
+- Geprüft: 86 Workspace-Tests grün (u. a. Box-Position, Abschneiden außerhalb des Bands,
+  Fluss→Box ohne optische Änderung, Auto-Größe ohne Umbruch/Abschneiden), fmt/clippy grün,
+  `snap.ts` per Node geprüft, App unter Xvfb: Hinzufügen, Ziehen, Einrasten (Hilfslinien),
+  mehrzeiliger 9-pt-Text links. CLI rendert v2-Vorlage mit Boxen korrekt.
+- Nutzerwunsch: nur portable `.exe`, kein Installer → NSIS/MSI entfernt (ADR-015-Nachtrag),
+  CLI-CRT statisch über `static_vcruntime` statt `.cargo/config.toml` (die brach den
+  Tauri-Link). Portable ZIP neu gebaut und geschickt; Windows-CLI unter Wine geprüft.
+- **Stolpersteine:** (1) fontdue bricht anders um als eine reine Glyphen-Messung → Auto-Größe
+  prüft jetzt mit identischen Layout-Einstellungen, dass kein Zusatzumbruch entsteht.
+  (2) Box-DOM während des Ziehens neu aufzubauen verliert die Pointer-Capture → bei
+  Vorschau-Updates nur noch neu positionieren.
+
+### 2026-10-01 – Claude Code, Windows-`.exe`
+- Nutzerwunsch: vollständig lauffähige `.exe` für Windows. Workflow
+  `.github/workflows/windows-build.yml` (ADR-015) baut GUI-`.exe`, NSIS-Setup, MSI und CLI-`.exe`
+  als Artefakt; Tags `v*` → Release. README-Abschnitt „Windows: herunterladen und starten“.
+- Lokal per `cargo-xwin` cross-gebaut und dem Nutzer geschickt (portable ZIP mit `LabelLab.exe`
+  + `labellab.exe` + `LIESMICH.txt`, dazu `LabelLab_0.1.0_x64-setup.exe`).
+- Geprüft: Importtabellen (`llvm-objdump -p`) — beide `.exe` brauchen nur Windows-System-DLLs
+  (UCRT/WinRT/WinUSB), kein `VCRUNTIME140.dll` (CLI erst nach `+crt-static`). CLI unter Wine
+  ausgeführt: `--help`, QR- und Vorlagen-Render (`.llabel` mit QR+Text+Rahmen) korrekt. GUI-`.exe`
+  **nicht** unter Wine/Windows gestartet (WebView2 unter Wine nicht praktikabel) → Nutzer-Test
+  offen.
+- Erster Lauf des Workflows auf GitHub noch nicht beobachtet.
+
+### 2026-10-01 – Claude Code, M6 (Teil) – Layoutmodell, `.llabel`, Tauri-GUI
+- `ll-core::label` (neu): `Label`/`Element` (serde, `"type"`-Tag), `render_label()`,
+  `render_label_png()`, `geometry_for()`, `Label::load/save` (relative Bildpfade relativ zur
+  Datei). `print::print_label()`; `print_text/qr/barcode/image` sind jetzt Hüllen darum (gleiche
+  Ausgabe, Golden-Tests unverändert grün; `print_qr` ohne EC-Parameter, immer „Medium“).
+- `ll-protocol::model`: `DOTS_PER_INCH` (180) + `mm_to_dots()`. `ll-render::Bitmap`:
+  `pixel/extend_blank/prepend_blank/append`; `Symbology` serde-fähig (`"ean13"`, `"upc_a"` …).
+- `ll-core::device::Connection` + `connect()`/`query_status_on()` ersetzen die
+  `query_status_over_*`-Funktionen; CLI nutzt das (`ConnectOpts::into_connection`).
+  Windows-Build per `cargo clippy --target x86_64-pc-windows-gnu` geprüft.
+- CLI: `--template <datei.llabel>` auf `print` und `render` (vorher „noch nicht implementiert“).
+- `app/`: Tauri-2-App (siehe Meilenstein M6), eigenes Icon (`app/app-icon.svg`, Bandstreifen,
+  keine Marken), CI-Job `app` (npm build + fmt/clippy im eigenen Workspace).
+- Geprüft: 72 Workspace-Tests grün, fmt/clippy grün (auch App); App unter Xvfb gestartet,
+  Screenshots: Vorschau, Elemente hinzufügen/verschieben, Barcode-Fehleranzeige, deutsche UI.
+- **Stolpersteine:** WebKitGTK meldet `navigator.language` = Englisch → Default jetzt fest
+  Deutsch (Nutzerwahl wird gespeichert). `pkill -f` mit Muster aus der eigenen Kommandozeile
+  beendet die eigene Shell — `pkill -x` verwenden.
+
+### 2026-10-01 – Claude Code, M4 (Teil) – USB-Transport
+- `ll-transport::usb` (neu, `nusb` 0.2 mit `tokio`-Feature, ADR-013): `list_devices()`,
+  `find_printer_endpoints()` (Druckerklasse `0x07`, Bulk OUT + IN aus der aktiven
+  Konfiguration), `UsbTransport::open(vid, pid, serial)` mit `detach_and_claim_interface`,
+  `read_exact_timeout` über `tokio::time::timeout`. 3 Unit-Tests mit handgebauten
+  Konfigurationsdeskriptoren. `TransportError::DeviceNotFound`-Text generalisiert (nicht mehr
+  nur Bluetooth).
+- `ll-core::device`: `UsbPrinter`, `filter_usb_printers()` (VID/PID gegen
+  `ll_protocol::model::MODELS`), `select_usb_printer()` (Modellname / `VVVV:PPPP` /
+  Seriennummer / erster), `open_usb()`, `query_status_over_usb()`. 2 Unit-Tests.
+- `ll-cli`: `--usb` auf `status` und `print` (`--device` dann optional, schließt `--bt` aus),
+  `devices` listet USB-Drucker (auch in `--json`). USB-Aufzählungsfehler (z. B. kein
+  `/sys/bus/usb` im Container) brechen `devices` nicht mehr ab, nur Warnung.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (64 Unit-Tests, vorher 59).
+- **Stolperstein:** Unter Windows kann `nusb` nur WinUSB-gebundene Interfaces öffnen —
+  mit dem Standard-Druckertreiber wird `--usb` vermutlich scheitern (Hardware-Test offen).
+- Nutzerentscheidung Symbolbibliothek: **Tabler Icons (MIT)** für Elektro/IT, dazu eigene,
+  selbst gezeichnete Warnzeichen-Rahmen im Stil DIN EN ISO 7010 (offizielle ISO-Grafiken nicht
+  übernommen, Urheberrecht).
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 fertig – Symbolbibliothek
 - Nutzer wollte Material Symbols **und** eigene SVGs nutzen können — eigene SVGs liefen schon
   über `--image icon.svg` (SVG-Import, siehe vorheriger Eintrag). Für die Bibliothek: keine
@@ -169,7 +330,7 @@
 - 10 Icons kuratiert und nach `crates/ll-render/assets/symbols/*.svg` kopiert (Attribution in
   `assets/symbols/NOTICE.md`): `network`, `wifi`, `power`, `warning`, `arrow-up/-down/-left/
   -right`, `fire`, `fire-extinguisher`. Kein elektrisches Erdungssymbol — Material Symbols ist
-  ein allgemeines UI-Set, kein Satz elektrotechnischer Schaltzeichen (ADR-013).
+  ein allgemeines UI-Set, kein Satz elektrotechnischer Schaltzeichen (ADR-019).
 - `ll-render::symbols`: Makro bettet die SVGs per `include_bytes!` ein (`SYMBOL_NAMES`,
   `symbol_svg()`, `render_symbol()`). `ll-render::picture` dafür refaktoriert:
   `render_svg_to_gray()` nimmt jetzt Bytes statt eines Pfads, neue öffentliche

@@ -3,7 +3,22 @@
 Schnelle, schlanke Label-Software in Rust für Brother-Labeldrucker der PT-P7xx-Serie (primär **PT-P710BT**).
 Druckt direkt über **Bluetooth** oder **USB**, ohne Brother-Druckertreiber, unter **Windows und Linux**.
 
-> Status: M1 (Grundgerüst) abgeschlossen. Die Umsetzung folgt dem [Master-Prompt](docs/MASTER_PROMPT.md).
+> Status: in Entwicklung (Vorabversion 0.1). Druck per Bluetooth funktioniert, erste Oberfläche
+> mit Editor und Live-Vorschau vorhanden. Details: [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
+## Windows: herunterladen und starten
+Jeder Push baut automatisch die portable Windows-Version (GitHub → **Actions** → „Windows build“
+→ Lauf öffnen → **Artifacts** → `LabelLab-windows-x64-portable`). Keine Installation nötig:
+
+| Datei | Zweck |
+|---|---|
+| `LabelLab.exe` | Oberfläche, Doppelklick genügt |
+| `labellab.exe` | Kommandozeile (`labellab devices`, `labellab print …`) |
+
+Voraussetzungen: Windows 10/11 (64 Bit) mit WebView2-Laufzeit (bei Windows 11 und aktuellem
+Windows 10 vorinstalliert). Den Drucker vorher in den Windows-Bluetooth-Einstellungen koppeln.
+Die Dateien sind nicht signiert; Windows SmartScreen kann beim ersten Start warnen
+(„Weitere Informationen“ → „Trotzdem ausführen“).
 
 ## Geplante Funktionen (v1.0)
 - Direktdruck per Bluetooth (Windows: native RFCOMM inkl. Kopplung, ohne virtuelle COM-Ports; Linux: BlueZ) und USB
@@ -25,6 +40,8 @@ Druckt direkt über **Bluetooth** oder **USB**, ohne Brother-Druckertreiber, unt
 cargo build --workspace
 cargo test --workspace
 cargo run -p ll-cli -- devices
+cd app && npm install && npm run tauri dev   # Oberfläche
+cd app && npx tauri build                    # portable LabelLab(.exe) für das eigene System
 ```
 
 ## Werkzeuge

@@ -1,0 +1,39 @@
+LabelLab (Vorabversion) - Windows x64, portabel
+===============================================
+
+LabelLab.exe   Oberflaeche. Doppelklick genuegt, keine Installation noetig.
+labellab.exe   Kommandozeile, z. B. in PowerShell:
+                 .\labellab.exe devices
+                 .\labellab.exe status --bt --device "PT-P710BT5265"
+                 .\labellab.exe print "TEST" --bt --device "PT-P710BT5265"
+                 .\labellab.exe print --template vorlage.llabel --csv daten.csv --rows 1-10 --bt --device "PT-P710BT5265"
+
+Editor
+- Elemente (Text, QR-Code, Barcode, Bild) sind Boxen: ziehen zum Verschieben,
+  Kante/Ecke zum Skalieren. Boxen rasten an Bandkanten und anderen Boxen ein
+  (Alt gedrueckt halten: ohne Einrasten). Pfeiltasten: 0,5 mm, mit Umschalt 5 mm.
+- Text: mehrzeilig, Groesse in pt (leer = automatisch), Ausrichtung,
+  Schriftart, F = fett, K = kursiv.
+- Serien: "CSV laden ...", dann Spalten anklicken, um {{Spalte}} einzufuegen
+  ({{#}} = laufende Nummer). Vorschau-Datensatz waehlbar, Druck aller
+  Datensaetze oder von/bis. CSV mit ; oder , getrennt (Excel-Export geht).
+- Drucken: "Abschneiden" und "Fortlaufend" (alle Labels ohne Schnitt
+  dazwischen, mit "Abschneiden" nur ein Schnitt am Ende).
+- Mehrband: Label ueber 2x/3x/4x Band; jeder Streifen wird einzeln gedruckt
+  und ueberlappend aufgeklebt.
+- Vorschau: Band-/Schriftfarbe waehlbar (wird beim Status lesen erkannt),
+  "Glatt" oder exaktes "Druckraster".
+- "Suchen" findet gekoppelte Drucker (z. B. PT-P710BT5265), waehlt sie aus
+  und liest das eingelegte Band.
+
+Voraussetzungen
+- Windows 10/11, 64 Bit, mit WebView2-Laufzeit (bei Windows 11 und
+  aktuellem Windows 10 vorinstalliert).
+- Drucker vorher in Windows koppeln (Einstellungen > Bluetooth und Geraete).
+- Nur eine Bluetooth-Verbindung gleichzeitig: Handy-App vorher trennen.
+
+Hinweis: Die Dateien sind nicht signiert. Warnt Windows SmartScreen beim
+ersten Start: "Weitere Informationen" > "Trotzdem ausfuehren".
+
+Unabhaengiges Projekt, nicht mit Brother Industries, Ltd. verbunden.
+Lizenz: MIT

@@ -38,7 +38,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo test --workspace -F hw-tests -- --device COM9   # nur mit echtem Drucker
 cd app && npm install && npm run tauri dev            # GUI
+cd app && npm run build                               # GUI-Frontend: Typecheck + Build
+cd app/src-tauri && cargo clippy --all-targets -- -D warnings   # GUI-Backend (eigener Workspace)
 ```
+Linux braucht für die GUI WebKitGTK: `libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+libayatana-appindicator3-dev libxdo-dev` (siehe CI-Job `app`).
 Ein Task gilt erst als fertig, wenn fmt, clippy und Tests grün sind.
 
 ## Code-Regeln

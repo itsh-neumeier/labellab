@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LabelLab</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <button id="btn-new" data-i18n="toolbar.new"></button>
+      <button id="btn-open" data-i18n="toolbar.open"></button>
+      <button id="btn-save" data-i18n="toolbar.save"></button>
+      <span class="sep"></span>
+      <button id="btn-undo" data-i18n="toolbar.undo" data-i18n-title="toolbar.undoHint"></button>
+      <button id="btn-redo" data-i18n="toolbar.redo" data-i18n-title="toolbar.redoHint"></button>
+      <span class="spacer"></span>
+      <span id="file-name" class="muted"></span>
+      <select id="lang" aria-label="Sprache / Language">
+        <option value="de">Deutsch</option>
+        <option value="en">English</option>
+      </select>
+    </header>
+
+    <section class="devicebar">
+      <label><span data-i18n="device.printer"></span>
+        <select id="device"></select>
+      </label>
+      <button id="btn-refresh" data-i18n="device.refresh"></button>
+      <button id="btn-status" data-i18n="device.readStatus"></button>
+      <span id="status" class="status"></span>
+      <span class="spacer"></span>
+      <label><span data-i18n="device.model"></span>
+        <select id="model"></select>
+      </label>
+      <label><span data-i18n="device.tape"></span>
+        <select id="width"></select>
+      </label>
+      <label data-i18n-title="device.stripsHint"><span data-i18n="device.strips"></span>
+        <select id="strips">
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+    </section>
+
+    <main>
+      <aside class="panel">
+        <h2 data-i18n="elements.title"></h2>
+        <ol id="elements" class="elements"></ol>
+        <div class="add">
+          <span data-i18n="elements.add"></span>
+          <button data-add="text" data-i18n="elements.text"></button>
+          <button data-add="qr" data-i18n="elements.qr"></button>
+          <button data-add="barcode" data-i18n="elements.barcode"></button>
+          <button data-add="image" data-i18n="elements.image"></button>
+        </div>
+
+        <h2 data-i18n="layout.title"></h2>
+        <div class="grid">
+          <label for="padding" data-i18n="layout.padding"></label>
+          <input id="padding" type="number" min="0" step="0.5" />
+          <label for="min-length" data-i18n="layout.minLength"></label>
+          <input id="min-length" type="number" min="0" step="1" data-i18n-placeholder="layout.auto" />
+          <label for="frame" data-i18n="layout.frame"></label>
+          <input id="frame" type="checkbox" />
+        </div>
+
+        <h2 data-i18n="data.title"></h2>
+        <div class="data">
+          <div class="row">
+            <button id="btn-csv" data-i18n="data.load"></button>
+            <span id="csv-name" class="muted filename" data-i18n="data.none"></span>
+            <button id="btn-csv-clear" data-i18n-title="data.clear" hidden>✕</button>
+          </div>
+          <div id="csv-details" hidden>
+            <p class="muted hint" data-i18n="data.columnsHint"></p>
+            <div id="csv-columns" class="chips"></div>
+            <div class="grid">
+              <label for="preview-row" data-i18n="data.previewRow"></label>
+              <input id="preview-row" type="number" min="1" value="1" />
+            </div>
+            <div class="rows">
+              <label><input type="radio" name="rows" value="all" checked /> <span data-i18n="data.all"></span></label>
+              <label><input type="radio" name="rows" value="range" /> <span data-i18n="data.from"></span></label>
+              <input id="row-from" type="number" min="1" value="1" />
+              <span data-i18n="data.to"></span>
+              <input id="row-to" type="number" min="1" value="1" />
+            </div>
+            <p id="csv-summary" class="muted hint"></p>
+          </div>
+        </div>
+      </aside>
+
+      <section class="canvas">
+        <div class="zoom">
+          <label><span data-i18n="preview.zoom"></span>
+            <input id="zoom" type="range" min="1" max="10" step="1" value="4" />
+          </label>
+          <span id="dims" class="muted"></span>
+          <label><span data-i18n="preview.tapeStyle"></span>
+            <select id="tape-style"></select>
+          </label>
+          <label><span data-i18n="preview.quality"></span>
+            <select id="quality">
+              <option value="4" data-i18n="preview.smooth"></option>
+              <option value="1" data-i18n="preview.raster"></option>
+            </select>
+          </label>
+          <span class="spacer"></span>
+          <span class="muted" data-i18n="preview.hint"></span>
+        </div>
+        <div class="tape-wrap" id="tape-wrap">
+          <div class="stage" id="stage">
+            <img id="preview" alt="" draggable="false" hidden />
+            <div id="ink" class="ink"></div>
+            <div id="strip-lines" class="strip-lines"></div>
+            <div id="boxes" class="boxes"></div>
+          </div>
+          <p id="preview-msg" class="preview-msg"></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="printbar">
+      <label><span data-i18n="print.copies"></span>
+        <input id="copies" type="number" min="1" value="1" />
+      </label>
+      <label><input id="cut" type="checkbox" checked /> <span data-i18n="print.cut"></span></label>
+      <label data-i18n-title="print.chainHint"><input id="chain" type="checkbox" /> <span data-i18n="print.chain"></span></label>
+      <label><span data-i18n="print.margin"></span>
+        <input id="margin" type="number" min="0" />
+      </label>
+      <span id="message" class="message"></span>
+      <span class="spacer"></span>
+      <button id="btn-print" class="primary" data-i18n="print.print"></button>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

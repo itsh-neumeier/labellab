@@ -26,6 +26,35 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Scan-Lesbarkeit noch nicht verifiziert
 - M5 (Teil): Bildimport (PNG/JPEG/BMP) mit Floyd-Steinberg-Dithering — `labellab print --image
   <datei> [--invert]` und `labellab render --image <datei> -o vorschau.png`
+- M4 (Teil): USB-Transport (`nusb`) für Windows und Linux — `labellab devices` listet
+  angeschlossene USB-Drucker, `labellab status --usb` und `labellab print ... --usb
+  [--device <Modell|VVVV:PPPP|Seriennummer>]`; noch nicht hardware-getestet
+- M6 (Teil): Vorlagenformat `.llabel` (JSON) mit mehreren Elementen pro Label (Text, QR,
+  Barcode, Bild), Abstand, Rand, Mindestlänge und Rahmen — `labellab print/render --template
+  <datei.llabel>`
+- M6 (Teil): erste Desktop-Oberfläche (Tauri 2) mit Editor, Live-Vorschau, Geräteauswahl,
+  Bandstatus, Drucken, Öffnen/Speichern, Rückgängig/Wiederholen, Deutsch/Englisch
+- Editor: Elemente frei als Boxen platzieren und skalieren (Maus, Pfeiltasten, X/Y/Breite/Höhe),
+  Einrasten an Bandkanten und anderen Boxen zum bündigen Aneinanderlegen, Duplizieren
+- Text: Schriftgröße in pt oder automatisch, mehrzeilig, Ausrichtung links/Mitte/rechts
+- Schriftarten aus den installierten Systemschriften, fett und kursiv (fehlende Schnitte werden
+  nachgebildet)
+- Serien aus CSV: Platzhalter `{{Spalte}}` und `{{#}}`, Vorschau je Datensatz, Druck aller oder
+  eines Bereichs (GUI und `labellab print --csv … --rows 1-10`)
+- Mehrband-Labels: Label über 2×, 3× oder 4× Band übereinander gestalten, gedruckt als ein
+  Streifen pro Band
+- Fortlaufender Druck („Fortlaufend“, `--chain`): Serien, Kopien und Streifen in einem Auftrag
+  ohne Schnitt dazwischen, optional ein Schnitt am Ende
+- Vorschau in allen gängigen Band-/Schriftfarben (schwarz auf weiß/gelb/transparent, weiß auf
+  schwarz, rot/blau/gold …), nach „Status lesen“ automatisch passend zum eingelegten Band
+- Glatte, hochauflösende Vorschau (umschaltbar auf das exakte Druckraster)
+- Gerätesuche zeigt den Bluetooth-Gerätenamen statt „SPP SERVER“, erkennt den Drucker, wählt ihn
+  aus und liest den Bandstatus automatisch
+- Druckknopf zeigt „Wird gedruckt … n/m“ und ist während der Übertragung gesperrt
+- Symbole aus der mitgelieferten Bibliothek auch in Vorlagen und Serien (`{"type": "symbol"}`)
+- Vorlagenformat `.llabel` Version 2 (Boxen, Textgröße/-ausrichtung); Version 1 wird weiter gelesen
+- Windows: portable `LabelLab.exe` (ohne Installation startbar) und `labellab.exe` werden bei
+  jedem Push automatisch gebaut (GitHub Actions, Artefakt `LabelLab-windows-x64-portable`)
 - M5 (Teil): Rahmen um das ganze Label — `--frame` auf `print` und `render`, gilt für
   Text/QR/Barcode/Bild
 - M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type
@@ -40,6 +69,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt.
 
 ### Behoben
+- Vorschau blieb in der Windows-Oberfläche leer
 - Cutter schnitt direkt am Ende des gedruckten Inhalts ohne Nachlauf (`margin(0)` war fest
   einprogrammiert). `--margin <dots>` auf `print` macht den Leervorschub vor dem Schnitt
   konfigurierbar, Default jetzt 28 statt 0 Druckpunkte. Noch nicht erneut hardware-getestet.

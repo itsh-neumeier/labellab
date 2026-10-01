@@ -23,20 +23,25 @@ pub fn render_image(
     left_offset_pins: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
+    let gray = load_gray(path, printable_pins)?;
+    render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
+}
+
+/// Loads `path` as grayscale: PNG/JPEG/BMP via `image`, SVG (by
+/// extension) rasterized `svg_height_px` tall via `resvg`.
+pub(crate) fn load_gray(path: &Path, svg_height_px: u16) -> Result<GrayImage, RenderError> {
     let is_svg = path
         .extension()
         .and_then(|e| e.to_str())
         .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
 
     if is_svg {
-        let data = std::fs::read(path)?;
-        return render_svg_bytes(&data, head_pins, printable_pins, left_offset_pins, invert);
+        render_svg_to_gray(&std::fs::read(path)?, svg_height_px)
+    } else {
+        Ok(image::open(path)
+            .map_err(|e| RenderError::Image(e.to_string()))?
+            .to_luma8())
     }
-
-    let gray = image::open(path)
-        .map_err(|e| RenderError::Image(e.to_string()))?
-        .to_luma8();
-    render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
 }
 
 /// Renders raw SVG bytes (e.g. a bundled symbol, see [`crate::symbols`])
@@ -55,7 +60,10 @@ pub fn render_svg_bytes(
 /// Rasterizes SVG bytes to a grayscale image `target_height_px` pixels
 /// tall (aspect ratio preserved), white background. `render_gray` handles
 /// any further scaling/dithering, same as raster formats.
-fn render_svg_to_gray(data: &[u8], target_height_px: u16) -> Result<GrayImage, RenderError> {
+pub(crate) fn render_svg_to_gray(
+    data: &[u8],
+    target_height_px: u16,
+) -> Result<GrayImage, RenderError> {
     let tree = usvg::Tree::from_data(data, &usvg::Options::default())
         .map_err(|e| RenderError::Image(e.to_string()))?;
 
@@ -124,7 +132,7 @@ pub fn render_gray(
 
 /// Classic Floyd-Steinberg error diffusion. Returns one `bool` per pixel
 /// (row-major), `true` = ink.
-fn floyd_steinberg_dither(img: &GrayImage, invert: bool) -> Vec<bool> {
+pub(crate) fn floyd_steinberg_dither(img: &GrayImage, invert: bool) -> Vec<bool> {
     let (w, h) = img.dimensions();
     let (w, h) = (w as usize, h as usize);
     let mut errors: Vec<f32> = img.pixels().map(|Luma([v])| *v as f32).collect();
