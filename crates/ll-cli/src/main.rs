@@ -91,7 +91,7 @@ enum Command {
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "symbol"])]
         image: Option<String>,
         /// Mitgeliefertes Symbol statt Text drucken (siehe `labellab symbols`).
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
         symbol: Option<String>,
         /// Bild/Symbol invertieren (nur mit --image/--symbol).
         #[arg(long)]
@@ -155,7 +155,7 @@ enum Command {
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "symbol"])]
         image: Option<String>,
         /// Mitgeliefertes Symbol statt Text rendern (siehe `labellab symbols`).
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
         symbol: Option<String>,
         /// Bild/Symbol invertieren (nur mit --image/--symbol).
         #[arg(long)]
@@ -654,4 +654,18 @@ fn status_to_json(status: &StatusBlock) -> String {
         "text_color": status.text_color(),
     });
     serde_json::to_string_pretty(&value).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::Cli;
+
+    /// Catches inconsistent argument definitions (e.g. an argument that
+    /// conflicts with itself), which clap only reports at runtime.
+    #[test]
+    fn cli_definition_is_consistent() {
+        Cli::command().debug_assert();
+    }
 }
