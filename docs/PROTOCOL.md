@@ -22,9 +22,10 @@
 | Fakt | Wert | Status | Quelle |
 |---|---|---|---|
 | Profil | Classic BT 2.1+EDR, SPP | verifiziert | Hardware-Test 2026-10-01 |
-| SPP-UUID | `00001101-0000-1000-8000-00805F9B34FB` | dokumentiert | Standard-SPP-UUID |
+| SPP-UUID | `00001101-0000-1000-8000-00805F9B34FB` | verifiziert | Hardware-Test 2026-10-01 (natives RFCOMM, PT-P710BT meldet Dienstnamen „SPP SERVER“) |
 | PIN | ggf. `0000` | unverifiziert | Annahme |
-| Statusabfrage über ausgehenden BT-COM-Port | `00×100, 1B 40, 1B 69 53` → 32 Byte, Byte0 `0x80` | verifiziert | Hardware-Test 2026-10-01, COM9 |
+| Statusabfrage über ausgehenden BT-COM-Port (seriell) | `00×100, 1B 40, 1B 69 53` → 32 Byte, Byte0 `0x80` | **widerlegt** | Hardware-Test 2026-10-01: funktionierte einmalig auf einer anderen Maschine (COM9), scheitert auf der Zielmaschine reproduzierbar mit `ERROR_SEM_TIMEOUT`/`ERROR_INVALID_FUNCTION` (sowohl .NET `SerialPort` als auch `tokio-serial`). Serieller BT-SPP-Fallback gilt als unzuverlässig, siehe ADR-007. |
+| Statusabfrage über natives WinRT-RFCOMM (kein virtueller COM-Port) | `00×100, 1B 40, 1B 69 53` → 32 Byte, Byte0 `0x80` | **verifiziert** | Hardware-Test 2026-10-01, PT-P710BT über `labellab status --bt`: 9 mm Band korrekt erkannt, `error1=0, error2=0, media_type=1, tape_color=1, text_color=8` |
 | Eingehende BT-COM-Ports | unbrauchbar für Statusabfrage | verifiziert | Hardware-Test 2026-10-01 |
 | Gleichzeitige BT-Verbindungen | nur eine (z. B. Handy blockiert PC) | verifiziert | Hardware-Test 2026-10-01 |
 
@@ -51,16 +52,18 @@
 | Byte | Bedeutung | Status | Quelle |
 |---|---|---|---|
 | 0 | `0x80` (Druckstatus-Antwort) | verifiziert | Hardware-Test 2026-10-01 |
-| 8 | Fehler 1 | dokumentiert | Raster Command Reference |
-| 9 | Fehler 2 | dokumentiert | Raster Command Reference |
-| 10 | Bandbreite (mm) | verifiziert | Hardware-Test 2026-10-01 (9 mm korrekt erkannt) |
-| 11 | Medientyp | dokumentiert | Raster Command Reference |
-| 18 | Statustyp (0x00 Antwort, 0x01 Druck fertig, 0x02 Fehler, 0x06 Phasenwechsel) | dokumentiert | Raster Command Reference |
-| 19 | Phase | dokumentiert | Raster Command Reference |
-| 24 | Bandfarbe | dokumentiert | Raster Command Reference |
-| 25 | Schriftfarbe | dokumentiert | Raster Command Reference |
+| 8 | Fehler 1 | verifiziert (Feld existiert, Bit-Bedeutung offen) | Hardware-Test 2026-10-01: `0x00` bei fehlerfreiem Status |
+| 9 | Fehler 2 | verifiziert (Feld existiert, Bit-Bedeutung offen) | Hardware-Test 2026-10-01: `0x00` bei fehlerfreiem Status |
+| 10 | Bandbreite (mm) | verifiziert | Hardware-Test 2026-10-01 (9 mm korrekt erkannt, zweimal bestätigt) |
+| 11 | Medientyp | verifiziert (Feld existiert, Code-Bedeutung offen) | Hardware-Test 2026-10-01: `0x01` bei eingelegtem 9-mm-Band |
+| 18 | Statustyp (0x00 Antwort, 0x01 Druck fertig, 0x02 Fehler, 0x06 Phasenwechsel) | verifiziert (0x00) | Hardware-Test 2026-10-01: `0x00`/„Antwort“ bei Statusabfrage ohne Druckauftrag |
+| 19 | Phase | verifiziert (Feld existiert, Sub-Codes offen) | Hardware-Test 2026-10-01: `0x00` im Ruhezustand |
+| 24 | Bandfarbe | verifiziert (Feld existiert, Code-Bedeutung offen) | Hardware-Test 2026-10-01: `0x01` |
+| 25 | Schriftfarbe | verifiziert (Feld existiert, Code-Bedeutung offen) | Hardware-Test 2026-10-01: `0x08` |
 
 - TODO(verify): Status-Byte für Akkustand vorhanden? (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
+- TODO(verify): Code-Bedeutung Medientyp `0x01`, Bandfarbe `0x01`, Schriftfarbe `0x08` (vermutlich
+  laminiert/schwarz auf weiß, gegen Brothers Farbcode-Tabelle prüfen)
 
 ## Kopf & Bandgeometrie
 

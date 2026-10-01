@@ -4,21 +4,23 @@
 > aktualisiert (siehe `AGENTS.md`). Neueste Einträge im Session-Log oben.
 
 ## Aktueller Stand
-- **Phase:** M2 abgeschlossen; M4 (Windows-Teil: natives BT-RFCOMM) vorgezogen und implementiert,
-  weil der serielle BT-SPP-Fallback auf der Zielhardware zuverlässig mit `ERROR_SEM_TIMEOUT`
-  scheitert (siehe unten). Hardware-Test (beide Transportwege) noch offen.
-- **Aktueller Meilenstein:** M4 (Windows-Teil) testen, dann M3 – Erster Druck
+- **Phase:** M2 abgeschlossen. M4-Teilstand (natives Windows-BT-RFCOMM) **hardware-verifiziert**:
+  `labellab status --bt` liest den PT-P710BT-Status (9 mm Band, keine Fehler) über natives
+  RFCOMM, ohne virtuellen COM-Port. Serieller BT-SPP-Fallback aus M2 gilt auf dieser Hardware
+  als unzuverlässig (siehe „Bekannte Fakten“, ADR-007) – native BT ist jetzt der primäre Weg.
+- **Aktueller Meilenstein:** M3 – Erster Druck
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
 - [x] **M1 – Grundgerüst:** Workspace, Crates, CI, `docs/PROTOCOL.md`, `ARCHITECTURE.md`
 - [x] **M2 – Protokoll + Status:** Status-Parser, Befehle, PackBits, Serial-Transport, CLI `devices`/`status`
-  (Code + Unit-Tests grün; Hardware-Test gegen echten PT-P710BT noch offen, siehe unten)
+  (Code + Unit-Tests grün; serieller BT-SPP-Pfad auf Zielhardware unzuverlässig, siehe ADR-007 –
+  native BT, s. M4-Teilstand, ist der verifizierte Weg)
 - [ ] **M3 – Erster Druck:** Textlabel per CLI, Mock-Transport, Golden-Tests
 - [ ] **M4 – Native Bluetooth/USB:** WinRT-RFCOMM inkl. Kopplung, BlueZ, USB (`nusb`)
-  **Teilstand:** WinRT-RFCOMM-Connect (ohne programmatisches Pairing) fertig und einsatzbereit für
-  bereits gekoppelte Geräte, Code + CI grün, Hardware-Test offen. Kopplung aus der App, BlueZ,
-  USB fehlen noch.
+  **Teilstand:** WinRT-RFCOMM-Connect (ohne programmatisches Pairing) fertig, **hardware-verifiziert
+  gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
+  App, BlueZ (Linux), USB fehlen noch.
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
@@ -30,16 +32,13 @@
 | – | – | – | – |
 
 ## Nächste Schritte
-1. **Hardware-Test natives BT (auf dem Gerät mit dem gekoppelten Drucker, nicht hier):**
-   `labellab devices` → Gerät unter „Gekoppelte Bluetooth-Geräte“ finden, dann
-   `labellab status --device <ID> --bt --json` gegen echten PT-P710BT.
-   Falls das klappt: serieller COM-Fallback kann als sekundärer Pfad bleiben, aber native BT
-   wird primärer Weg für M4/GUI.
-2. M3 starten: `PrintInformation`/`various_mode`/Raster-Zeilen zu einem Druckjob verdrahten
-   (Text → `ll-render::Bitmap` → PackBits → `ll-core`), Golden-Tests mit `MockTransport`.
-3. M4 vervollständigen: programmatisches Pairing (WinRT `DeviceInformationPairing`), BlueZ
+1. M3 starten: `PrintInformation`/`various_mode`/Raster-Zeilen zu einem Druckjob verdrahten
+   (Text → `ll-render::Bitmap` → PackBits → `ll-core`), über `BluetoothTransport` drucken,
+   Golden-Tests mit `MockTransport`.
+2. M4 vervollständigen: programmatisches Pairing (WinRT `DeviceInformationPairing`), BlueZ
    (Linux), USB (`nusb`).
-4. `docs/PROTOCOL.md`-Einträge mit Status „dokumentiert“ nach dem Hardware-Test auf „verifiziert“ heben.
+3. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
+   (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
@@ -48,13 +47,12 @@
 - [ ] Status-Byte für Akkustand vorhanden?
 - [ ] Half-Cut am PT-P710BT unterstützt? (vermutlich nein)
 - [ ] Maximale Bluetooth-Durchsatzrate / sinnvolle Blockgröße beim Senden der Rasterdaten
-- [ ] M2: `labellab status --device COM<n>` auf dem Gerät mit dem gekoppelten Drucker testen
-  (auf der Entwicklungsmaschine in dieser Session ist der Drucker nicht angeschlossen, COM9
-  dort ist ein anderer Port und lieferte erwartungsgemäß `ERROR_INVALID_FUNCTION` beim Öffnen –
-  kein Code-Befund, einfach falsches Gerät)
-- [ ] M4: `labellab status --device <ID> --bt` auf dem Gerät mit dem gekoppelten Drucker testen
-  (WinRT-RFCOMM-Connect bisher nur gegen „kein Gerät gefunden“ auf der Entwicklungsmaschine
-  getestet, nicht gegen den echten Drucker)
+- [ ] Medientyp-Code `0x01` (Byte 11), Bandfarbe `0x01` (Byte 24), Schriftfarbe `0x08` (Byte 25)
+  gegen Brothers Farbcode-Tabelle decodieren (vermutlich laminiert/schwarz auf weiß)
+- [x] ~~M2: seriellen BT-SPP-Fallback testen~~ – auf Zielhardware reproduzierbar defekt
+  (`ERROR_SEM_TIMEOUT`), siehe ADR-007. Durch natives BT-RFCOMM ersetzt (nächster Punkt).
+- [x] ~~M4: `labellab status --bt` gegen echten Drucker testen~~ – erfolgreich, 2026-10-01
+  (Gerät „SPP SERVER“, PT-P710BT), siehe `docs/PROTOCOL.md`.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -67,6 +65,14 @@
   `ERROR_FILE_NOT_FOUND`. Zwei unabhängige Stacks scheitern identisch → kein Code-Fehler, die
   virtuelle-COM-Port-Kompatibilitätsschicht selbst baut die RFCOMM-Verbindung nicht auf. Deshalb
   M4 (natives WinRT-RFCOMM) vorgezogen, siehe ADR-007.
+- 2026-10-01: Natives WinRT-RFCOMM erfolgreich gegen echten PT-P710BT getestet (`labellab status
+  --bt`). Der Drucker ist in Windows als **zwei** Geräte sichtbar: „Brother PT-P710BT“
+  (Druckerklasse/Treiber, für uns irrelevant) und „PT-P710BT5265“ (das eigentliche
+  Bluetooth-Gerät). Die `RfcommDeviceService`-Enumeration listet ihn aber unter dem vom Drucker
+  selbst gemeldeten SPP-Dienstnamen **„SPP SERVER“**, nicht unter dem Gerätenamen — Identifikation
+  nur über die MAC in der Geräte-ID möglich (`b4:22:00:eb:96:6f`, passt zur Hardware-ID
+  `BTHENUM\Dev_B42200EB966F` aus dem Geräte-Manager). Status: `media_width_mm=9, error1=0,
+  error2=0, media_type=1, status_type=Antwort, phase_type=0, tape_color=1, text_color=8`.
 
 ## Session-Log
 ### 2026-10-01 – Claude Code (Sonnet 5), M4 (Windows-Teil) vorgezogen – natives BT-RFCOMM
@@ -85,12 +91,16 @@
   neu (`cfg(windows)`).
 - `ll-cli`: `status --bt` (nativ statt seriell, Gerät dann die ID aus `devices`), `devices`
   listet jetzt auch gekoppelte Bluetooth-Geräte (Text + `--json`).
-- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (21 Unit-Tests). `devices` auf der
-  Entwicklungsmaschine getestet (keine Fehler, aber kein Drucker gekoppelt hier → leere
-  BT-Liste, erwartbar). Echter Hardware-Test (`status --bt` gegen laufenden PT-P710BT) steht
-  noch aus.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (21 Unit-Tests).
+- **Hardware-Test erfolgreich:** Nutzer hat Repo via `git clone` + `cargo build --release`
+  selbst gebaut, Drucker-Gerät in der Bluetooth-Liste identifiziert (meldet sich als „SPP
+  SERVER“, nicht als „PT-P710BT“/„PT-P710BT5265“ — nur über die MAC zuzuordnen) und
+  `labellab status --device "<ID>" --bt --json` erfolgreich gegen den echten PT-P710BT
+  ausgeführt: 9-mm-Band korrekt erkannt, keine Fehler. Details siehe „Bekannte Fakten“ und
+  `docs/PROTOCOL.md`.
 - Noch offen für M4: programmatisches Pairing, BlueZ (Linux), USB (`nusb`).
-- Release-Build erneuert für den Nutzer.
+- `docs/PROTOCOL.md` entsprechend aktualisiert (BT-Status-Felder jetzt verifiziert, serieller
+  BT-SPP-Pfad als unzuverlässig markiert).
 
 ### 2026-10-01 – Claude Code (Sonnet 5), M2 – Protokoll + Status
 - `ll-protocol`: `command` (Invalidate/Initialize/Status-Request/Raster-Modus/PrintInformation/

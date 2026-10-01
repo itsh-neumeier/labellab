@@ -12,3 +12,4 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - M4 (Windows-Teil, vorgezogen): natives Bluetooth-RFCOMM über WinRT als Ersatz für den
   unzuverlässigen seriellen BT-SPP-Fallback; `labellab devices` listet gekoppelte
   Bluetooth-Geräte, `labellab status --device <ID> --bt`
+  — hardware-verifiziert gegen echten PT-P710BT
