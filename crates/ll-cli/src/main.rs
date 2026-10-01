@@ -45,8 +45,11 @@ enum Command {
     Print {
         text: Option<String>,
         /// QR-Code statt Text drucken (Daten für den Code, z. B. eine URL).
-        #[arg(long, conflicts_with = "text")]
+        #[arg(long, conflicts_with_all = ["text", "barcode"])]
         qr: Option<String>,
+        /// Code128-Barcode statt Text drucken.
+        #[arg(long, conflicts_with_all = ["text", "qr"])]
+        barcode: Option<String>,
         #[arg(long)]
         template: Option<String>,
         #[arg(long)]
@@ -76,8 +79,11 @@ enum Command {
     Render {
         text: Option<String>,
         /// QR-Code statt Text rendern (Daten für den Code, z. B. eine URL).
-        #[arg(long, conflicts_with = "text")]
+        #[arg(long, conflicts_with_all = ["text", "barcode"])]
         qr: Option<String>,
+        /// Code128-Barcode statt Text rendern.
+        #[arg(long, conflicts_with_all = ["text", "qr"])]
+        barcode: Option<String>,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -104,6 +110,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Print {
             text,
             qr,
+            barcode,
             template,
             csv,
             image,
@@ -123,6 +130,7 @@ async fn main() -> anyhow::Result<()> {
             print(
                 text,
                 qr,
+                barcode,
                 cut,
                 copies,
                 ConnectOpts { device, bt, baud },
@@ -133,10 +141,11 @@ async fn main() -> anyhow::Result<()> {
         Command::Render {
             text,
             qr,
+            barcode,
             output,
             width,
             model,
-        } => render(text, qr, output, width, model),
+        } => render(text, qr, barcode, output, width, model),
     }
 }
 
@@ -254,18 +263,25 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
     Ok(())
 }
 
-/// What to render: plain text or a QR code. `print`/`render` both take
-/// either `text` or `--qr`, never both (`clap`'s `conflicts_with`).
+/// What to render: plain text, a QR code or a Code128 barcode.
+/// `print`/`render` take exactly one of `text`/`--qr`/`--barcode`
+/// (`clap`'s `conflicts_with_all` keeps the other two out).
 enum Content {
     Text(String),
     Qr(String),
+    Code128(String),
 }
 
 impl Content {
-    fn from_args(text: Option<String>, qr: Option<String>) -> Option<Self> {
-        match (text, qr) {
-            (Some(t), None) => Some(Content::Text(t)),
-            (None, Some(q)) => Some(Content::Qr(q)),
+    fn from_args(
+        text: Option<String>,
+        qr: Option<String>,
+        barcode: Option<String>,
+    ) -> Option<Self> {
+        match (text, qr, barcode) {
+            (Some(t), None, None) => Some(Content::Text(t)),
+            (None, Some(q), None) => Some(Content::Qr(q)),
+            (None, None, Some(b)) => Some(Content::Code128(b)),
             _ => None,
         }
     }
@@ -274,6 +290,7 @@ impl Content {
         match self {
             Content::Text(t) => t,
             Content::Qr(d) => d,
+            Content::Code128(d) => d,
         }
     }
 }
@@ -281,14 +298,15 @@ impl Content {
 async fn print(
     text: Option<String>,
     qr: Option<String>,
+    barcode: Option<String>,
     cut: bool,
     copies: u32,
     connect: ConnectOpts,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(text, qr) else {
+    let Some(content) = Content::from_args(text, qr, barcode) else {
         eprintln!(
-            "Bitte Text oder --qr angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
+            "Bitte Text, --qr oder --barcode angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
         );
         std::process::exit(1);
     };
@@ -328,6 +346,9 @@ async fn print(
                 )
                 .await?
             }
+            Content::Code128(data) => {
+                ll_core::print::print_code128(transport.as_mut(), model, data, cut).await?
+            }
         }
     }
     transport.close().await?;
@@ -339,12 +360,13 @@ async fn print(
 fn render(
     text: Option<String>,
     qr: Option<String>,
+    barcode: Option<String>,
     output: String,
     width_mm: u8,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(text, qr) else {
-        eprintln!("Bitte Text oder --qr angeben: labellab render \"Text\" -o datei.png");
+    let Some(content) = Content::from_args(text, qr, barcode) else {
+        eprintln!("Bitte Text, --qr oder --barcode angeben: labellab render \"Text\" -o datei.png");
         std::process::exit(1);
     };
     let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
@@ -388,6 +410,12 @@ fn render(
             geometry.printable_pins,
             geometry.left_offset_pins,
             ll_render::QrErrorCorrection::Medium,
+        )?,
+        Content::Code128(data) => ll_render::render_code128(
+            data,
+            model.head_pins,
+            geometry.printable_pins,
+            geometry.left_offset_pins,
         )?,
     };
     let png = ll_render::png::to_png(&bitmap, geometry.left_offset_pins, geometry.printable_pins)?;

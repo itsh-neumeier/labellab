@@ -7,10 +7,12 @@ pub mod barcode;
 mod bitmap;
 mod error;
 pub mod fontsrc;
+pub mod linear_barcode;
 pub mod png;
 pub mod text;
 
 pub use barcode::{render_qr, QrErrorCorrection};
 pub use bitmap::Bitmap;
 pub use error::RenderError;
+pub use linear_barcode::render_code128;
 pub use text::{render_text, render_text_with_font};

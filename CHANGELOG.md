@@ -20,4 +20,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   `labellab render "Text" -o vorschau.png --width <mm>` für Vorschau ohne Drucker (gleicher
   Renderpfad wie der Druck) — hardware-verifiziert
 - M5 (Teil): QR-Codes (`qrcode`-Crate) — `labellab print --qr "..."` und
-  `labellab render --qr "..." -o vorschau.png`. Lineare Barcodes/Bilder/Symbole/Rahmen noch offen.
+  `labellab render --qr "..." -o vorschau.png` — hardware-verifiziert (gedruckt + gescannt)
+- M5 (Teil): Code128-Barcode (`barcoders`-Crate) — `labellab print --barcode "..."` und
+  `labellab render --barcode "..." -o vorschau.png`. Weitere Barcode-Symbologien/Bilder/
+  Symbole/Rahmen noch offen.

@@ -111,3 +111,19 @@ Vorlage:
   Hardware-Test 2026-10-01: trotzdem mit einem Handy scannbar (ein Gerät/eine App getestet,
   nicht erschöpfend geprüft). Fehlerkorrekturstufe aktuell fest auf `Medium` in der CLI, noch
   keine `--ec-level`-Option. MIT-lizenziert.
+
+## ADR-010: `barcoders`-Crate für Code128 (M5)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: M5 braucht lineare Barcodes (`MASTER_PROMPT.md` Feature 4). Code128 zuerst, weil es
+  beliebige ASCII-Daten kodieren kann (im Gegensatz zu EAN/UPC, die feste Ziffernformate mit
+  Prüfziffer verlangen) und damit die meisten CLI-Anwendungsfälle abdeckt.
+- Entscheidung: `barcoders`-Crate (MIT, reines Rust, `encode()` liefert direkt eine
+  Modulbreiten-Sequenz als `Vec<u8>`), nur `std`-Feature (kein `image`/`svg`/`json`, wir bauen
+  unser eigenes `Bitmap`). `ll_render::linear_barcode::render_code128()` füllt pro Balken-Modul
+  die **gesamte** bedruckbare Bandbreite (anders als QR/Text: 1D-Barcodes haben keine vertikale
+  Struktur). `barcoders` verlangt ein Zeichensatz-Präfix (`À`/`Ɓ`/`Ć`) am Dateneingang; unser
+  Wrapper setzt automatisch Zeichensatz B (allgemein alphanumerisch), wenn der Aufrufer keins
+  angibt. `ll-core::print::print_code128()` teilt sich die Protokoll-Sequenz mit
+  `print_text()`/`print_qr()`.
+- Konsequenzen: Balkenbreite fest auf 3 Druckpunkte (TODO(verify) gegen echten Scanner).
+  EAN-13/8, UPC-A, Code39, ITF bleiben offen. MIT-lizenziert.

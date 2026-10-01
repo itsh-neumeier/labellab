@@ -9,9 +9,8 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes beide hardware-verifiziert
-  (QR gedruckt und mit Handy erfolgreich gescannt, Link öffnete). Rahmen/lineare
-  Barcodes/Bilder/Symbole offen.
+- **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes hardware-verifiziert,
+  Code128-Barcode fertig (Code grün, noch nicht auf Band gedruckt). Rahmen/Bilder/Symbole offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -29,12 +28,13 @@
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
   App, BlueZ (Linux), USB fehlen noch.
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
-  **Teilstand:** echte Systemschriften (`fontdue`, `ll_render::fontsrc`/`text`, **hardware-
-  verifiziert**) und QR-Codes (`qrcode`-Crate, `ll_render::barcode::render_qr`, ADR-009,
-  **noch nicht auf Band gedruckt**) fertig. `ll_render::png` + CLI `render ["Text"|--qr <daten>]
-  -o x.png --width <mm>`, `print` ebenso mit `--qr`. `print_text`/`print_qr` teilen sich jetzt
-  die Protokoll-Sequenz (`ll-core::print::send_bitmap()`). Noch offen: Rahmen/Linien, lineare
-  Barcodes (Code128/EAN/...), Bilder (PNG/JPG/BMP/SVG, Dithering), Symbolbibliothek.
+  **Teilstand:** echte Systemschriften (`fontdue`, **hardware-verifiziert**) und QR-Codes
+  (`qrcode`-Crate, ADR-009, **hardware-verifiziert**, gedruckt + gescannt) fertig. Code128-Barcode
+  (`barcoders`-Crate, `ll_render::linear_barcode::render_code128`, ADR-010, **noch nicht auf
+  Band gedruckt**) neu. `ll_render::png` + CLI `render ["Text"|--qr <daten>|--barcode <daten>]
+  -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_code128` teilen sich
+  die Protokoll-Sequenz (`ll-core::print::send_bitmap()`). Noch offen: Rahmen/Linien, weitere
+  Barcode-Symbologien (EAN/UPC/Code39/ITF), Bilder (PNG/JPG/BMP/SVG, Dithering), Symbolbibliothek.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -45,11 +45,11 @@
 | – | – | – | – |
 
 ## Nächste Schritte
-1. **Hardware-Test QR (auf dem Gerät mit dem Drucker):** `labellab print --qr "https://..."
-   --bt --device <ID>` — druckt, scannt der Code mit einem Handy? Ruhezone ist mit 2 statt der
-   üblichen 4 Modulen knapp bemessen (ADR-009), ggf. nachjustieren falls Scan unzuverlässig.
-2. M5 weiter: Rahmen/Linien, lineare Barcodes (Code128/EAN/Code39 via `barcoders`), Bilder
-   (Import + Floyd-Steinberg-Dithering via `image`), Symbolbibliothek.
+1. **Hardware-Test Code128 (auf dem Gerät mit dem Drucker):** `labellab print --barcode
+   "ABC-123" --bt --device <ID>` — druckt, scannt der Code mit einem Scanner/Handy? Balkenbreite
+   fest auf 3 Druckpunkte (ADR-010), ggf. nachjustieren.
+2. M5 weiter: Rahmen/Linien, weitere Barcode-Symbologien (EAN/UPC/Code39/ITF via `barcoders`),
+   Bilder (Import + Floyd-Steinberg-Dithering via `image`), Symbolbibliothek.
 3. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
 4. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
@@ -80,6 +80,8 @@
 - [x] ~~M5: `labellab print --qr "..." --bt` gegen echten Drucker testen~~ – erfolgreich,
   2026-10-01: gedruckt und mit Handy gescannt, Link öffnete trotz schmaler Ruhezone (2 statt
   der spec-üblichen 4 Module, siehe ADR-009).
+- [ ] M5: `labellab print --barcode "..." --bt` gegen echten Drucker testen — druckt es, und
+  scannt der Code128-Barcode (Balkenbreite 3 Druckpunkte, siehe ADR-010)?
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -114,6 +116,24 @@
   knappe Ruhezone (2 statt der spec-üblichen 4 Module, ADR-009) war in diesem Test kein Problem.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – Code128-Barcode
+- `ll-render`: neues `linear_barcode`-Modul (`render_code128()` via `barcoders`-Crate, siehe
+  ADR-010). Anders als Text/QR: ein Balken-Modul füllt die **gesamte** bedruckbare Bandbreite
+  (keine vertikale Struktur bei 1D-Barcodes). `barcoders` braucht ein
+  Zeichensatz-Präfix (`À`/`Ɓ`/`Ć`); Wrapper setzt automatisch Zeichensatz B, wenn keins
+  angegeben. Visuell per Wegwerf-Beispiel geprüft: sieht wie ein echter Code128-Barcode aus
+  (saubere Balkenmuster), danach entfernt.
+- `ll-core::print`: neues `print_code128()`, nutzt dieselben
+  `read_status_and_geometry()`/`send_bitmap()`-Hilfsfunktionen wie `print_text`/`print_qr`.
+- `ll-cli`: `--barcode <daten>` auf `print` und `render` (schließt sich mit `text`/`--qr`
+  gegenseitig aus, `clap conflicts_with_all`), `Content`-Enum um `Code128`-Variante erweitert.
+  Smoke-getestet: `render --barcode "LABELLAB-123" -o out.png` erzeugt gültig aussehenden
+  Barcode.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (38 Unit-Tests, vorher 34).
+- **Noch nicht gemacht:** Code128-Druck auf echtes Band getestet (nur PNG-Vorschau verifiziert).
+- **Noch offen in M5:** Rahmen/Linien, weitere Barcode-Symbologien (EAN/UPC/Code39/ITF),
+  Bilder, Symbolbibliothek.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – QR-Codes
 - `ll-render`: neues `barcode`-Modul (`render_qr()` via `qrcode`-Crate, siehe ADR-009). Rastert
   die Modul-Matrix direkt ins `Bitmap`, gleiche Pin-/Raster-Zeilen-Orientierung wie `text`.

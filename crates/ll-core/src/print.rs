@@ -5,9 +5,9 @@
 //!
 //! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
 //! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
-//! denselben Renderpfad"). `print_text`/`print_qr` share the protocol
-//! sequence; only the rendered content differs (frames/images/symbols are
-//! still open M5 scope).
+//! denselben Renderpfad"). `print_text`/`print_qr`/`print_code128` share
+//! the protocol sequence; only the rendered content differs (frames,
+//! other barcode symbologies, images and symbols are still open M5 scope).
 
 use std::time::Duration;
 
@@ -60,6 +60,25 @@ pub async fn print_qr(
         geometry.printable_pins,
         geometry.left_offset_pins,
         ec_level,
+    )?;
+    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+}
+
+/// Resets the printer, reads its status, renders `data` as a Code128
+/// barcode to fit the currently loaded tape and prints it. Same failure
+/// behavior as [`print_text`].
+pub async fn print_code128(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+    data: &str,
+    auto_cut: bool,
+) -> Result<(), CoreError> {
+    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
+    let bitmap = ll_render::render_code128(
+        data,
+        model.head_pins,
+        geometry.printable_pins,
+        geometry.left_offset_pins,
     )?;
     send_bitmap(transport, &bitmap, width_mm, auto_cut).await
 }
@@ -286,6 +305,20 @@ mod tests {
         )
         .await
         .unwrap();
+
+        let written = transport.written();
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());
+        assert_eq!(*written.last().unwrap(), 0x1A);
+    }
+
+    #[tokio::test]
+    async fn print_code128_sends_raster_mode_and_feed() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+
+        print_code128(&mut transport, p710bt(), "LABELLAB-123", false)
+            .await
+            .unwrap();
 
         let written = transport.written();
         assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());
