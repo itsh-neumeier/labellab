@@ -76,6 +76,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - M4: Bluetooth unter Linux (BlueZ) und Kopplung des Druckers direkt aus LabelLab
   (`labellab pair`, in der Oberfläche „Koppeln …“) unter Windows und Linux — noch nicht am
   Gerät getestet
+- Oberfläche: verständliche deutsche Fehlermeldungen (z. B. „Der Drucker antwortet nicht …“)
+  und Warnung, wenn Text nicht in seine Box passt und abgeschnitten wird
 
 ### Behoben
 - `labellab` brach nach dem Zusammenführen mit der Symbolbibliothek beim Start ab

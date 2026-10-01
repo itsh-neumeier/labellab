@@ -62,3 +62,19 @@ export function applyStatic(root: ParentNode = document): void {
     el.placeholder = t(el.dataset.i18nPlaceholder!);
   });
 }
+
+/**
+ * User-facing text for an error from the backend. Backend commands reject
+ * with `{ code, detail }`; known codes get a translated explanation
+ * (`error.<code>`), the raw detail is kept in parentheses for diagnosis.
+ */
+export function errorText(e: unknown): string {
+  if (e && typeof e === "object" && "code" in e) {
+    const { code, detail } = e as { code: string; detail?: string };
+    const key = `error.${code}`;
+    const text = dicts[lang][key] ?? dicts.de[key];
+    if (text) return detail ? `${text} (${detail})` : text;
+    return detail ?? code;
+  }
+  return String(e);
+}

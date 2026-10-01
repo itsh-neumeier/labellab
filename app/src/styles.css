@@ -90,6 +90,7 @@ main { flex: 1; display: flex; min-height: 0; }
 }
 .box:hover { outline-color: var(--accent); }
 .box.selected { outline: 2px solid var(--accent); background: rgba(31, 111, 235, 0.06); }
+.box.overflow { outline: 2px dashed #d97706; }
 .box .tag {
   position: absolute; left: 0; top: 0; transform: translateY(-100%);
   font-size: 10px; line-height: 1; padding: 1px 4px; color: #fff; background: var(--accent);

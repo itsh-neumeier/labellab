@@ -119,7 +119,8 @@ export const queryStatus = (connection: Connection) => invoke<Status>("query_sta
 export const loadLabel = (path: string) => invoke<Label>("load_label", { path });
 export const saveLabel = (path: string, label: Label) => invoke<void>("save_label", { path, label });
 
-/** Base64 PNG of the label as it will be printed (same render path). */
+/** Base64 PNG of the label as it will be printed (same render path),
+ * plus the indices of elements whose text does not fit its box. */
 export const renderPreview = (
   label: Label,
   model: string,
@@ -127,7 +128,7 @@ export const renderPreview = (
   row: number | null,
   numbering: Numbering | null,
   scale: number,
-) => invoke<string>("render_preview", { label, model, widthMm, row, numbering, scale });
+) => invoke<{ png: string; overflowing: number[] }>("render_preview", { label, model, widthMm, row, numbering, scale });
 
 export const symbols = () => invoke<string[]>("symbols");
 export const generateLayout = (layout: Layout, model: string, widthMm: number) =>

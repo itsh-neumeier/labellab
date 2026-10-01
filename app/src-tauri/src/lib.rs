@@ -49,12 +49,36 @@ fn with_record(
 /// ports ignore it, but the OS API needs one (same as the CLI default).
 const SERIAL_BAUD_RATE: u32 = 9600;
 
-fn err(e: impl std::fmt::Display) -> String {
-    e.to_string()
+/// Error sent to the frontend: `code` selects a translated message
+/// (`error.<code>` in the i18n files), `detail` is the raw text.
+#[derive(Debug, Serialize)]
+struct AppError {
+    code: &'static str,
+    detail: String,
 }
 
-fn find_model(name: &str) -> Result<&'static ModelInfo, String> {
-    model::find_by_name(name).ok_or_else(|| format!("unknown model {name:?}"))
+impl AppError {
+    fn new(code: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            code,
+            detail: detail.into(),
+        }
+    }
+}
+
+impl From<ll_core::CoreError> for AppError {
+    fn from(e: ll_core::CoreError) -> Self {
+        Self::new(e.code(), e.to_string())
+    }
+}
+
+fn err(e: impl Into<AppError>) -> AppError {
+    e.into()
+}
+
+fn find_model(name: &str) -> Result<&'static ModelInfo, AppError> {
+    model::find_by_name(name)
+        .ok_or_else(|| AppError::new("unknown_model", format!("unknown model {name:?}")))
 }
 
 #[derive(Serialize)]
@@ -102,17 +126,29 @@ fn render_preview(
     numbering: Option<Numbering>,
     scale: u32,
     series: State<'_, SeriesState>,
-) -> Result<String, String> {
+) -> Result<PreviewDto, AppError> {
     let label = with_record(label, &series, row, numbering);
-    let png = label::render_label_preview(&label, find_model(&model)?, width_mm, scale.clamp(1, 8))
-        .map_err(err)?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(png))
+    let preview =
+        label::render_label_preview(&label, find_model(&model)?, width_mm, scale.clamp(1, 8))
+            .map_err(err)?;
+    Ok(PreviewDto {
+        png: base64::engine::general_purpose::STANDARD.encode(preview.png),
+        overflowing: preview.overflowing,
+    })
+}
+
+#[derive(Serialize)]
+struct PreviewDto {
+    /// Base64 PNG mask.
+    png: String,
+    /// Indices of elements whose text is clipped.
+    overflowing: Vec<usize>,
 }
 
 /// Every element's box in mm as rendered (flow elements get the box the
 /// flow layout gives them), so the editor can make them movable.
 #[tauri::command]
-fn resolve_rects(label: Label, model: String, width_mm: u8) -> Result<Vec<Rect>, String> {
+fn resolve_rects(label: Label, model: String, width_mm: u8) -> Result<Vec<Rect>, AppError> {
     let model = find_model(&model)?;
     let geometry = label::geometry_for(model, width_mm).map_err(err)?;
     label::resolved_rects(&label, model, geometry).map_err(err)
@@ -202,7 +238,7 @@ struct StatusDto {
 /// `ll_transport::bluetooth`); fine for now since Tauri runs async
 /// commands on a worker pool, but worth a `spawn_blocking` later.
 #[tauri::command]
-async fn query_status(connection: Connection) -> Result<StatusDto, String> {
+async fn query_status(connection: Connection) -> Result<StatusDto, AppError> {
     let s = device::query_status_on(&connection).await.map_err(err)?;
     Ok(StatusDto {
         width_mm: s.media_width_mm(),
@@ -253,14 +289,17 @@ async fn print_label(
     model: String,
     job: PrintJob,
     series: State<'_, SeriesState>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let model = find_model(&model)?;
     let numbering = job.numbering.unwrap_or_default();
     let labels: Vec<Label> = match (series.get(), job.count) {
         (Some(data), _) => {
             let range = data.select(job.rows.map(|(a, b)| a..=b));
             if range.is_empty() {
-                return Err("no records in the selected range".into());
+                return Err(AppError::new(
+                    "no_records",
+                    "no records in the selected range",
+                ));
             }
             range
                 .map(|n| series::apply(&label, Some(&data), n, numbering))
@@ -293,7 +332,10 @@ async fn print_label(
     )
     .await
     .map_err(err)?;
-    transport.close().await.map_err(err)
+    transport
+        .close()
+        .await
+        .map_err(|e| err(ll_core::CoreError::from(e)))
 }
 
 #[derive(Serialize)]
@@ -304,7 +346,7 @@ struct CsvDto {
 
 /// Loads a CSV for series printing (replaces a previously loaded one).
 #[tauri::command]
-fn load_csv(path: PathBuf, series: State<'_, SeriesState>) -> Result<CsvDto, String> {
+fn load_csv(path: PathBuf, series: State<'_, SeriesState>) -> Result<CsvDto, AppError> {
     let data = DataSet::load(&path).map_err(err)?;
     let dto = CsvDto {
         headers: data.headers.clone(),
@@ -340,7 +382,7 @@ struct PairableDto {
 
 /// Bluetooth devices nearby that can be paired, recognized printers first.
 #[tauri::command]
-async fn discover_bluetooth() -> Result<Vec<PairableDto>, String> {
+async fn discover_bluetooth() -> Result<Vec<PairableDto>, AppError> {
     #[cfg(any(windows, target_os = "linux"))]
     {
         let mut found: Vec<PairableDto> = device::discover_bluetooth_devices()
@@ -357,12 +399,15 @@ async fn discover_bluetooth() -> Result<Vec<PairableDto>, String> {
         Ok(found)
     }
     #[cfg(not(any(windows, target_os = "linux")))]
-    Err("Bluetooth pairing is only supported on Windows and Linux".into())
+    Err(AppError::new(
+        "unsupported",
+        "Bluetooth pairing is only supported on Windows and Linux",
+    ))
 }
 
 /// Pairs a device found by `discover_bluetooth`.
 #[tauri::command]
-async fn pair_bluetooth(id: String) -> Result<(), String> {
+async fn pair_bluetooth(id: String) -> Result<(), AppError> {
     #[cfg(any(windows, target_os = "linux"))]
     {
         device::pair_bluetooth(&id).await.map_err(err)
@@ -370,7 +415,10 @@ async fn pair_bluetooth(id: String) -> Result<(), String> {
     #[cfg(not(any(windows, target_os = "linux")))]
     {
         let _ = id;
-        Err("Bluetooth pairing is only supported on Windows and Linux".into())
+        Err(AppError::new(
+            "unsupported",
+            "Bluetooth pairing is only supported on Windows and Linux",
+        ))
     }
 }
 
@@ -382,7 +430,7 @@ fn symbols() -> Vec<&'static str> {
 
 /// Builds a cable flag / cable wrap / patch panel label for the tape.
 #[tauri::command]
-fn generate_layout(layout: Layout, model: String, width_mm: u8) -> Result<Label, String> {
+fn generate_layout(layout: Layout, model: String, width_mm: u8) -> Result<Label, AppError> {
     let model = find_model(&model)?;
     let geometry = label::geometry_for(model, width_mm).map_err(err)?;
     Ok(layouts::generate(
@@ -398,12 +446,12 @@ fn default_margin_dots() -> u16 {
 }
 
 #[tauri::command]
-fn load_label(path: PathBuf) -> Result<Label, String> {
+fn load_label(path: PathBuf) -> Result<Label, AppError> {
     Label::load(&path).map_err(err)
 }
 
 #[tauri::command]
-fn save_label(path: PathBuf, label: Label) -> Result<(), String> {
+fn save_label(path: PathBuf, label: Label) -> Result<(), AppError> {
     label.save(&path).map_err(err)
 }
 

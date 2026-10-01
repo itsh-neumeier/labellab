@@ -107,8 +107,8 @@
 4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64-portable“ des
     Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
     Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
-4b. GUI-Ausbau: verständliche (deutsche) Fehlertexte für Druckerfehler/Timeouts, zuletzt
-    verwendete Labels, Warnung bei überlaufendem Text, Vorschau aller Serien-Labels.
+4b. GUI-Ausbau: zuletzt verwendete Labels, Vorschau aller Serien-Labels. (Erledigt:
+    übersetzte Fehlertexte über `CoreError::code()`, Warnung bei abgeschnittenem Text.)
 4c. M8 (Release v1.0.0): Versionsnummern, Release-Workflow per Tag `v*` existiert (portable
     `.exe`), Screenshots/Doku für Endnutzer, ggf. Code-Signierung.
 5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
@@ -223,6 +223,16 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, GUI: übersetzte Fehlertexte, Warnung bei abgeschnittenem Text
+- PR itsh-neumeier/labellab#2 (M7) nach CI-Grün per Squash nach `main` gemergt.
+- `ll-core`: `CoreError::code()` liefert stabile Fehlercodes (`timeout`, `no_device`,
+  `printer_error`, `too_tall`, `file_not_found` …). App-Befehle liefern `{ code, detail }`;
+  Frontend zeigt `error.<code>` aus den i18n-Dateien plus Rohtext in Klammern (`errorText`).
+- `ll-render`: `text_in_box_checked` meldet abgeschnittene Tinte (Basisglyphe, 1 Punkt Toleranz,
+  synthetisches Fett/Kursiv zählt nicht). `render_label_preview` liefert `Preview { png,
+  overflowing }`; der Editor markiert betroffene Boxen orange gestrichelt mit Hinweistext.
+- Geprüft: Tests, fmt/clippy (Workspace, App), Frontend-Build grün.
+
 ### 2026-10-01 – Claude Code, M4 – BlueZ (Linux) und Kopplung aus CLI/GUI (ADR-021)
 - `ll-transport`: neues `bluetooth/linux.rs` (`bluer`): `list_devices`, `discover` (8 s Scan),
   `pair` (Agent beantwortet PIN/Bestätigung), `BluetoothTransport` über RFCOMM. Windows:
