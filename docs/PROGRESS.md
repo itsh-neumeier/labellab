@@ -60,9 +60,13 @@
   Bandwahl, Elementkarten (Text/QR/Barcode/Bild) mit Verschieben/Entfernen, Live-Vorschau mit
   Zoom (automatisch an die Bandhöhe angepasst) und Fehleranzeige, Rückgängig/Wiederholen
   (Strg+Z/Y), Öffnen/Speichern (Strg+O/S), Drucken mit Kopien/Schnitt/Nachlauf (Strg+P),
-  i18n de/en. **Fehlt:** freies Positionieren, Textformatierung (Größe/fett/mehrzeilig),
-  Symbole (M5), zuletzt verwendete Labels, Warnung bei Layout-/Band-Konflikt, verständliche
-  Fehlertexte für Statusbits, Test unter Windows und echter GUI-Druck.
+  i18n de/en. **Neu (ADR-016):** freies Layout mit Boxen (Ziehen, Skalieren, Einrasten mit
+  Hilfslinien, Pfeiltasten, X/Y/B/H-Felder, Duplizieren), Text mehrzeilig mit Größe in pt oder
+  auto und Ausrichtung, `.llabel` v2. Nutzer hat aus der Windows-GUI gedruckt („Gedruckt.“),
+  aber die Vorschau war dort leer → behoben (Base64-Vorschau), **noch nicht erneut unter
+  Windows bestätigt**. **Fehlt:** fett/kursiv/Schriftwahl, Rotation, Warnung bei
+  überlaufendem Text, Symbole (M5), zuletzt verwendete Labels, verständliche Fehlertexte für
+  Statusbits.
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
 
@@ -185,6 +189,26 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, M6 (Teil) – freies Layout, Schriftgrößen, mehrzeiliger Text
+- Nutzer-Feedback (Screenshot Windows-GUI): Vorschau leer, Druck klappte; Wunsch nach frei
+  positionierbaren Boxen, Schriftgrößen, mehrzeiligem Text und bündigem Aneinanderlegen.
+- `ll-render::boxed` (neu): `text_in_box`/`text_natural_width`/`qr_in_box`/`barcode_in_box`/
+  `image_in_box`, `TextAlign`; `Bitmap::blit`; `picture::load_gray` und
+  `linear_barcode::encode_modules` zur Wiederverwendung herausgelöst. `ll-protocol`:
+  `dots_to_mm`, `pt_to_dots`.
+- `ll-core::label`: `Item`/`Rect`, `Element::Text { size_pt, align }`, `Element::text()`,
+  `resolved_rects()`, Format v2 (v1 lesbar). Fluss-Layout unverändert für Elemente ohne Box.
+- App: `resolve_rects`-Befehl, `models()` liefert `tapes[{width_mm, printable_mm}]`, Vorschau
+  als Base64 (Windows-Fix). Editor neu (`main.ts`, `snap.ts`), siehe ADR-016.
+- Geprüft: 86 Workspace-Tests grün (u. a. Box-Position, Abschneiden außerhalb des Bands,
+  Fluss→Box ohne optische Änderung, Auto-Größe ohne Umbruch/Abschneiden), fmt/clippy grün,
+  `snap.ts` per Node geprüft, App unter Xvfb: Hinzufügen, Ziehen, Einrasten (Hilfslinien),
+  mehrzeiliger 9-pt-Text links. CLI rendert v2-Vorlage mit Boxen korrekt.
+- **Stolpersteine:** (1) fontdue bricht anders um als eine reine Glyphen-Messung → Auto-Größe
+  prüft jetzt mit identischen Layout-Einstellungen, dass kein Zusatzumbruch entsteht.
+  (2) Box-DOM während des Ziehens neu aufzubauen verliert die Pointer-Capture → bei
+  Vorschau-Updates nur noch neu positionieren.
+
 ### 2026-10-01 – Claude Code, Windows-`.exe`
 - Nutzerwunsch: vollständig lauffähige `.exe` für Windows. Workflow
   `.github/workflows/windows-build.yml` (ADR-015) baut GUI-`.exe`, NSIS-Setup, MSI und CLI-`.exe`

@@ -34,6 +34,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   <datei.llabel>`
 - M6 (Teil): erste Desktop-Oberfläche (Tauri 2) mit Editor, Live-Vorschau, Geräteauswahl,
   Bandstatus, Drucken, Öffnen/Speichern, Rückgängig/Wiederholen, Deutsch/Englisch
+- Editor: Elemente frei als Boxen platzieren und skalieren (Maus, Pfeiltasten, X/Y/Breite/Höhe),
+  Einrasten an Bandkanten und anderen Boxen zum bündigen Aneinanderlegen, Duplizieren
+- Text: Schriftgröße in pt oder automatisch, mehrzeilig, Ausrichtung links/Mitte/rechts
+- Vorlagenformat `.llabel` Version 2 (Boxen, Textgröße/-ausrichtung); Version 1 wird weiter gelesen
 - Windows: fertige `LabelLab.exe` (ohne Installation startbar), Installer (Setup/MSI) und
   `labellab.exe` werden bei jedem Push automatisch gebaut (GitHub Actions, Artefakt
   `LabelLab-windows-x64`)
@@ -47,6 +51,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   noch offen — letztes fehlendes M5-Teil.
 
 ### Behoben
+- Vorschau blieb in der Windows-Oberfläche leer
 - Cutter schnitt direkt am Ende des gedruckten Inhalts ohne Nachlauf (`margin(0)` war fest
   einprogrammiert). `--margin <dots>` auf `print` macht den Leervorschub vor dem Schnitt
   konfigurierbar, Default jetzt 28 statt 0 Druckpunkte. Noch nicht erneut hardware-getestet.

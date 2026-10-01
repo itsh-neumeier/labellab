@@ -8,12 +8,12 @@
 
 use std::path::PathBuf;
 
+use base64::Engine;
 use ll_core::device::{self, Connection};
-use ll_core::label::{self, Label};
+use ll_core::label::{self, Label, Rect};
 use ll_core::print::PrintOptions;
-use ll_protocol::model::{self, ModelInfo, MODELS};
+use ll_protocol::model::{self, dots_to_mm, ModelInfo, MODELS};
 use serde::Serialize;
-use tauri::ipc::Response;
 
 /// Baud rate for serial ports picked in the GUI. Virtual Bluetooth-SPP
 /// ports ignore it, but the OS API needs one (same as the CLI default).
@@ -28,29 +28,54 @@ fn find_model(name: &str) -> Result<&'static ModelInfo, String> {
 }
 
 #[derive(Serialize)]
-struct ModelDto {
-    name: &'static str,
-    tape_widths: Vec<u8>,
+struct TapeDto {
+    width_mm: u8,
+    /// Height of the printable area across the tape, in mm (the editor's
+    /// vertical extent).
+    printable_mm: f32,
 }
 
-/// Known printer models and their supported tape widths.
+#[derive(Serialize)]
+struct ModelDto {
+    name: &'static str,
+    tapes: Vec<TapeDto>,
+}
+
+/// Known printer models and their supported tapes.
 #[tauri::command]
 fn models() -> Vec<ModelDto> {
     MODELS
         .iter()
         .map(|m| ModelDto {
             name: m.name,
-            tape_widths: m.tape_geometries.iter().map(|g| g.width_mm).collect(),
+            tapes: m
+                .tape_geometries
+                .iter()
+                .map(|g| TapeDto {
+                    width_mm: g.width_mm,
+                    printable_mm: dots_to_mm(g.printable_pins as u32),
+                })
+                .collect(),
         })
         .collect()
 }
 
-/// Renders `label` for a `width_mm` tape as PNG bytes (raw IPC response,
-/// arrives as `ArrayBuffer` in the frontend).
+/// Renders `label` for a `width_mm` tape as a PNG, base64-encoded. A plain
+/// string survives every IPC transport (raw binary responses arrived
+/// broken in the Windows WebView2 build, preview stayed empty).
 #[tauri::command]
-fn render_preview(label: Label, model: String, width_mm: u8) -> Result<Response, String> {
+fn render_preview(label: Label, model: String, width_mm: u8) -> Result<String, String> {
     let png = label::render_label_png(&label, find_model(&model)?, width_mm).map_err(err)?;
-    Ok(Response::new(png))
+    Ok(base64::engine::general_purpose::STANDARD.encode(png))
+}
+
+/// Every element's box in mm as rendered (flow elements get the box the
+/// flow layout gives them), so the editor can make them movable.
+#[tauri::command]
+fn resolve_rects(label: Label, model: String, width_mm: u8) -> Result<Vec<Rect>, String> {
+    let model = find_model(&model)?;
+    let geometry = label::geometry_for(model, width_mm).map_err(err)?;
+    label::resolved_rects(&label, model, geometry).map_err(err)
 }
 
 #[derive(Serialize)]
@@ -186,6 +211,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             models,
             render_preview,
+            resolve_rects,
             list_devices,
             query_status,
             print_label,

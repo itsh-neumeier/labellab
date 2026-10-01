@@ -224,3 +224,32 @@ Vorlage:
   ist M8-Thema). Lokaler Cross-Build von Linux geht auch (`cargo-xwin`, `clang`/`lld`, `nsis`:
   `npx tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis`), gilt
   bei Tauri aber als experimentell — maßgeblich ist der Windows-Runner.
+
+## ADR-016: Freies Layout mit Boxen, Schriftgrößen, mehrzeiliger Text (M6)
+- Datum / Status: 2026-10-01 · angenommen (ergänzt ADR-014)
+- Kontext: Nutzer-Feedback nach dem ersten Windows-Test: Elemente müssen frei als Boxen
+  positionierbar und skalierbar sein, Schriftgrößen angebbar, Text mehrzeilig, Boxen sollen
+  sich bündig aneinanderlegen lassen. Außerdem blieb die Vorschau unter Windows leer.
+- Entscheidung:
+  - `Item { element, rect: Option<Rect> }` (`rect` in mm: `x_mm` entlang, `y_mm` quer ab
+    Oberkante des bedruckbaren Bereichs). Ohne `rect` gilt weiter das Fluss-Layout
+    (CLI-Abkürzungen, v1-Vorlagen unverändert, Golden-Tests unberührt). `.llabel` Version 2,
+    v1 wird gelesen.
+  - `ll_render::boxed`: jedes Element wird in seine Box gerendert und per `Bitmap::blit` auf
+    das Label gelegt, außerhalb des bedruckbaren Bereichs abgeschnitten. Text: `size_pt`
+    (1 pt = 2,5 Druckpunkte bei 180 dpi, `pt_to_dots`) oder automatisch größtmöglich ohne
+    Zusatzumbruch; `\n` = neue Zeile; feste Größe bricht an Wortgrenzen um; Ausrichtung
+    links/Mitte/rechts, vertikal zentriert. Messung und Rendern nutzen dieselben
+    fontdue-Layout-Einstellungen. QR/Bild seitenverhältnistreu eingepasst; Barcode-Modulbreite
+    = größte ganze Zahl Druckpunkte, die in die Box passt (Lesbarkeit).
+  - Labellänge mit Boxen: Ende der rechtesten Box + `padding_mm`, mindestens `min_length_mm`.
+  - `resolved_rects()` liefert für Fluss-Elemente die Box, die sie im Fluss bekommen; der Editor
+    wandelt damit alte Vorlagen ohne optische Änderung in Boxen um.
+  - Editor: Boxen als Overlay über der echten 1-Bit-Vorschau, Ziehen/Skalieren (Kante rechts,
+    unten, Ecke), magnetisches Einrasten (`app/src/snap.ts`) an Labelanfang, Bandkanten/-mitte
+    und Kanten/Mitten anderer Boxen mit Hilfslinien (Alt = aus), Pfeiltasten, X/Y/B/H-Felder,
+    Duplizieren, Entfernen-Taste. X wird auf ≥ 0 begrenzt.
+  - Vorschau als Base64-String statt roher IPC-Bytes (`base64`-Crate, MIT/Apache-2.0): der
+    Binärweg kam im Windows-Build nicht als Bild an.
+- Konsequenzen: Kein Fett/Kursiv (nur die eine Systemschrift aus `fontsrc`), keine Rotation,
+  keine Warnung, wenn Text mit fester Größe nicht in seine Box passt (wird abgeschnitten).

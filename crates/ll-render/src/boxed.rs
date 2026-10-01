@@ -49,34 +49,61 @@ fn parse_font(font_data: &[u8]) -> Result<Font, RenderError> {
         .map_err(|e| RenderError::Font(e.to_string()))
 }
 
-/// Lays out `text` at `px` without wrapping (only explicit line breaks)
-/// and returns its (width, height) in dots.
-fn measure(font: &Font, text: &str, px: f32) -> (f32, f32) {
+/// Layout settings shared by measuring and rendering, so a size that
+/// measured as fitting renders exactly the same way.
+fn settings(max_w: Option<f32>, max_h: Option<f32>, align: TextAlign) -> LayoutSettings {
+    LayoutSettings {
+        max_width: max_w,
+        max_height: max_h,
+        horizontal_align: align.into(),
+        vertical_align: if max_h.is_some() {
+            VerticalAlign::Middle
+        } else {
+            VerticalAlign::Top
+        },
+        ..LayoutSettings::default()
+    }
+}
+
+fn layout(font: &Font, text: &str, px: f32, settings: &LayoutSettings) -> Layout {
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-    layout.reset(&LayoutSettings::default());
+    layout.reset(settings);
     layout.append(&[font], &TextStyle::new(text, px, 0));
-    let width = layout
+    layout
+}
+
+/// Ink extent along the length axis (rightmost glyph pixel).
+fn ink_width(layout: &Layout) -> f32 {
+    layout
         .glyphs()
         .iter()
         .map(|g| g.x + g.width as f32)
-        .fold(0.0, f32::max);
-    (width, layout.height())
+        .fold(0.0, f32::max)
+}
+
+/// Number of lines `text` has from explicit line breaks alone.
+fn hard_lines(text: &str) -> usize {
+    text.split('\n').count()
+}
+
+/// Whether `text` at `px` fits `max_w` x `max_h` without any automatic
+/// word wrap (`max_w = None`: height only).
+fn fits(font: &Font, text: &str, px: f32, max_w: Option<f32>, max_h: f32) -> bool {
+    let l = layout(font, text, px, &settings(max_w, None, TextAlign::Left));
+    let lines = l.lines().map_or(0, Vec::len);
+    l.height() <= max_h && lines <= hard_lines(text) && max_w.is_none_or(|w| ink_width(&l) <= w)
 }
 
 /// Largest font size at which `text` (explicit line breaks only) fits
 /// `max_w` x `max_h` dots. `max_w = None` fits the height only.
 fn auto_font_px(font: &Font, text: &str, max_w: Option<f32>, max_h: f32) -> f32 {
-    let fits = |px: f32| {
-        let (w, h) = measure(font, text, px);
-        h <= max_h && max_w.is_none_or(|mw| w <= mw)
-    };
     let (mut lo, mut hi) = (MIN_AUTO_FONT_PX, max_h.max(MIN_AUTO_FONT_PX) * 1.5);
-    if !fits(lo) {
+    if !fits(font, text, lo, max_w, max_h) {
         return lo;
     }
     for _ in 0..14 {
         let mid = (lo + hi) / 2.0;
-        if fits(mid) {
+        if fits(font, text, mid, max_w, max_h) {
             lo = mid;
         } else {
             hi = mid;
@@ -96,7 +123,8 @@ pub fn text_natural_width(
 ) -> Result<u32, RenderError> {
     let font = parse_font(font_data)?;
     let px = size_px.unwrap_or_else(|| auto_font_px(&font, text, None, box_h as f32));
-    Ok(measure(&font, text, px).0.ceil().max(1.0) as u32)
+    let l = layout(&font, text, px, &settings(None, None, TextAlign::Left));
+    Ok(ink_width(&l).ceil().max(1.0) as u32 + 1)
 }
 
 /// Renders `text` into a `box_w` x `box_h` dot box. Explicit `\n` start a
@@ -118,15 +146,12 @@ pub fn text_in_box(
     let font = parse_font(font_data)?;
     let px = size_px.unwrap_or_else(|| auto_font_px(&font, text, Some(box_w as f32), box_h as f32));
 
-    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-    layout.reset(&LayoutSettings {
-        max_width: Some(box_w as f32),
-        max_height: Some(box_h as f32),
-        horizontal_align: align.into(),
-        vertical_align: VerticalAlign::Middle,
-        ..LayoutSettings::default()
-    });
-    layout.append(&[&font], &TextStyle::new(text, px, 0));
+    let layout = layout(
+        &font,
+        text,
+        px,
+        &settings(Some(box_w as f32), Some(box_h as f32), align),
+    );
 
     for glyph in layout.glyphs() {
         if glyph.width == 0 || glyph.height == 0 {
@@ -304,6 +329,20 @@ mod tests {
         let bmp = text_in_box("Ein langer Text", &font, 120, 60, None, TextAlign::Center).unwrap();
         let (_, last) = line_extent(&bmp).unwrap();
         assert!(last < 120);
+    }
+
+    #[test]
+    fn auto_size_never_wraps_or_clips() {
+        let font = require_font!();
+        // Box exactly as wide as the natural text: must stay one line and
+        // keep ink away from the top/bottom edges.
+        let w = text_natural_width("LabelLab", &font, 70, None).unwrap();
+        let bmp = text_in_box("LabelLab", &font, w, 70, None, TextAlign::Center).unwrap();
+        let (top, bottom) = pin_extent(&bmp).unwrap();
+        assert!(top > 0 && bottom < 69, "clipped: {top}..{bottom}");
+        let single = text_in_box("LabelLab", &font, w * 3, 70, None, TextAlign::Center).unwrap();
+        let h = |b: &Bitmap| pin_extent(b).map(|(a, z)| z - a).unwrap();
+        assert!(h(&bmp) <= h(&single) + 2, "wrapped onto a second line");
     }
 
     #[test]

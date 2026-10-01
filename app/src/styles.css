@@ -69,3 +69,53 @@ main { flex: 1; display: flex; min-height: 0; }
   box-shadow: 0 0 0 1px var(--border), 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 #preview[hidden] { display: none; }
+
+/* ---- free-layout canvas ---- */
+.tape-wrap { flex-direction: column; gap: 8px; }
+.stage {
+  position: relative;
+  flex: none;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--border), 0 2px 8px rgba(0, 0, 0, 0.15);
+  user-select: none;
+}
+.stage #preview { position: absolute; left: 0; top: 0; box-shadow: none; pointer-events: none; }
+.stage #preview.stale { opacity: 0.35; }
+.boxes { position: absolute; inset: 0; }
+.box {
+  position: absolute;
+  outline: 1px dashed rgba(31, 111, 235, 0.55);
+  cursor: move;
+  touch-action: none;
+}
+.box:hover { outline-color: var(--accent); }
+.box.selected { outline: 2px solid var(--accent); background: rgba(31, 111, 235, 0.06); }
+.box .tag {
+  position: absolute; left: 0; top: 0; transform: translateY(-100%);
+  font-size: 10px; line-height: 1; padding: 1px 4px; color: #fff; background: var(--accent);
+  border-radius: 3px 3px 0 0; opacity: 0; pointer-events: none;
+}
+.box:hover .tag, .box.selected .tag { opacity: 1; }
+.handle { position: absolute; background: var(--accent); opacity: 0; }
+.box.selected .handle, .box:hover .handle { opacity: 1; }
+.h-e { right: -4px; top: 50%; width: 8px; height: 16px; margin-top: -8px; cursor: ew-resize; border-radius: 2px; }
+.h-s { bottom: -4px; left: 50%; width: 16px; height: 8px; margin-left: -8px; cursor: ns-resize; border-radius: 2px; }
+.h-se { right: -5px; bottom: -5px; width: 10px; height: 10px; cursor: nwse-resize; border-radius: 50%; }
+.guide { position: absolute; pointer-events: none; background: #e5367a; }
+.guide-x { top: -12px; bottom: -12px; width: 1px; }
+.guide-y { left: -12px; right: -12px; height: 1px; }
+.preview-msg { color: var(--error); margin: 0; }
+
+/* ---- element cards ---- */
+.element { cursor: default; }
+.element.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.element textarea {
+  width: 100%; resize: vertical; font: inherit; color: inherit;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
+}
+.field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); flex: 1; min-width: 0; }
+.field input, .field select { width: 100%; color: var(--text); }
+.rect-fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.rect-fields input { padding: 2px 4px; }
+.filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.element .row > button { flex: none; }

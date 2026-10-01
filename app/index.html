@@ -52,8 +52,6 @@
 
         <h2 data-i18n="layout.title"></h2>
         <div class="grid">
-          <label for="gap" data-i18n="layout.gap"></label>
-          <input id="gap" type="number" min="0" step="0.5" />
           <label for="padding" data-i18n="layout.padding"></label>
           <input id="padding" type="number" min="0" step="0.5" />
           <label for="min-length" data-i18n="layout.minLength"></label>
@@ -66,13 +64,18 @@
       <section class="canvas">
         <div class="zoom">
           <label><span data-i18n="preview.zoom"></span>
-            <input id="zoom" type="range" min="1" max="8" step="1" value="4" />
+            <input id="zoom" type="range" min="1" max="10" step="1" value="4" />
           </label>
           <span id="dims" class="muted"></span>
+          <span class="spacer"></span>
+          <span class="muted" data-i18n="preview.hint"></span>
         </div>
-        <div class="tape-wrap">
-          <img id="preview" alt="" />
-          <p id="preview-msg" class="muted"></p>
+        <div class="tape-wrap" id="tape-wrap">
+          <div class="stage" id="stage">
+            <img id="preview" alt="" draggable="false" />
+            <div id="boxes" class="boxes"></div>
+          </div>
+          <p id="preview-msg" class="preview-msg"></p>
         </div>
       </section>
     </main>
