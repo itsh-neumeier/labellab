@@ -13,6 +13,11 @@ Druckt direkt über **Bluetooth** oder **USB**, ohne Brother-Druckertreiber, unt
 - CLI `labellab` für Skripte und Automatisierung
 - GUI mit Tauri 2
 
+## Für Mitwirkende und KI-Agenten
+- [`AGENTS.md`](AGENTS.md): Regeln für alle KI-Werkzeuge
+- [`docs/PROGRESS.md`](docs/PROGRESS.md): aktueller Stand
+- [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md): Wartung und Release
+
 ## Werkzeuge
 - [`tools/bt-diagnose.ps1`](tools/bt-diagnose.ps1): prüft unter Windows die Bluetooth-COM-Ports und fragt den Bandstatus direkt am Drucker ab.
 

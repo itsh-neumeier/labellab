@@ -56,7 +56,11 @@ labellab/
 │  ├─ ll-core/        # Gerätemanager, Jobs, Serien/CSV, Vorlagen-Speicherung (JSON), Fehlerbehandlung
 │  └─ ll-cli/         # Kommandozeile `labellab` (clap)
 ├─ app/               # Tauri 2: src-tauri (Rust, nutzt ll-core) + Frontend
-├─ docs/              # PROTOCOL.md, ARCHITECTURE.md, MASTER_PROMPT.md
+├─ docs/              # MASTER_PROMPT, PROGRESS, DECISIONS, MAINTENANCE, PROTOCOL, ARCHITECTURE
+├─ tools/             # bt-diagnose.ps1 u. a. Hilfsskripte
+├─ AGENTS.md          # einzige Regelquelle für alle KI-Werkzeuge
+├─ CLAUDE.md, GEMINI.md, .github/copilot-instructions.md, .cursor/rules/  # verweisen auf AGENTS.md
+├─ CHANGELOG.md
 └─ .github/workflows/ # CI: fmt, clippy -D warnings, test, Release-Builds Win/Linux
 ```
 
@@ -207,6 +211,26 @@ labellab render x.llabel -o vorschau.png   # ohne Drucker
 6. **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen.
 7. **M7 – Kabel/Serien/CSV + Kettendruck.**
 8. **M8 – Release:** Installer, Signatur-Hinweise, Doku/Screenshots, v1.0.0.
+
+## Multi-AI-Arbeitsweise & Fortschrittsspeicher
+
+Das Projekt wird mit wechselnden KI-Werkzeugen entwickelt (Claude Code, Codex, Copilot, Gemini, Cursor).
+Der Stand lebt **in Dateien, nicht im Chatverlauf**:
+
+| Datei | Zweck | Wann pflegen |
+|---|---|---|
+| `AGENTS.md` | Regeln, Build-Befehle, Pflichten (einzige Quelle) | bei Regeländerungen |
+| `docs/PROGRESS.md` | Meilensteine, „In Arbeit“, nächste Schritte, offene Hardware-Tests, Session-Log | **jede Session** |
+| `docs/DECISIONS.md` | Architekturentscheidungen (ADRs) | bei jeder Grundsatzentscheidung |
+| `docs/MAINTENANCE.md` | Checklisten: Abhängigkeiten, neues Modell, Fehleranalyse, Release | bei Prozessänderungen |
+| `docs/PROTOCOL.md` | Protokollwerte mit Quelle und Status (verifiziert/unverifiziert) | bei neuen Erkenntnissen |
+| `CHANGELOG.md` | Nutzerrelevante Änderungen | bei jedem Feature/Fix |
+
+Pflichten:
+- **Start:** `AGENTS.md`, `docs/PROGRESS.md`, `docs/DECISIONS.md` lesen, eigene Aufgabe unter „In Arbeit“ eintragen.
+- **Ende:** `PROGRESS.md` (Checkboxen, nächste Schritte, Session-Log mit Datum und Werkzeug), ggf. ADR,
+  `PROTOCOL.md`, `CHANGELOG.md` aktualisieren, committen.
+- Jeder Meilenstein endet mit einem Stand, an dem ein **anderer Agent ohne Kontext** weitermachen kann.
 
 ## Arbeitsweise
 - Vor jedem Meilenstein kurz den Plan nennen, danach Ergebnis + offene Punkte.
