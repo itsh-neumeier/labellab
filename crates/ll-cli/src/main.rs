@@ -48,7 +48,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Gefundene Drucker (aktuell: serielle/COM-Ports) auflisten.
+    /// Gefundene Drucker (COM-Ports, gekoppeltes Bluetooth, USB) auflisten.
     Devices {
         #[arg(long)]
         json: bool,
@@ -61,6 +61,10 @@ enum Command {
         /// (nur Windows; `device` ist dann die Geraete-ID aus `devices`).
         #[arg(long)]
         bt: bool,
+        /// USB statt seriellem COM-Port verwenden. `device` ist dann optional:
+        /// Modellname, `VVVV:PPPP` oder Seriennummer (ohne: erster gefundener).
+        #[arg(long, conflicts_with = "bt")]
+        usb: bool,
         #[arg(long, default_value_t = DEFAULT_BAUD_RATE)]
         baud: u32,
         #[arg(long)]
@@ -106,6 +110,10 @@ enum Command {
         /// (nur Windows; `device` ist dann die Geraete-ID aus `devices`).
         #[arg(long)]
         bt: bool,
+        /// USB statt seriellem COM-Port verwenden. `device` ist dann optional:
+        /// Modellname, `VVVV:PPPP` oder Seriennummer (ohne: erster gefundener).
+        #[arg(long, conflicts_with = "bt")]
+        usb: bool,
         #[arg(long, default_value_t = DEFAULT_BAUD_RATE)]
         baud: u32,
         #[arg(long, default_value = DEFAULT_MODEL)]
@@ -153,13 +161,25 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Devices { json } => devices(json),
+        Command::Devices { json } => devices(json).await,
         Command::Status {
             device,
             bt,
+            usb,
             baud,
             json,
-        } => status(device, bt, baud, json).await,
+        } => {
+            status(
+                ConnectOpts {
+                    device,
+                    bt,
+                    usb,
+                    baud,
+                },
+                json,
+            )
+            .await
+        }
         Command::Print {
             text,
             qr,
@@ -175,6 +195,7 @@ async fn main() -> anyhow::Result<()> {
             copies,
             device,
             bt,
+            usb,
             baud,
             model,
         } => {
@@ -197,7 +218,12 @@ async fn main() -> anyhow::Result<()> {
                     margin_dots: margin,
                 },
                 copies,
-                ConnectOpts { device, bt, baud },
+                ConnectOpts {
+                    device,
+                    bt,
+                    usb,
+                    baud,
+                },
                 model,
             )
             .await
@@ -230,18 +256,31 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-/// `--device`/`--bt`/`--baud`, grouped so `print`/`status` don't need a
+/// `--device`/`--bt`/`--usb`/`--baud`, grouped so `print`/`status` don't need a
 /// handful of separate parameters each (keeps `clippy::too_many_arguments`
 /// happy too).
 struct ConnectOpts {
     device: Option<String>,
     bt: bool,
+    usb: bool,
     baud: u32,
 }
 
-/// Opens a transport by CLI args: `--bt` picks native Bluetooth RFCOMM
-/// (Windows only), otherwise a serial/COM port at `baud`.
-async fn open_transport(device: &str, bt: bool, baud: u32) -> anyhow::Result<Box<dyn Transport>> {
+/// Opens a transport by CLI args: `--usb` picks USB (device optional),
+/// `--bt` native Bluetooth RFCOMM (Windows only), otherwise a serial/COM
+/// port at `baud`.
+async fn open_transport(connect: &ConnectOpts) -> anyhow::Result<Box<dyn Transport>> {
+    if connect.usb {
+        return Ok(Box::new(device::open_usb(connect.device.as_deref()).await?));
+    }
+    let Some(device) = connect.device.as_deref() else {
+        eprintln!(
+            "Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`), \
+             oder --usb verwenden."
+        );
+        std::process::exit(1);
+    };
+    let (bt, baud) = (connect.bt, connect.baud);
     if bt {
         #[cfg(windows)]
         {
@@ -263,8 +302,14 @@ async fn open_transport(device: &str, bt: bool, baud: u32) -> anyhow::Result<Box
     }
 }
 
-fn devices(json: bool) -> anyhow::Result<()> {
+async fn devices(json: bool) -> anyhow::Result<()> {
     let ports = device::list_serial_devices()?;
+    // USB enumeration can fail where the other transports still work (no
+    // USB subsystem, missing permissions); report it instead of aborting.
+    let usb_printers = device::list_usb_printers().await.unwrap_or_else(|e| {
+        eprintln!("USB-Geräte konnten nicht aufgelistet werden: {e}");
+        Vec::new()
+    });
 
     #[cfg(windows)]
     let bt_devices: Vec<(String, String)> = device::list_bluetooth_devices()?
@@ -279,7 +324,17 @@ fn devices(json: bool) -> anyhow::Result<()> {
             .iter()
             .map(|(id, name)| serde_json::json!({"id": id, "name": name}))
             .collect();
-        let value = serde_json::json!({ "serial": ports, "bluetooth": bt_json });
+        let usb_json: Vec<_> = usb_printers
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "model": p.model.name,
+                    "id": p.usb_id(),
+                    "serial_number": p.serial_number,
+                })
+            })
+            .collect();
+        let value = serde_json::json!({ "serial": ports, "bluetooth": bt_json, "usb": usb_json });
         println!("{}", serde_json::to_string_pretty(&value)?);
         return Ok(());
     }
@@ -301,11 +356,28 @@ fn devices(json: bool) -> anyhow::Result<()> {
             println!("  {name} ({id})");
         }
     }
+
+    if usb_printers.is_empty() {
+        println!("Keine USB-Drucker gefunden.");
+    } else {
+        println!("USB-Drucker, mit --usb verwendbar:");
+        for p in usb_printers {
+            match &p.serial_number {
+                Some(serial) => println!("  {} ({}, SN {serial})", p.model.name, p.usb_id()),
+                None => println!("  {} ({})", p.model.name, p.usb_id()),
+            }
+        }
+    }
     Ok(())
 }
 
-async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyhow::Result<()> {
-    let Some(device) = device else {
+async fn status(connect: ConnectOpts, json: bool) -> anyhow::Result<()> {
+    if connect.usb {
+        let status = device::query_status_over_usb(connect.device.as_deref()).await?;
+        return print_status(&status, json);
+    }
+    let (bt, baud) = (connect.bt, connect.baud);
+    let Some(device) = connect.device else {
         eprintln!(
             "Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`). \
              Automatische Erkennung folgt später."
@@ -326,9 +398,12 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
     } else {
         device::query_status_over_serial(&device, baud).await?
     };
+    print_status(&status, json)
+}
 
+fn print_status(status: &StatusBlock, json: bool) -> anyhow::Result<()> {
     if json {
-        println!("{}", status_to_json(&status));
+        println!("{}", status_to_json(status));
         return Ok(());
     }
 
@@ -399,10 +474,6 @@ async fn print(
         );
         std::process::exit(1);
     };
-    let Some(device) = connect.device else {
-        eprintln!("Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`).");
-        std::process::exit(1);
-    };
     let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
         eprintln!(
             "Unbekanntes Modell '{model_name}'. Bekannt: {}",
@@ -415,7 +486,7 @@ async fn print(
         std::process::exit(1);
     };
 
-    let mut transport = open_transport(&device, connect.bt, connect.baud).await?;
+    let mut transport = open_transport(&connect).await?;
 
     for copy in 1..=copies {
         if copies > 1 {

@@ -33,7 +33,8 @@
 - [ ] **M4 – Native Bluetooth/USB:** WinRT-RFCOMM inkl. Kopplung, BlueZ, USB (`nusb`)
   **Teilstand:** WinRT-RFCOMM-Connect (ohne programmatisches Pairing) fertig, **hardware-verifiziert
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
-  App, BlueZ (Linux), USB fehlen noch.
+  App, BlueZ (Linux) fehlen noch. **USB-Transport (`nusb`, ADR-013) fertig** (Code + Unit-Tests
+  grün, CLI `--usb`), noch nicht gegen echten Drucker getestet.
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
   **Teilstand:** echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt +
   gescannt). 6 Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010,
@@ -72,7 +73,11 @@
     (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
 4. Symbolbibliothek: Lizenz/Icon-Set mit Nutzer klären (z. B. Material Symbols, Apache-2.0),
    dann SVG-Dateien einbetten — letztes offenes M5-Stück.
-5. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
+5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
+   `labellab status --usb`, dann `labellab print "TEST" --usb`. Unter Windows wird das Öffnen
+   vermutlich scheitern, solange `usbprint.sys`/Brother-Treiber gebunden ist (WinUSB per Zadig
+   nötig, ADR-013); unter Linux udev-Regel aus `docs/PROTOCOL.md`.
+5a. M4-Rest (programmatisches Pairing, BlueZ/Linux) — wann immer eingeschoben.
 6. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
 7. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
@@ -117,6 +122,9 @@
   Inhaltsende (keine Lücke zum Schnitt). Ursache gefunden: `margin(0)` war fest einprogrammiert.
   Jetzt `PrintOptions::margin_dots` konfigurierbar (CLI `--margin`, Default 28 Druckpunkte statt
   0, TODO(verify) ob 28 ausreicht). Noch nicht erneut gegen echten Drucker getestet.
+- [ ] M4: USB-Transport gegen echten Drucker testen (`labellab status --usb`, `print --usb`):
+  Endpunkt-Erkennung (Druckerklasse `0x07`, Bulk IN/OUT), Windows mit WinUSB vs.
+  `usbprint.sys`, Linux mit udev-Regel und `usblp`-Detach.
 - [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
   bisher nur PNG-Vorschau.
 
@@ -156,6 +164,26 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, M4 (Teil) – USB-Transport
+- `ll-transport::usb` (neu, `nusb` 0.2 mit `tokio`-Feature, ADR-013): `list_devices()`,
+  `find_printer_endpoints()` (Druckerklasse `0x07`, Bulk OUT + IN aus der aktiven
+  Konfiguration), `UsbTransport::open(vid, pid, serial)` mit `detach_and_claim_interface`,
+  `read_exact_timeout` über `tokio::time::timeout`. 3 Unit-Tests mit handgebauten
+  Konfigurationsdeskriptoren. `TransportError::DeviceNotFound`-Text generalisiert (nicht mehr
+  nur Bluetooth).
+- `ll-core::device`: `UsbPrinter`, `filter_usb_printers()` (VID/PID gegen
+  `ll_protocol::model::MODELS`), `select_usb_printer()` (Modellname / `VVVV:PPPP` /
+  Seriennummer / erster), `open_usb()`, `query_status_over_usb()`. 2 Unit-Tests.
+- `ll-cli`: `--usb` auf `status` und `print` (`--device` dann optional, schließt `--bt` aus),
+  `devices` listet USB-Drucker (auch in `--json`). USB-Aufzählungsfehler (z. B. kein
+  `/sys/bus/usb` im Container) brechen `devices` nicht mehr ab, nur Warnung.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (64 Unit-Tests, vorher 59).
+- **Stolperstein:** Unter Windows kann `nusb` nur WinUSB-gebundene Interfaces öffnen —
+  mit dem Standard-Druckertreiber wird `--usb` vermutlich scheitern (Hardware-Test offen).
+- Nutzerentscheidung Symbolbibliothek: **Tabler Icons (MIT)** für Elektro/IT, dazu eigene,
+  selbst gezeichnete Warnzeichen-Rahmen im Stil DIN EN ISO 7010 (offizielle ISO-Grafiken nicht
+  übernommen, Urheberrecht).
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – SVG-Import
 - `ll-render::picture`: `render_image()` erkennt `.svg` an der Dateiendung (case-insensitiv)
   und rastert über neue `render_svg_to_gray()`-Funktion (`usvg::Tree::from_data` zum Parsen,

@@ -31,3 +31,4 @@ barcoders = { version = "2", default-features = false, features = ["std"] }
 resvg = "0.48"
 usvg = "0.48"
 tiny-skia = "0.12"
+nusb = { version = "0.2", features = ["tokio"] }

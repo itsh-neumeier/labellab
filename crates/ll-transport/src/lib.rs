@@ -9,6 +9,7 @@ pub mod bluetooth;
 mod error;
 pub mod mock;
 pub mod serial;
+pub mod usb;
 
 use std::time::Duration;
 

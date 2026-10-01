@@ -26,6 +26,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Scan-Lesbarkeit noch nicht verifiziert
 - M5 (Teil): Bildimport (PNG/JPEG/BMP) mit Floyd-Steinberg-Dithering — `labellab print --image
   <datei> [--invert]` und `labellab render --image <datei> -o vorschau.png`
+- M4 (Teil): USB-Transport (`nusb`) für Windows und Linux — `labellab devices` listet
+  angeschlossene USB-Drucker, `labellab status --usb` und `labellab print ... --usb
+  [--device <Modell|VVVV:PPPP|Seriennummer>]`; noch nicht hardware-getestet
 - M5 (Teil): Rahmen um das ganze Label — `--frame` auf `print` und `render`, gilt für
   Text/QR/Barcode/Bild
 - M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type

@@ -167,3 +167,19 @@ Vorlage:
   Band gedruckt, nur PNG-Vorschau (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
   Symbolbibliothek selbst (echte Icon-Dateien bündeln) ist jetzt technisch möglich, aber noch
   nicht umgesetzt — braucht eine explizite Entscheidung zu Lizenz/Icon-Set.
+
+## ADR-013: `nusb` für den USB-Transport (M4)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: M4 verlangt USB-Direktdruck auf Windows und Linux. `MASTER_PROMPT.md` nennt `nusb`
+  (pure Rust) bzw. `rusb` (libusb-Bindings).
+- Entscheidung: `nusb` 0.2 (MIT/Apache-2.0) mit `tokio`-Feature. Kein C-Toolchain-/libusb-Bedarf,
+  `EndpointRead`/`EndpointWrite` implementieren `AsyncRead`/`AsyncWrite`, passt also direkt zum
+  async `Transport`-Trait (ADR-005). `ll_transport::usb::UsbTransport` sucht in der aktiven
+  Konfiguration das erste Interface der Druckerklasse (`0x07`) mit Bulk-OUT und Bulk-IN,
+  übernimmt es (`detach_and_claim_interface`, löst unter Linux `usblp`) und liest den
+  Statusblock mit `tokio::time::timeout`. VID/PID-Filter bleibt in `ll-core` über die
+  Modelltabelle (`ll-protocol`), damit `ll-transport` keine Protokollwerte kennt.
+- Konsequenzen: Unter Windows kann `nusb` nur WinUSB-gebundene Interfaces öffnen; mit
+  `usbprint.sys` oder dem Brother-Treiber scheitert das Öffnen. TODO(verify): ob der PT-P710BT
+  mit WinUSB (z. B. per Zadig) sauber druckt. Unter Linux braucht Nicht-root-Zugriff eine
+  udev-Regel (`docs/PROTOCOL.md`). Noch nicht gegen echte Hardware getestet.

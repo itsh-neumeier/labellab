@@ -15,6 +15,6 @@ pub enum TransportError {
     #[error("platform error: {0}")]
     Platform(String),
 
-    #[error("no Bluetooth device found for {0:?}")]
+    #[error("no device found for {0:?}")]
     DeviceNotFound(String),
 }

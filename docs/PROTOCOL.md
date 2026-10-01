@@ -29,6 +29,14 @@
 | Eingehende BT-COM-Ports | unbrauchbar für Statusabfrage | verifiziert | Hardware-Test 2026-10-01 |
 | Gleichzeitige BT-Verbindungen | nur eine (z. B. Handy blockiert PC) | verifiziert | Hardware-Test 2026-10-01 |
 
+## USB
+
+| Fakt | Wert | Status | Quelle |
+|---|---|---|---|
+| Interface-Klasse | Drucker (`0x07`), Bulk-OUT für Befehle/Raster, Bulk-IN für den 32-Byte-Status | unverifiziert | Annahme nach USB-Druckerklasse; `ll_transport::usb` sucht Endpunkte dynamisch statt fester Adressen |
+| Windows-Treiberbindung | `nusb` braucht WinUSB am Interface (nicht `usbprint.sys`/Brother-Treiber) | unverifiziert | `nusb`-Doku; Hardware-Test offen |
+| Linux-Zugriff ohne root | udev-Regel, z. B. `SUBSYSTEM=="usb", ATTRS{idVendor}=="04f9", ATTRS{idProduct}=="20af", MODE="0660", TAG+="uaccess"` in `/etc/udev/rules.d/60-labellab.rules` | unverifiziert | Annahme, Hardware-Test offen |
+
 ## Befehle
 
 | Befehl | Bytes | Status | Quelle |
