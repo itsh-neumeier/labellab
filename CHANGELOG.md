@@ -15,4 +15,4 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   — hardware-verifiziert gegen echten PT-P710BT
 - M3: `labellab print "Text" --device <...> [--bt] [--cut] [--copies N]` — erster echter
   Druckjob (Status lesen, Band automatisch erkennen, Platzhalter-Bitmapfont rendern, PackBits,
-  an den Drucker senden); echter Druck auf Band noch nicht hardware-getestet
+  an den Drucker senden) — hardware-verifiziert: druckt lesbaren Text auf echtes Band

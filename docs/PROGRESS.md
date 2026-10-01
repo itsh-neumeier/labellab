@@ -4,11 +4,12 @@
 > aktualisiert (siehe `AGENTS.md`). Neueste Einträge im Session-Log oben.
 
 ## Aktueller Stand
-- **Phase:** M2 abgeschlossen. M4-Teilstand (natives Windows-BT-RFCOMM) hardware-verifiziert.
-  **M3-Code fertig** (Textdruck über Status→Band→Raster→PackBits→Transport-Pipeline, mit
-  Platzhalter-Bitmapfont), Unit-/Golden-Tests grün, **echter Druck auf Papier noch nicht
-  getestet** (siehe „Hardware-Tests offen“).
-- **Aktueller Meilenstein:** M3 – Hardware-Test, dann M5 (echter Renderer) oder M4-Rest
+- **Phase:** M1/M2 abgeschlossen. M4-Teilstand (natives Windows-BT-RFCOMM) hardware-verifiziert.
+  **M3 hardware-verifiziert:** `labellab print "TEST" --bt` hat echten, lesbaren Text auf
+  9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
+  Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
+  end-to-end auf echter Hardware.
+- **Aktueller Meilenstein:** M5 (echter Renderer) oder M4-Rest (Pairing/BlueZ/USB) — offene Wahl
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -16,11 +17,11 @@
 - [x] **M2 – Protokoll + Status:** Status-Parser, Befehle, PackBits, Serial-Transport, CLI `devices`/`status`
   (Code + Unit-Tests grün; serieller BT-SPP-Pfad auf Zielhardware unzuverlässig, siehe ADR-007 –
   native BT, s. M4-Teilstand, ist der verifizierte Weg)
-- [ ] **M3 – Erster Druck:** Textlabel per CLI, Mock-Transport, Golden-Tests.
-  **Teilstand:** Code fertig (`ll_core::print::print_text`: Status lesen → Bandbreite prüfen →
-  Platzhalter-Bitmapfont rendern → PackBits → Protokollbefehle senden), CLI `print "Text"
-  --device <...> [--bt] [--cut] [--copies N]`, 3 Golden-/Strukturtests mit `MockTransport`.
-  Echter Druck auf Papier/Band noch nicht verifiziert.
+- [x] **M3 – Erster Druck:** Textlabel per CLI, Mock-Transport, Golden-Tests.
+  `ll_core::print::print_text` (Status lesen → Bandbreite prüfen → Platzhalter-Bitmapfont
+  rendern → PackBits → Protokollbefehle senden), CLI `print "Text" --device <...> [--bt]
+  [--cut] [--copies N]`, 3 Golden-/Strukturtests mit `MockTransport`.
+  **Hardware-verifiziert 2026-10-01:** echter, lesbarer Druck auf 9-mm-Band bestätigt (Foto).
 - [ ] **M4 – Native Bluetooth/USB:** WinRT-RFCOMM inkl. Kopplung, BlueZ, USB (`nusb`)
   **Teilstand:** WinRT-RFCOMM-Connect (ohne programmatisches Pairing) fertig, **hardware-verifiziert
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
@@ -36,16 +37,14 @@
 | – | – | – | – |
 
 ## Nächste Schritte
-1. **Hardware-Test M3 (auf dem Gerät mit dem Drucker):** `labellab print "TEST" --device "<BT-ID>"
-   --bt` — prüfen ob wirklich lesbarer Text auf dem Band erscheint (Platzhalter-Font, nicht
-   hübsch, aber sollte lesbar sein), Bandvorschub/Schnitt plausibel.
-2. M5 (echter Renderer: `cosmic-text`/`fontdue`, Barcodes, Bilder) oder M4-Rest
-   (programmatisches Pairing, BlueZ, USB) — je nachdem was nach dem Hardware-Test wichtiger ist.
+1. Entscheiden: M5 (echter Renderer: `cosmic-text`/`fontdue`, Barcodes, Bilder — ersetzt den
+   M3-Platzhalter-Font) oder M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) zuerst.
+2. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
+   Einzeldruck ohne Schnitt verifiziert.
 3. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
-4. `PrintInformation`-Validitätsflags (n1) und Various-/Advanced-Mode-Bits jenseits Auto-Cut
-   sind noch TODO(verify) — beim Hardware-Test genau beobachten, ob Druck trotzdem korrekt
-   funktioniert (siehe Kommentare in `crates/ll-protocol/src/command.rs`).
+4. `PrintInformation`-Validitätsflags (n1) jenseits des aktuell gesendeten Bits und Advanced
+   Mode sind noch TODO(verify)/ungenutzt (siehe Kommentare in `crates/ll-protocol/src/command.rs`).
 
 ## Hardware-Tests offen
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
@@ -60,9 +59,11 @@
   (`ERROR_SEM_TIMEOUT`), siehe ADR-007. Durch natives BT-RFCOMM ersetzt (nächster Punkt).
 - [x] ~~M4: `labellab status --bt` gegen echten Drucker testen~~ – erfolgreich, 2026-10-01
   (Gerät „SPP SERVER“, PT-P710BT), siehe `docs/PROTOCOL.md`.
-- [ ] M3: `labellab print "Text" --bt --device <ID>` gegen echten Drucker testen – kommt wirklich
-  lesbarer Text aufs Band? PrintInformation-Flags/Various-Mode-Bits jenseits Auto-Cut
-  (`crates/ll-protocol/src/command.rs`, TODO(verify)) beim Test beobachten.
+- [x] ~~M3: `labellab print "Text" --bt --device <ID>` gegen echten Drucker testen~~ –
+  erfolgreich, 2026-10-01: lesbarer "TEST"-Druck auf 9-mm-Band (Foto bestätigt).
+- [ ] `--cut` (Auto-Cut) hardware-testen — bisher nur ohne Schnitt gedruckt.
+- [ ] `PrintInformation`-Validitätsflags (n1) jenseits des gesendeten Bits (Medientyp/-länge
+  gültig, Qualität/Recovery) gegen echtes Verhalten prüfen.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -83,6 +84,12 @@
   nur über die MAC in der Geräte-ID möglich (`b4:22:00:eb:96:6f`, passt zur Hardware-ID
   `BTHENUM\Dev_B42200EB966F` aus dem Geräte-Manager). Status: `media_width_mm=9, error1=0,
   error2=0, media_type=1, status_type=Antwort, phase_type=0, tape_color=1, text_color=8`.
+- 2026-10-01: Erster echter Druck erfolgreich. `labellab print "TEST" --device "SPP SERVER"
+  --bt` druckte lesbaren Text auf 9-mm-Band (Foto vom Nutzer bestätigt). Vollständige Pipeline
+  (Invalidate/Initialize/Status → Raster-Modus → Various Mode → Rand(0) → PrintInformation →
+  PackBits-Kompression → Rasterzeilen → Druck mit Vorschub) funktioniert mit den aktuellen,
+  bis dahin nur dokumentierten (nicht hardware-verifizierten) Befehls-Bytes. Getestet: ohne
+  Auto-Cut, ohne mehrere Kopien, mit dem M3-Platzhalter-Bitmapfont (kein echter Renderer).
 
 ## Session-Log
 ### 2026-10-01 – Claude Code (Sonnet 5), M3 – Erster Druck (Code)
@@ -111,6 +118,13 @@
   TODO(verify) – nur Auto-Cut-Bit ist dokumentiert/sicher.
 - Release-Build erneuert; Nutzer testet `labellab print "..." --bt --device <ID>` auf dem
   Gerät mit dem Drucker.
+- **Hardware-Test erfolgreich:** Nutzer hat `labellab print "TEST" --device "<SPP-SERVER-ID>"
+  --bt` ausgeführt, Foto vom bedruckten Band bestätigt lesbaren Text. `docs/PROTOCOL.md`:
+  alle in `print_text()` verwendeten Befehle (Raster-Modus, Various Mode, Rand,
+  PrintInformation, PackBits-Kompression, Rasterzeile, Leerzeile, Druck mit Vorschub) von
+  „dokumentiert“ auf „verifiziert“ gehoben; `Advanced Mode` und `Seite ohne Vorschub` bleiben
+  „dokumentiert“ (werden von `print_text()` nicht gesendet). 9-mm-Geometrie als „teilweise
+  verifiziert“ markiert (druckt korrekt, Pin-Zahlen nicht einzeln nachgemessen).
 
 ### 2026-10-01 – Claude Code (Sonnet 5), M4 (Windows-Teil) vorgezogen – natives BT-RFCOMM
 - Grund: Hardware-Test von M2 auf der Nutzermaschine scheiterte reproduzierbar am seriellen

@@ -33,19 +33,19 @@
 
 | Befehl | Bytes | Status | Quelle |
 |---|---|---|---|
-| Invalidate | `00` × 100 | dokumentiert | Sprachmonitor-INI |
+| Invalidate | `00` × 100 | verifiziert | Hardware-Test 2026-10-01 (`labellab print`) |
 | Initialize | `1B 40` | verifiziert | Hardware-Test 2026-10-01 |
 | Status-Request | `1B 69 53` | verifiziert | Hardware-Test 2026-10-01 |
-| Raster-Modus | `1B 69 61 01` | dokumentiert | Raster Command Reference |
-| Druckinformation | `1B 69 7A n1..n10` | dokumentiert | Raster Command Reference |
-| Various Mode (Auto-Cut Bit 6) | `1B 69 4D n` | dokumentiert | Raster Command Reference |
-| Advanced Mode | `1B 69 4B n` | dokumentiert | Raster Command Reference |
-| Rand/Vorschub (Punkte, LE16) | `1B 69 64 n1 n2` | dokumentiert | Raster Command Reference |
-| Kompression TIFF/PackBits | `4D 02` | dokumentiert | Raster Command Reference |
-| Rasterzeile (Länge LE16) | `47 n1 n2 <daten>` | dokumentiert | Raster Command Reference |
-| Leerzeile | `5A` | dokumentiert | Raster Command Reference |
-| Drucken mit Vorschub (letzte Seite) | `1A` | dokumentiert | Raster Command Reference |
-| Seite ohne Vorschub | `0C` | dokumentiert | Raster Command Reference |
+| Raster-Modus | `1B 69 61 01` | verifiziert | Hardware-Test 2026-10-01: `labellab print "TEST" --bt` → lesbarer Druck auf 9-mm-Band |
+| Druckinformation | `1B 69 7A n1..n10` | verifiziert (n1-Validitätsflags siehe TODO) | Hardware-Test 2026-10-01, Werte wie in `crates/ll-protocol/src/command.rs` |
+| Various Mode (Auto-Cut Bit 6) | `1B 69 4D n` | verifiziert (nur mit `n=0`, ohne Auto-Cut, getestet) | Hardware-Test 2026-10-01 |
+| Advanced Mode | `1B 69 4B n` | dokumentiert (nicht gesendet) | Raster Command Reference — `print_text()` sendet diesen Befehl aktuell nicht |
+| Rand/Vorschub (Punkte, LE16) | `1B 69 64 n1 n2` | verifiziert (nur mit `n1=n2=0` getestet) | Hardware-Test 2026-10-01 |
+| Kompression TIFF/PackBits | `4D 02` | verifiziert | Hardware-Test 2026-10-01 |
+| Rasterzeile (Länge LE16) | `47 n1 n2 <daten>` | verifiziert | Hardware-Test 2026-10-01 |
+| Leerzeile | `5A` | verifiziert | Hardware-Test 2026-10-01 |
+| Drucken mit Vorschub (letzte Seite) | `1A` | verifiziert | Hardware-Test 2026-10-01 |
+| Seite ohne Vorschub | `0C` | dokumentiert (nicht gesendet) | Raster Command Reference — nur für Kettendruck (M7) relevant |
 
 ## Statusblock (32 Byte)
 
@@ -79,7 +79,7 @@ Referenz und Hardware zu prüfen — siehe `crates/ll-protocol/src/model.rs`):
 |---|---|---|---|
 | 3,5 mm | 24 | 52 | unverifiziert |
 | 6 mm | 32 | 48 | unverifiziert |
-| 9 mm | 50 | 39 | unverifiziert |
+| 9 mm | 50 | 39 | teilweise verifiziert (`labellab print` druckte lesbaren Text auf echtem 9-mm-Band, 2026-10-01; Pin-Zahlen nicht einzeln nachgemessen) |
 | 12 mm | 70 | 29 | unverifiziert |
 | 18 mm | 112 | 8 | unverifiziert |
 | 24 mm | 128 | 0 | unverifiziert |
