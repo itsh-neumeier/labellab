@@ -353,10 +353,12 @@ impl Canvas {
 
 /// Renders one element for the flow layout: full head width, filling the
 /// tape's printable height, natural length.
+/// Sets `overflow` if text had to be clipped.
 fn render_flow_element(
     element: &Element,
     canvas: &Canvas,
     fonts: &mut FontCache,
+    overflow: &mut bool,
 ) -> Result<Bitmap, CoreError> {
     let (head, pins, offset) = (canvas.head_pins, canvas.pins, canvas.offset);
     Ok(match element {
@@ -381,7 +383,9 @@ fn render_flow_element(
             let font = fonts.face(font, *bold, *italic)?;
             let size_px = size_pt.map(|pt| canvas.pt(pt));
             let width = boxed::text_natural_width(text, font, pins, size_px)?;
-            let local = boxed::text_in_box(text, font, width, pins, size_px, *align)?;
+            let (local, clipped) =
+                boxed::text_in_box_checked(text, font, width, pins, size_px, *align)?;
+            *overflow |= clipped;
             let mut out = Bitmap::new(head, width);
             out.blit(&local, offset as i32, 0, offset..offset + pins);
             out
@@ -414,13 +418,15 @@ fn render_flow_element(
     })
 }
 
-/// Renders one element into a box-local bitmap of `w` x `h` dots.
+/// Renders one element into a box-local bitmap of `w` x `h` dots. Sets
+/// `overflow` if text had to be clipped.
 fn render_boxed_element(
     element: &Element,
     w: u32,
     h: u16,
     canvas: &Canvas,
     fonts: &mut FontCache,
+    overflow: &mut bool,
 ) -> Result<Bitmap, CoreError> {
     Ok(match element {
         Element::Text {
@@ -430,14 +436,18 @@ fn render_boxed_element(
             font,
             bold,
             italic,
-        } => boxed::text_in_box(
-            text,
-            fonts.face(font, *bold, *italic)?,
-            w,
-            h,
-            size_pt.map(|pt| canvas.pt(pt)),
-            *align,
-        )?,
+        } => {
+            let (bitmap, clipped) = boxed::text_in_box_checked(
+                text,
+                fonts.face(font, *bold, *italic)?,
+                w,
+                h,
+                size_pt.map(|pt| canvas.pt(pt)),
+                *align,
+            )?;
+            *overflow |= clipped;
+            bitmap
+        }
         Element::Qr { data } => boxed::qr_in_box(data, w, h, QrErrorCorrection::Medium)?,
         Element::Barcode { symbology, data } => boxed::barcode_in_box(*symbology, data, w, h)?,
         Element::Image { path, invert } => boxed::image_in_box(path, w, h, *invert)?,
@@ -455,6 +465,8 @@ fn render_boxed_element(
 struct Composed {
     bitmap: Bitmap,
     boxes: Vec<(i32, i32, u32, u32)>,
+    /// Per element: text did not fit and was clipped.
+    overflow: Vec<bool>,
 }
 
 fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
@@ -469,6 +481,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     // Flow pass: elements without a box, one after another.
     let mut bitmap = Bitmap::new(canvas.head_pins, 0);
     let mut boxes: Vec<Option<(i32, i32, u32, u32)>> = vec![None; label.elements.len()];
+    let mut overflow = vec![false; label.elements.len()];
     bitmap.extend_blank(padding);
     let mut first = true;
     for (i, item) in label.elements.iter().enumerate() {
@@ -482,7 +495,12 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
         let start = bitmap.height_dots();
         // Every flow element renders at `canvas.head_pins` wide, so this
         // can't mismatch; checked anyway rather than dropping content.
-        if !bitmap.append(&render_flow_element(&item.element, canvas, &mut fonts)?) {
+        if !bitmap.append(&render_flow_element(
+            &item.element,
+            canvas,
+            &mut fonts,
+            &mut overflow[i],
+        )?) {
             return Err(CoreError::Template("element width mismatch".into()));
         }
         boxes[i] = Some((start as i32, 0, bitmap.height_dots() - start, pins as u32));
@@ -520,9 +538,18 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
                 let local = if turns % 2 == 1 {
                     // Render into the swapped box, then turn it upright.
                     let (rw, rh) = (h as u32, w.min(u16::MAX as u32) as u16);
-                    render_boxed_element(&item.element, rw, rh, canvas, &mut fonts)?.rotated(turns)
+                    render_boxed_element(
+                        &item.element,
+                        rw,
+                        rh,
+                        canvas,
+                        &mut fonts,
+                        &mut overflow[i],
+                    )?
+                    .rotated(turns)
                 } else {
-                    render_boxed_element(&item.element, w, h, canvas, &mut fonts)?.rotated(turns)
+                    render_boxed_element(&item.element, w, h, canvas, &mut fonts, &mut overflow[i])?
+                        .rotated(turns)
                 };
                 bitmap.blit(&local, canvas.offset as i32 + y, x, clip.clone());
             }
@@ -537,6 +564,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     Ok(Composed {
         bitmap,
         boxes: boxes.into_iter().map(Option::unwrap_or_default).collect(),
+        overflow,
     })
 }
 
@@ -635,8 +663,17 @@ pub fn render_label_png(
     Ok(ll_render::png::to_png(&bitmap, canvas.offset, canvas.pins)?)
 }
 
+/// A rendered GUI preview.
+#[derive(Debug, Clone)]
+pub struct Preview {
+    /// Transparent PNG mask (ink opaque, background clear).
+    pub png: Vec<u8>,
+    /// Indices of elements whose text does not fit its box (clipped).
+    pub overflowing: Vec<usize>,
+}
+
 /// GUI preview: the printable area (all strips) as a transparent PNG mask
-/// (ink opaque, background clear) at `scale` x the print resolution.
+/// at `scale` x the print resolution, plus which texts overflow.
 /// `scale = 1` is the exact print raster; higher values render the same
 /// layout through the same code at finer resolution for a smoother view.
 pub fn render_label_preview(
@@ -644,15 +681,19 @@ pub fn render_label_preview(
     model: &ModelInfo,
     width_mm: u8,
     scale: u32,
-) -> Result<Vec<u8>, CoreError> {
+) -> Result<Preview, CoreError> {
     let geometry = geometry_for(model, width_mm)?;
     let canvas = Canvas::new(label, model, geometry, scale);
-    let bitmap = compose(label, &canvas)?.bitmap;
-    Ok(ll_render::png::to_png_mask(
-        &bitmap,
-        canvas.offset,
-        canvas.pins,
-    )?)
+    let composed = compose(label, &canvas)?;
+    Ok(Preview {
+        png: ll_render::png::to_png_mask(&composed.bitmap, canvas.offset, canvas.pins)?,
+        overflowing: composed
+            .overflow
+            .iter()
+            .enumerate()
+            .filter_map(|(i, o)| o.then_some(i))
+            .collect(),
+    })
 }
 
 #[cfg(test)]
@@ -970,11 +1011,44 @@ mod tests {
             ..Label::default()
         };
         let normal =
-            image::load_from_memory(&render_label_preview(&label, model, 12, 1).unwrap()).unwrap();
+            image::load_from_memory(&render_label_preview(&label, model, 12, 1).unwrap().png)
+                .unwrap();
         let hires =
-            image::load_from_memory(&render_label_preview(&label, model, 12, 4).unwrap()).unwrap();
+            image::load_from_memory(&render_label_preview(&label, model, 12, 4).unwrap().png)
+                .unwrap();
         assert_eq!(hires.height(), 4 * normal.height());
         assert!((hires.width() as i64 - 4 * normal.width() as i64).abs() <= 4);
+    }
+
+    #[test]
+    fn preview_reports_overflowing_text() {
+        if !has_font() {
+            return;
+        }
+        let model = p710();
+        let boxed = |size_pt| Item {
+            element: Element::Text {
+                text: "Hallo".into(),
+                size_pt,
+                align: TextAlign::default(),
+                font: None,
+                bold: false,
+                italic: false,
+            },
+            rect: Some(Rect {
+                x_mm: 0.0,
+                y_mm: 0.0,
+                w_mm: 20.0,
+                h_mm: 6.0,
+            }),
+            rotation: 0,
+        };
+        let label = Label {
+            elements: vec![boxed(None), boxed(Some(30.0))],
+            ..Label::default()
+        };
+        let preview = render_label_preview(&label, model, 12, 1).unwrap();
+        assert_eq!(preview.overflowing, [1]);
     }
 
     #[test]
