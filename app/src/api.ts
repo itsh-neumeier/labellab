@@ -50,6 +50,8 @@ export interface Label {
   padding_mm: number;
   min_length_mm?: number | null;
   frame: boolean;
+  /** Stacked tape strips (multi-tape label), default 1. */
+  strips?: number;
 }
 
 export type Connection =
@@ -80,6 +82,8 @@ export interface Status {
   media_type: number;
   tape_color: number;
   text_color: number;
+  tape_color_id: string | null;
+  text_color_id: string | null;
   has_error: boolean;
   error1: number;
   error2: number;
@@ -93,8 +97,8 @@ export const loadLabel = (path: string) => invoke<Label>("load_label", { path })
 export const saveLabel = (path: string, label: Label) => invoke<void>("save_label", { path, label });
 
 /** Base64 PNG of the label as it will be printed (same render path). */
-export const renderPreview = (label: Label, model: string, widthMm: number, row: number | null) =>
-  invoke<string>("render_preview", { label, model, widthMm, row });
+export const renderPreview = (label: Label, model: string, widthMm: number, row: number | null, scale: number) =>
+  invoke<string>("render_preview", { label, model, widthMm, row, scale });
 
 /** Boxes for every element as rendered (flow elements included). */
 export const resolveRects = (label: Label, model: string, widthMm: number) =>
@@ -102,8 +106,8 @@ export const resolveRects = (label: Label, model: string, widthMm: number) =>
 
 export interface PrintJob {
   copies: number;
-  preCut: boolean;
-  postCut: boolean;
+  cut: boolean;
+  chain: boolean;
   marginDots: number;
   /** 1-based inclusive record range of the loaded CSV; null = all. */
   rows: [number, number] | null;

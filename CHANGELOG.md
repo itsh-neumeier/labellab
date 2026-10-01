@@ -41,7 +41,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   nachgebildet)
 - Serien aus CSV: Platzhalter `{{Spalte}}` und `{{#}}`, Vorschau je Datensatz, Druck aller oder
   eines Bereichs (GUI und `labellab print --csv … --rows 1-10`)
-- Vorschnitt vor dem Druck und Nachschnitt nach dem Druck als getrennte Optionen (`--pre-cut`)
+- Mehrband-Labels: Label über 2×, 3× oder 4× Band übereinander gestalten, gedruckt als ein
+  Streifen pro Band
+- Fortlaufender Druck („Fortlaufend“, `--chain`): Serien, Kopien und Streifen in einem Auftrag
+  ohne Schnitt dazwischen, optional ein Schnitt am Ende
+- Vorschau in allen gängigen Band-/Schriftfarben (schwarz auf weiß/gelb/transparent, weiß auf
+  schwarz, rot/blau/gold …), nach „Status lesen“ automatisch passend zum eingelegten Band
+- Glatte, hochauflösende Vorschau (umschaltbar auf das exakte Druckraster)
 - Gerätesuche zeigt den Bluetooth-Gerätenamen statt „SPP SERVER“, erkennt den Drucker, wählt ihn
   aus und liest den Bandstatus automatisch
 - Druckknopf zeigt „Wird gedruckt … n/m“ und ist während der Übertragung gesperrt

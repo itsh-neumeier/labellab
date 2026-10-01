@@ -17,7 +17,12 @@ Editor
 - Serien: "CSV laden ...", dann Spalten anklicken, um {{Spalte}} einzufuegen
   ({{#}} = laufende Nummer). Vorschau-Datensatz waehlbar, Druck aller
   Datensaetze oder von/bis. CSV mit ; oder , getrennt (Excel-Export geht).
-- Drucken: "Vorschnitt vor Druck" / "Nachschnitt nach Druck" waehlbar.
+- Drucken: "Abschneiden" und "Fortlaufend" (alle Labels ohne Schnitt
+  dazwischen, mit "Abschneiden" nur ein Schnitt am Ende).
+- Mehrband: Label ueber 2x/3x/4x Band; jeder Streifen wird einzeln gedruckt
+  und ueberlappend aufgeklebt.
+- Vorschau: Band-/Schriftfarbe waehlbar (wird beim Status lesen erkannt),
+  "Glatt" oder exaktes "Druckraster".
 - "Suchen" findet gekoppelte Drucker (z. B. PT-P710BT5265), waehlt sie aus
   und liest das eingelegte Band.
 

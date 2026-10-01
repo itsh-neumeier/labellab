@@ -150,12 +150,18 @@
 - [ ] M4: USB-Transport gegen echten Drucker testen (`labellab status --usb`, `print --usb`):
   Endpunkt-Erkennung (Druckerklasse `0x07`, Bulk IN/OUT), Windows mit WinUSB vs.
   `usbprint.sys`, Linux mit udev-Regel und `usblp`-Detach.
-- [ ] Vorschnitt („Vorschnitt vor Druck“ / `--pre-cut`): schneidet die Leerseite den Vorlauf
-  sauber ab, und akzeptiert der Drucker zwei Seiten (`1A`) nacheinander in einer Sitzung?
-- [ ] Serien/Kopien: mehrere Labels nacheinander über dieselbe Bluetooth-Verbindung (je eigener
-  Auftrag mit Invalidate/Init/Status) — läuft das stabil?
-- [ ] Bluetooth-Liste zeigt „PT-P710BT…“ statt „SPP SERVER“ (Gerätename über
-  `RfcommDeviceService.Device().Name()`), und `--bt --device PT-P710BT5265` verbindet.
+- [x] ~~Vorschnitt per Leerseite~~ – Hardware-Test 2026-10-01: 3 Schnitte statt einem →
+  entfernt. Offen: Bestätigen, dass mit nur „Abschneiden“ genau ein Schnitt vorn (Vorlauf,
+  vom Drucker selbst) und einer hinten entsteht.
+- [x] ~~Serien über dieselbe BT-Verbindung (je eigener Auftrag)~~ – Hardware 2026-10-01:
+  „2 Label gedruckt“ aus der GUI (Nutzer-Screenshot).
+- [x] ~~Bluetooth-Liste zeigt Gerätenamen~~ – Hardware 2026-10-01: „PT-P710BT5265 (Bluetooth) –
+  PT-P710BT“ (Nutzer-Screenshot).
+- [ ] Kettendruck („Fortlaufend“ / `--chain`): mehrseitiger Auftrag (`0C`/`1A`) — druckt der
+  P710BT alle Labels ohne Schnitt, und schneidet „Abschneiden“ nur am Ende?
+- [ ] Mehrband (2×/3×): Streifen in richtiger Reihenfolge/Lage, Überlappung ≈ 2,1 mm (12 mm)
+  passt beim Aufkleben?
+- [ ] Bandfarben-Erkennung jenseits von Weiß/Schwarz (z. B. Gelb `06`, Transparent `03`).
 - [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
   bisher nur PNG-Vorschau.
 
@@ -195,6 +201,22 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, Mehrband, Kettendruck, Bandfarben, glatte Vorschau (ADR-018)
+- Nutzer-Screenshot: BT-Name „PT-P710BT5265“ wird angezeigt, Serie mit 2 Labels gedruckt.
+  Hardware-Befund: Vorschnitt per Leerseite → 3 Schnitte → entfernt.
+- Raster Command Reference (PT-E550W/P750W/P710BT v1.02) gelesen (nur lokal, nicht im Repo):
+  Farbtabellen Statusbyte 24/25, Mehrseiten-Aufbau, `ESC i A` beim P710BT nicht unterstützt,
+  Half-Cut nicht verwendet → `docs/PROTOCOL.md`.
+- `ll-protocol::media` (Farbcodes), `command::print_page()` (`0C`). `ll-render`:
+  `render_barcode_with_module`, `png::to_png_mask`. `ll-core::label`: `Canvas`, `strips`,
+  `render_label_pages`, `render_label_preview(scale)`. `ll-core::print`: `print_labels` mit
+  `chain` + Fortschritt, `send_page` (erste/letzte Seite), `pre_cut` entfernt.
+- CLI `--chain` statt `--pre-cut`. App: Bandfarben-Auswahl (32 Kombinationen, Auto aus Status),
+  Vorschau „Glatt“ (4×) / „Druckraster“, Mehrband 1×–4× mit Streifenlinien, Einrasten an
+  Streifengrenzen, Überlappungs-Hinweis, Checkboxen „Abschneiden“ + „Fortlaufend“.
+- Geprüft: 102 Tests grün, fmt/clippy grün (auch Windows-Cross-Check), App unter Xvfb: glatte
+  Vorschau, Weiß auf Schwarz, 2× Mehrband, Box über beide Streifen gezogen.
+
 ### 2026-10-01 – Claude Code, Schriften, CSV-Serien, Schnittoptionen, Gerätenamen (ADR-017)
 - Nutzer-Feedback (Screenshot): Vorschau unter Windows jetzt ok, Druck klappt. Neue Wünsche
   umgesetzt: Systemschriften + fett/kursiv (`ll_render::fonts`, fontdb, synthetischer

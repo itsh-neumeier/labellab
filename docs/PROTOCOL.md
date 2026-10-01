@@ -55,7 +55,38 @@
 | Leerzeile | `5A` | verifiziert | Hardware-Test 2026-10-01 |
 | Drucken mit Vorschub (letzte Seite) | `1A` | verifiziert | Hardware-Test 2026-10-01 |
 | Seite ohne Vorschub | `0C` | dokumentiert (nicht gesendet) | Raster Command Reference — nur für Kettendruck (M7) relevant |
-| Vorschnitt (Leerseite 1 Zeile + Auto-Cut vor dem Label) | zweite komplette Seite (`… 1A`) in derselben Sitzung | unverifiziert | Annahme, `ll_core::print::send_pre_cut` |
+| Vorschnitt per Leerseite (1 Zeile + Auto-Cut) vor dem Label | ergab **3 Schnitte** statt einem | **widerlegt / entfernt** | Hardware-Test 2026-10-01 (Nutzer). Deutung: mit Auto-Cut schneidet der Drucker den Vorlauf am Auftragsanfang selbst (unverifiziert, Test offen) |
+| Mehrseitiger Auftrag | Init einmal; je Seite Steuercodes (Raster-Modus, Various Mode, Rand, Druckinfo mit `n9` = 0 erste / 1 weitere Seite, Kompression), Raster, dann `0C` (weitere Seite folgt) bzw. `1A` (letzte) | dokumentiert | Raster Command Reference PT-E550W/P750W/P710BT v1.02, Kap. 2.1 |
+| „Schnitt nach je n Labels“ `ESC i A n` | vom PT-P710BT **nicht** unterstützt | dokumentiert | Raster Command Reference v1.02 („The PT-P710BT does not support this command“) — daher Kettendruck: Auto-Cut nur in den Steuercodes der letzten Seite (unverifiziert) |
+| Half-Cut (`ESC i K` Bit 2) | beim PT-P710BT nicht verwendet | dokumentiert | Raster Command Reference v1.02 |
+| Advanced Mode Bit 3 „No chain printing“ | 1 = nach dem letzten Label vorschieben und schneiden, 0 = nicht | dokumentiert (nicht gesendet) | Raster Command Reference v1.02 |
+
+## Band- und Schriftfarbe (Statusbyte 24/25)
+
+Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); umgesetzt in
+`crates/ll-protocol/src/media.rs`. Status: dokumentiert; **hardware-bestätigt nur `01`/`08`**
+(weißes Band, schwarze Schrift, PT-P710BT 2026-10-01).
+
+| Bandfarbe (Byte 24) | Code | | Schriftfarbe (Byte 25) | Code |
+|---|---|---|---|---|
+| Weiß | `01` | | Weiß | `01` |
+| Sonstige | `02` | | Sonstige | `02` |
+| Transparent | `03` | | Rot | `04` |
+| Rot | `04` | | Blau | `05` |
+| Blau | `05` | | Schwarz | `08` |
+| Gelb | `06` | | Gold | `0A` |
+| Grün | `07` | | Blau (F) | `62` |
+| Schwarz | `08` | | Reinigung / Schablone / inkompatibel | `F0` / `F1` / `FF` |
+| Transparent (weiße Schrift) | `09` | | | |
+| Matt Weiß / Matt Transparent / Matt Silber | `20` / `21` / `22` | | | |
+| Satin Gold / Satin Silber | `23` / `24` | | | |
+| Blau (D) / Rot (D) | `30` / `31` | | | |
+| Neon-Orange / Neon-Gelb | `40` / `41` | | | |
+| Beerenrosa / Hellgrau / Limettengrün (S) | `50` / `51` / `52` | | | |
+| Gelb / Pink / Blau (F) | `60` / `61` / `62` | | | |
+| Weiß (Schrumpfschlauch) | `70` | | | |
+| Weiß / Gelb (Flex. ID) | `90` / `91` | | | |
+| Reinigung / Schablone / inkompatibel | `F0` / `F1` / `FF` | | | |
 
 ## Statusblock (32 Byte)
 

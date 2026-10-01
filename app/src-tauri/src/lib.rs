@@ -91,10 +91,12 @@ fn render_preview(
     model: String,
     width_mm: u8,
     row: Option<usize>,
+    scale: u32,
     series: State<'_, SeriesState>,
 ) -> Result<String, String> {
     let label = with_record(label, &series, row);
-    let png = label::render_label_png(&label, find_model(&model)?, width_mm).map_err(err)?;
+    let png = label::render_label_preview(&label, find_model(&model)?, width_mm, scale.clamp(1, 8))
+        .map_err(err)?;
     Ok(base64::engine::general_purpose::STANDARD.encode(png))
 }
 
@@ -177,6 +179,9 @@ struct StatusDto {
     media_type: u8,
     tape_color: u8,
     text_color: u8,
+    /// Ids from `ll_protocol::media` (e.g. "white", "black"), if known.
+    tape_color_id: Option<&'static str>,
+    text_color_id: Option<&'static str>,
     has_error: bool,
     error1: u8,
     error2: u8,
@@ -195,6 +200,8 @@ async fn query_status(connection: Connection) -> Result<StatusDto, String> {
         media_type: s.media_type(),
         tape_color: s.tape_color(),
         text_color: s.text_color(),
+        tape_color_id: ll_protocol::media::tape_color_id(s.tape_color()),
+        text_color_id: ll_protocol::media::text_color_id(s.text_color()),
         has_error: s.has_error(),
         error1: s.error1(),
         error2: s.error2(),
@@ -206,8 +213,10 @@ async fn query_status(connection: Connection) -> Result<StatusDto, String> {
 #[serde(rename_all = "camelCase")]
 struct PrintJob {
     copies: u32,
-    pre_cut: bool,
-    post_cut: bool,
+    /// Cut (after every label, or only at the end when chained).
+    cut: bool,
+    /// All labels in one job without cuts in between.
+    chain: bool,
     margin_dots: u16,
     /// Record numbers (1-based, inclusive) of the loaded CSV; `None`
     /// without CSV prints the label as is, with CSV all records.
@@ -243,28 +252,26 @@ async fn print_label(
         }
         None => vec![label],
     };
-    let copies = job.copies.max(1);
-    let total = labels.len() as u32 * copies;
-    let mut options = PrintOptions {
+    let options = PrintOptions {
         frame: false,
-        auto_cut: job.post_cut,
-        pre_cut: job.pre_cut,
+        auto_cut: job.cut,
+        chain: job.chain,
         margin_dots: job.margin_dots,
     };
 
     let mut transport = device::connect(&connection).await.map_err(err)?;
-    let mut done = 0;
-    let _ = app.emit("print-progress", Progress { done, total });
-    for label in &labels {
-        for _ in 0..copies {
-            ll_core::print::print_label(transport.as_mut(), model, label, &options)
-                .await
-                .map_err(err)?;
-            options.pre_cut = false; // only before the first label
-            done += 1;
+    ll_core::print::print_labels(
+        transport.as_mut(),
+        model,
+        &labels,
+        job.copies.max(1),
+        &options,
+        &mut |done, total| {
             let _ = app.emit("print-progress", Progress { done, total });
-        }
-    }
+        },
+    )
+    .await
+    .map_err(err)?;
     transport.close().await.map_err(err)
 }
 

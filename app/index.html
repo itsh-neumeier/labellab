@@ -36,6 +36,14 @@
       <label><span data-i18n="device.tape"></span>
         <select id="width"></select>
       </label>
+      <label data-i18n-title="device.stripsHint"><span data-i18n="device.strips"></span>
+        <select id="strips">
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+          <option value="3">3×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
     </section>
 
     <main>
@@ -92,12 +100,23 @@
             <input id="zoom" type="range" min="1" max="10" step="1" value="4" />
           </label>
           <span id="dims" class="muted"></span>
+          <label><span data-i18n="preview.tapeStyle"></span>
+            <select id="tape-style"></select>
+          </label>
+          <label><span data-i18n="preview.quality"></span>
+            <select id="quality">
+              <option value="4" data-i18n="preview.smooth"></option>
+              <option value="1" data-i18n="preview.raster"></option>
+            </select>
+          </label>
           <span class="spacer"></span>
           <span class="muted" data-i18n="preview.hint"></span>
         </div>
         <div class="tape-wrap" id="tape-wrap">
           <div class="stage" id="stage">
-            <img id="preview" alt="" draggable="false" />
+            <img id="preview" alt="" draggable="false" hidden />
+            <div id="ink" class="ink"></div>
+            <div id="strip-lines" class="strip-lines"></div>
             <div id="boxes" class="boxes"></div>
           </div>
           <p id="preview-msg" class="preview-msg"></p>
@@ -109,8 +128,8 @@
       <label><span data-i18n="print.copies"></span>
         <input id="copies" type="number" min="1" value="1" />
       </label>
-      <label><input id="pre-cut" type="checkbox" /> <span data-i18n="print.preCut"></span></label>
-      <label><input id="post-cut" type="checkbox" checked /> <span data-i18n="print.postCut"></span></label>
+      <label><input id="cut" type="checkbox" checked /> <span data-i18n="print.cut"></span></label>
+      <label data-i18n-title="print.chainHint"><input id="chain" type="checkbox" /> <span data-i18n="print.chain"></span></label>
       <label><span data-i18n="print.margin"></span>
         <input id="margin" type="number" min="0" />
       </label>

@@ -8,6 +8,7 @@ import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { applyLang, applyStatic, currentLang, setLang, t, type Lang } from "./i18n";
 import { roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
+import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
 
 const DOTS_PER_MM = 180 / 25.4;
 const PREVIEW_DEBOUNCE_MS = 40;
@@ -64,9 +65,24 @@ function selectedWidth(): number {
 }
 
 /** Printable tape height in mm for the selected model/tape. */
+/** Printable height of one tape strip in mm. */
 function tapeMm(): number {
   const model = state.models.find((m) => m.name === selectedModel());
   return model?.tapes.find((tp) => tp.width_mm === selectedWidth())?.printable_mm ?? 10;
+}
+
+function strips(): number {
+  return Math.max(1, state.label.strips ?? 1);
+}
+
+/** Editor height in mm: all stacked strips. */
+function labelHeightMm(): number {
+  return tapeMm() * strips();
+}
+
+/** Preview resolution multiplier (1 = exact print raster). */
+function previewScale(): number {
+  return Number($<HTMLSelectElement>("quality").value) || 1;
 }
 
 function zoom(): number {
@@ -153,22 +169,29 @@ async function updatePreview(): Promise<void> {
   if (!model || !width) return;
 
   try {
-    const base64 = await api.renderPreview(state.label, model, width, previewRow());
+    const scale = previewScale();
+    const base64 = await api.renderPreview(state.label, model, width, previewRow(), scale);
     if (seq !== previewSeq) return; // a newer render is on its way
+    const url = `data:image/png;base64,${base64}`;
     img.onload = () => {
+      img.dataset.scale = String(scale);
+      const ink = $("ink");
+      ink.style.maskImage = `url("${url}")`;
+      ink.style.setProperty("-webkit-mask-image", `url("${url}")`);
+      ink.classList.remove("stale");
       layoutStage();
-      const lengthMm = (img.naturalWidth / DOTS_PER_MM).toFixed(1);
-      $("dims").textContent = t("preview.dims", { length: lengthMm, width });
+      const lengthMm = (img.naturalWidth / scale / DOTS_PER_MM).toFixed(1);
+      const height = strips() > 1 ? `${strips()}×${width}` : `${width}`;
+      $("dims").textContent = t("preview.dims", { length: lengthMm, width: height });
     };
     img.onerror = () => {
       msg.textContent = t("preview.error", { error: "PNG" });
     };
-    img.src = `data:image/png;base64,${base64}`;
-    img.classList.remove("stale");
+    img.src = url;
     msg.textContent = "";
   } catch (e) {
     if (seq !== previewSeq) return;
-    img.classList.add("stale");
+    $("ink").classList.add("stale");
     $("dims").textContent = "";
     msg.textContent = t("preview.error", { error: String(e) });
   }
@@ -177,16 +200,26 @@ async function updatePreview(): Promise<void> {
 /** Sizes the stage (preview + box overlay) for the current zoom. */
 function layoutStage(): void {
   const img = $<HTMLImageElement>("preview");
-  const z = zoom();
   const ppm = pxPerMm();
+  const scale = Number(img.dataset.scale) || 1;
+  const inkWidth = (img.naturalWidth / scale) * zoom();
   const boxesEnd = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
-  const width = Math.max(img.naturalWidth * z, boxesEnd * ppm);
-  const height = tapeMm() * ppm;
-  img.style.width = `${img.naturalWidth * z}px`;
-  img.style.height = `${height}px`;
+  const width = Math.max(inkWidth, boxesEnd * ppm);
+  const height = labelHeightMm() * ppm;
+  const ink = $("ink");
+  ink.style.width = `${inkWidth}px`;
+  ink.style.height = `${height}px`;
   const stage = $("stage");
   stage.style.width = `${width}px`;
   stage.style.height = `${height}px`;
+  const lines = $("strip-lines");
+  lines.replaceChildren();
+  for (let k = 1; k < strips(); k++) {
+    const line = document.createElement("div");
+    line.className = "strip-line";
+    line.style.top = `${k * tapeMm() * ppm}px`;
+    lines.append(line);
+  }
   repositionBoxes();
 }
 
@@ -203,7 +236,7 @@ function repositionBoxes(): void {
 }
 
 function fitZoom(): void {
-  const z = Math.min(10, Math.max(1, Math.round(FIT_TAPE_PX / (tapeMm() * DOTS_PER_MM))));
+  const z = Math.min(10, Math.max(1, Math.round(FIT_TAPE_PX / (labelHeightMm() * DOTS_PER_MM))));
   $<HTMLInputElement>("zoom").value = String(z);
 }
 
@@ -212,6 +245,52 @@ function previewRow(): number | null {
   if (!state.csv) return null;
   const n = Number($<HTMLInputElement>("preview-row").value) || 1;
   return Math.min(Math.max(1, n), Math.max(1, state.csv.rows.length));
+}
+
+// ---------------------------------------------------------------- tape colors
+
+const TAPE_STYLE_KEY = "labellab.tapeStyle";
+
+function styleName(st: TapeStyle): string {
+  return t("preview.inkOn", { ink: t(`color.${st.ink}`), tape: t(`color.${st.tape}`) });
+}
+
+function fillTapeStyles(detected?: TapeStyle): void {
+  const select = $<HTMLSelectElement>("tape-style");
+  const current = detected ? styleKey(detected) : select.value || loadTapeStyle();
+  select.replaceChildren();
+  const all = [...TAPE_STYLES];
+  if (detected && !all.some((st) => styleKey(st) === styleKey(detected))) {
+    select.add(new Option(t("preview.custom", { ink: t(`color.${detected.ink}`), tape: t(`color.${detected.tape}`) }), styleKey(detected)));
+  }
+  for (const st of all) select.add(new Option(styleName(st), styleKey(st)));
+  select.value = current;
+  if (!select.value) select.value = styleKey(TAPE_STYLES[0]);
+  applyTapeStyle();
+}
+
+function loadTapeStyle(): string {
+  try {
+    return localStorage.getItem(TAPE_STYLE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function applyTapeStyle(): void {
+  const key = $<HTMLSelectElement>("tape-style").value;
+  try {
+    localStorage.setItem(TAPE_STYLE_KEY, key);
+  } catch {
+    // not remembered, still applied
+  }
+  const st = parseStyleKey(key) ?? TAPE_STYLES[0];
+  const bg = TAPE_CSS[st.tape];
+  const stage = $("stage");
+  stage.classList.toggle("clear-tape", bg === null);
+  stage.style.backgroundColor = bg ?? "";
+  $("ink").style.backgroundColor = INK_CSS[st.ink] ?? INK_CSS.black;
+  stage.classList.toggle("dark-tape", st.tape === "black");
 }
 
 // ---------------------------------------------------------------- boxes (canvas)
@@ -296,7 +375,8 @@ function startDrag(e: PointerEvent, index: number): void {
   const startX = e.clientX;
   const startY = e.clientY;
   const others = state.label.elements.filter((_, i) => i !== index && state.label.elements[i].rect).map((i) => i.rect!);
-  const snapTargets = targets(others, tapeMm());
+  const snapTargets = targets(others, labelHeightMm());
+  for (let k = 1; k < strips(); k++) snapTargets.y.push(k * tapeMm());
   box.setPointerCapture(e.pointerId);
 
   const onMove = (ev: PointerEvent) => {
@@ -350,7 +430,7 @@ function select(index: number): void {
 
 /** Box for a new element: after the rightmost box, full tape height. */
 function newRect(type: Element["type"]): Rect {
-  const h = tapeMm();
+  const h = labelHeightMm();
   const end = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
   const x = state.label.elements.length ? end + NEW_ITEM_GAP_MM : state.label.padding_mm;
   const w = { text: 25, qr: h, barcode: 30, image: h * 1.5 }[type];
@@ -631,6 +711,16 @@ function renderLayout(): void {
   $<HTMLInputElement>("padding").value = String(l.padding_mm);
   $<HTMLInputElement>("min-length").value = l.min_length_mm ? String(l.min_length_mm) : "";
   $<HTMLInputElement>("frame").checked = l.frame;
+  $<HTMLSelectElement>("strips").value = String(strips());
+  updateStripsHint();
+}
+
+function updateStripsHint(): void {
+  const select = $<HTMLSelectElement>("strips");
+  const overlap = Math.max(0, selectedWidth() - tapeMm()).toFixed(1);
+  select.parentElement!.title = strips() > 1
+    ? t("preview.stripsHint", { n: strips(), width: selectedWidth(), overlap })
+    : t("device.stripsHint");
 }
 
 function bindLayout(): void {
@@ -754,6 +844,9 @@ async function readStatus(): Promise<boolean> {
       fillWidths(s.width_mm);
       tapeChanged();
     }
+    if (s.tape_color_id && s.text_color_id && s.tape_color_id in TAPE_CSS && s.text_color_id in INK_CSS) {
+      fillTapeStyles({ tape: s.tape_color_id, ink: s.text_color_id });
+    }
     setStatus(t("device.statusOk", { width: s.width_mm }), "ok");
     return true;
   } catch (e) {
@@ -800,8 +893,8 @@ async function print(): Promise<void> {
       model: selectedModel(),
       job: {
         copies: Math.max(1, Number($<HTMLInputElement>("copies").value) || 1),
-        preCut: $<HTMLInputElement>("pre-cut").checked,
-        postCut: $<HTMLInputElement>("post-cut").checked,
+        cut: $<HTMLInputElement>("cut").checked,
+        chain: $<HTMLInputElement>("chain").checked,
         marginDots: Math.max(0, Number($<HTMLInputElement>("margin").value) || 0),
         rows: selectedRows(),
       },
@@ -979,6 +1072,15 @@ function bindUi(): void {
     tapeChanged();
   });
   $("zoom").addEventListener("input", layoutStage);
+  $("tape-style").addEventListener("change", applyTapeStyle);
+  $("quality").addEventListener("change", schedulePreview);
+  $("strips").addEventListener("change", () => {
+    state.label.strips = Number($<HTMLSelectElement>("strips").value) || 1;
+    fitZoom();
+    updateStripsHint();
+    changed(true);
+    layoutStage();
+  });
   $("tape-wrap").addEventListener("pointerdown", (e) => {
     if (!(e.target as HTMLElement).closest(".box")) select(-1);
   });
@@ -994,6 +1096,7 @@ function bindUi(): void {
   lang.value = currentLang();
   lang.addEventListener("change", () => {
     setLang(lang.value as Lang);
+    fillTapeStyles();
     renderAll();
     renderCsv();
     setPrinting(state.printing);
@@ -1047,6 +1150,7 @@ async function init(): Promise<void> {
   fitZoomPending = false;
   fitZoom();
   $<HTMLInputElement>("margin").value = String(await api.defaultMarginDots());
+  fillTapeStyles();
 
   await ensureRects();
   resetHistory();

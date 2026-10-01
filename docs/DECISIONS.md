@@ -280,8 +280,8 @@ Vorlage:
     (gleicher Renderpfad). GUI hält die CSV im Backend (`SeriesState`), Vorschau zeigt einen
     wählbaren Datensatz; Druck aller oder Von–Bis, Fortschritt per Event `print-progress`.
     Jedes Label ist ein eigener Druckauftrag über dieselbe Verbindung (Kettendruck = M7-Rest).
-  - Vorschnitt: `PrintOptions::pre_cut` sendet vor dem ersten Label eine leere Ein-Zeilen-Seite
-    mit Auto-Cut (TODO(verify)); Nachschnitt = bisheriges `auto_cut`.
+  - Vorschnitt: zunächst als leere Ein-Zeilen-Seite mit Auto-Cut umgesetzt — auf Hardware
+    3 Schnitte statt einem, daher **wieder entfernt** (ADR-018).
   - Bluetooth-Liste zeigt den Gerätenamen hinter dem SPP-Dienst (`RfcommDeviceService.Device()
     .Name()`, Fallback Dienstname, TODO(verify)); `model_for_device_name()` erkennt das Modell am
     Namenspräfix; erkannte Drucker stehen oben, werden nach „Suchen“ vorausgewählt, das Modell
@@ -289,3 +289,31 @@ Vorlage:
 - Konsequenzen: Erster Schriftscan kann unter Windows spürbar dauern (läuft im Hintergrund,
   Schriftliste erscheint verzögert). Vorschnitt und Mehrfach-Aufträge pro Verbindung sind
   hardware-unbestätigt.
+
+## ADR-018: Mehrband-Labels, Kettendruck, Bandfarben-Vorschau, glatte Vorschau
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Nutzerwünsche: Labels über 2×/3× Band (überlappend aufkleben), Serien fortlaufend
+  ohne Schnitt, weniger pixelige Vorschau, Vorschau in allen gängigen Bandfarben. Hardware-
+  Befund: Vorschnitt per Leerseite schneidet dreimal.
+- Entscheidung:
+  - `Label::strips` (Standard 1): Entwurf ist `strips` × bedruckbare Höhe hoch, auf einer
+    virtuellen Zeichenfläche (`Canvas`, Kopfbreite = gestapelte Höhe, Offset 0) gerendert;
+    `render_label_pages` schneidet ihn in Streifen und legt jeden an den Pin-Offset des echten
+    Kopfes. Oberster Streifen zuerst. Rahmen umschließt das Gesamtlabel. Überlappung beim
+    Aufkleben ≈ Bandbreite − bedruckbare Höhe (Hinweis in der GUI).
+  - `print_labels`: ohne `chain` jeder Streifen/jede Kopie/jeder Datensatz als eigener Auftrag
+    (bisheriger, hardware-erprobter Weg, Status je Auftrag); mit `chain` ein mehrseitiger
+    Auftrag nach Raster Command Reference (`0C` zwischen Seiten, `1A` am Ende, `n9`), Auto-Cut
+    nur in den Steuercodes der letzten Seite, da `ESC i A` (Schnitt nach n Labels) laut Referenz
+    beim PT-P710BT nicht unterstützt ist. Fortschritt per Callback. Vorschnitt-Leerseite
+    entfernt (`PrintOptions::pre_cut` weg, CLI `--pre-cut` → `--chain`).
+  - Statusbyte 24/25 als Farbtabellen in `ll_protocol::media` (Quelle Raster Command Reference
+    v1.02); GUI übernimmt die Bandfarbe nach „Status lesen“ automatisch.
+  - Vorschau: `render_label_preview(.., scale)` rendert dasselbe Layout über denselben Code mit
+    `scale`-facher Auflösung (Standard 4 = 720 dpi, „Glatt“) oder exakt (1, „Druckraster“) als
+    transparente PNG-Maske; die GUI legt sie per CSS-Maske in Schriftfarbe auf die Bandfarbe
+    (transparentes Band als Schachbrett). Skaliert werden mm-Umrechnung, Schriftgrößen,
+    Rahmenstärke und die Fluss-Barcode-Modulbreite; Dithering von Bildern ist bei „Glatt“
+    feiner als im Druck — maßgeblich bleibt „Druckraster“.
+- Konsequenzen: Kettendruck und Mehrseiten-Aufträge sind hardware-unbestätigt; ob Auto-Cut nur
+  auf der letzten Seite genau einen Schnitt am Ende ergibt, ist offen.
