@@ -12,8 +12,11 @@
   pt-Größe/Ausrichtung/Systemschrift/fett/kursiv, QR/Barcode/Bild, Bandfarben-Vorschau
   (automatisch aus Status), glatte 4×-Vorschau oder Druckraster, Mehrband 1×–4×, CSV-Serien,
   Kettendruck („Fortlaufend“), Fortschritt beim Drucken. Details: ADR-014/016/017/018.
-- **M7 teilweise vorgezogen:** CSV-Serien und Kettendruck fertig (Kettendruck hardware-offen);
-  Kabelfahne/-wickel, Patchpanel, Nummernfolgen `{n:03}` fehlen.
+- **M7 code-vollständig (ADR-020):** CSV-Serien, Kettendruck, Nummernfolgen (`{{n:03}}`,
+  `{{A}}`), Kabelfahne, Kabelwickel, Patchpanel (CLI `generate`, GUI „Assistent …“), dazu
+  Drehung und Linie/Fläche. Hardware-Tests offen (Kettendruck, Längen-Genauigkeit).
+- **Stand auf `main`:** PR itsh-neumeier/labellab#1 am 2026-10-01 gemergt (Squash); M7-Arbeit
+  liegt danach auf `claude/modest-euler-hx5zk9`.
 - **M5 code-vollständig:** Symbolbibliothek (10 Material-Symbols-Icons, Apache-2.0, ADR-019)
   parallel auf `main` entstanden und beim Merge übernommen, auch als Label-Element im Editor
   nutzbar (`type: symbol`). **Offen:** Abgleich mit der Nutzerwahl in dieser Session — Tabler
@@ -69,11 +72,11 @@
   Bandfarben, glatte Vorschau, Mehrband (ADR-017/018). **Fehlt:** Symbol-Auswahl in der GUI,
   Rotation, Warnung bei überlaufendem Text, zuletzt verwendete Labels, verständliche
   Fehlertexte für Statusbits.
-- [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
-  **Teilstand:** CSV-Serien (`ll_core::series`, `{{Spalte}}`/`{{#}}`, Bereich, GUI + CLI
-  `--csv/--rows`, ADR-017) und Kettendruck (`PrintOptions::chain`, `--chain`, ADR-018) fertig.
-  Mehrband-Labels (ADR-018) zusätzlich. Fehlen: Kabelfahne, Kabelwickel, Patchpanel/Port-Raster,
-  Nummernfolgen mit Format (`{n:03}`, Buchstabenfolgen), Vorschau aller Datensätze.
+- [x] **M7 – Kabel/Serien/CSV + Kettendruck** (code-seitig; Hardware-Tests offen)
+  CSV-Serien (ADR-017), Kettendruck + Mehrband (ADR-018), Nummernfolgen, Kabelfahne,
+  Kabelwickel, Patchpanel, Drehung, Linie/Fläche (ADR-020). CLI `generate`, `--count/--start/
+  --step`; GUI „Assistent …“, Bereich „Nummerierung“. Noch nicht: Vorschau aller Datensätze
+  als Liste, Half-Cut (vom P710BT nicht unterstützt).
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
 
 ## In Arbeit
@@ -104,7 +107,9 @@
     Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
     Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
 4b. GUI-Ausbau: verständliche (deutsche) Fehlertexte für Druckerfehler/Timeouts, zuletzt
-    verwendete Labels, Rotation, Warnung bei überlaufendem Text, Kettendruck für Serien (M7).
+    verwendete Labels, Warnung bei überlaufendem Text, Vorschau aller Serien-Labels.
+4c. M8 (Release v1.0.0): Versionsnummern, Release-Workflow per Tag `v*` existiert (portable
+    `.exe`), Screenshots/Doku für Endnutzer, ggf. Code-Signierung.
 5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
    `labellab status --usb`, dann `labellab print "TEST" --usb`. Unter Windows wird das Öffnen
    vermutlich scheitern, solange `usbprint.sys`/Brother-Treiber gebunden ist (WinUSB per Zadig
@@ -169,6 +174,9 @@
 - [ ] Mehrband (2×/3×): Streifen in richtiger Reihenfolge/Lage, Überlappung ≈ 2,1 mm (12 mm)
   passt beim Aufkleben?
 - [ ] Bandfarben-Erkennung jenseits von Weiß/Schwarz (z. B. Gelb `06`, Transparent `03`).
+- [ ] M7: Patchpanel-Label (z. B. 24 × 12,7 mm) drucken und gegen das echte Panel halten —
+  stimmt die Länge/das Raster (Vorschub-Genauigkeit)?
+- [ ] M7: Kabelfahne mit echtem Kabel: passt der Wickelbereich (π × Durchmesser)?
 - [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
   bisher nur PNG-Vorschau.
 - [ ] M5: Symbolbibliothek (`labellab print --symbol <name> --bt`, Namen via `labellab
@@ -210,6 +218,21 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, M7 – Generatoren, Nummernfolgen, Drehung, Fläche (ADR-020)
+- PR itsh-neumeier/labellab#1 nach CI-Grün per Squash gemergt (Repo erlaubt keine
+  Merge-Commits). Vorher Fix: `--symbol` stand beim Merge in seiner eigenen Konfliktliste →
+  clap-Panik beim Start; neuer Test `cli_definition_is_consistent` (`Cli::command().
+  debug_assert()`), damit so etwas in CI auffällt.
+- `ll-render::Bitmap`: `rotated()`, `fill()`. `ll-core`: `Item::rotation`, `Element::Fill`,
+  `series::Numbering`/`Record`/`fill` (`{{n}}`, `{{n:03}}`, `{{a}}`, `{{A}}`), `layouts`
+  (Kabelfahne, Kabelwickel, Patchpanel). CLI `generate …`, `--count/--start/--step`.
+- App: Elemente „Symbol“ (Liste aus `ll_render::SYMBOL_NAMES`) und „Linie/Fläche“, ⟳ drehen,
+  Bereich „Nummerierung“ mit Platzhalter-Chips, Dialog „Assistent …“ (Kabelfahne/-wickel/
+  Patchpanel mit Live-Info zu Wickelbereich/Länge).
+- Geprüft: 117 Tests grün, fmt/clippy (inkl. Windows-Cross-Check, App) grün; CLI-Renders
+  (Patchpanel 8×12 mm = 98 mm, Kabelfahne, Kabelwickel gedreht, `SW-115 DK`); App unter Xvfb:
+  Assistent → 24-Port-Patchpanel 305 mm.
+
 ### 2026-10-01 – Claude Code, Merge nach `main`
 - Branch `claude/modest-euler-hx5zk9` mit `main` zusammengeführt; dort war parallel die
   Symbolbibliothek (Material Symbols) entstanden. Konflikte gelöst: deren ADR-013 → ADR-019

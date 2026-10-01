@@ -19,6 +19,9 @@ Editor
   Datensaetze oder von/bis. CSV mit ; oder , getrennt (Excel-Export geht).
 - Drucken: "Abschneiden" und "Fortlaufend" (alle Labels ohne Schnitt
   dazwischen, mit "Abschneiden" nur ein Schnitt am Ende).
+- Assistent: Kabelfahne, Kabelwickel und Patchpanel-Labels fertig erzeugen.
+- Nummerierung: Anzahl/Start/Schritt; {{n}}, {{n:03}}, {{A}} im Text zaehlen hoch.
+- Elemente drehen (Knopf mit Pfeil), Linie/Flaeche fuer Trennstriche.
 - Mehrband: Label ueber 2x/3x/4x Band; jeder Streifen wird einzeln gedruckt
   und ueberlappend aufgeklebt.
 - Vorschau: Band-/Schriftfarbe waehlbar (wird beim Status lesen erkannt),

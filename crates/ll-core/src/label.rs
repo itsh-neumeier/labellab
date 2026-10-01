@@ -110,6 +110,15 @@ pub struct Item {
     /// `None`: placed by the flow layout.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rect: Option<Rect>,
+    /// Clockwise rotation of the content inside its box: 0, 90, 180 or
+    /// 270 degrees (other values are rounded down to a quarter turn).
+    /// Only applies to boxed elements.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rotation: u16,
+}
+
+fn is_zero(v: &u16) -> bool {
+    *v == 0
 }
 
 impl From<Element> for Item {
@@ -117,6 +126,7 @@ impl From<Element> for Item {
         Self {
             element,
             rect: None,
+            rotation: 0,
         }
     }
 }
@@ -160,6 +170,8 @@ pub enum Element {
         #[serde(default)]
         invert: bool,
     },
+    /// A solid black box (separator lines, bars, blocks).
+    Fill,
 }
 
 impl Element {
@@ -391,6 +403,14 @@ fn render_flow_element(
         Element::Symbol { name, invert } => {
             ll_render::render_symbol(name, head, pins, offset, *invert)?
         }
+        Element::Fill => {
+            // A flow-layout fill is a 1 mm bar across the tape.
+            let mut out = Bitmap::new(head, canvas.mm(1.0));
+            let mut bar = Bitmap::new(pins, canvas.mm(1.0));
+            bar.fill();
+            out.blit(&bar, offset as i32, 0, offset..offset + pins);
+            out
+        }
     })
 }
 
@@ -422,6 +442,11 @@ fn render_boxed_element(
         Element::Barcode { symbology, data } => boxed::barcode_in_box(*symbology, data, w, h)?,
         Element::Image { path, invert } => boxed::image_in_box(path, w, h, *invert)?,
         Element::Symbol { name, invert } => boxed::symbol_in_box(name, w, h, *invert)?,
+        Element::Fill => {
+            let mut b = Bitmap::new(h, w);
+            b.fill();
+            b
+        }
     })
 }
 
@@ -491,7 +516,14 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
             let Some(rect) = &item.rect else { continue };
             let (x, y, w, h) = canvas.rect(rect);
             if w > 0 && h > 0 {
-                let local = render_boxed_element(&item.element, w, h, canvas, &mut fonts)?;
+                let turns = ((item.rotation / 90) % 4) as u8;
+                let local = if turns % 2 == 1 {
+                    // Render into the swapped box, then turn it upright.
+                    let (rw, rh) = (h as u32, w.min(u16::MAX as u32) as u16);
+                    render_boxed_element(&item.element, rw, rh, canvas, &mut fonts)?.rotated(turns)
+                } else {
+                    render_boxed_element(&item.element, w, h, canvas, &mut fonts)?.rotated(turns)
+                };
                 bitmap.blit(&local, canvas.offset as i32 + y, x, clip.clone());
             }
             boxes[i] = Some((x, y, w, h as u32));
@@ -660,6 +692,7 @@ mod tests {
                         w_mm: 30.0,
                         h_mm: 8.0,
                     }),
+                    rotation: 0,
                 },
                 Element::Qr {
                     data: "https://example.org".into(),
@@ -774,6 +807,7 @@ mod tests {
                     w_mm: 10.0,
                     h_mm: 4.0,
                 }),
+                rotation: 0,
             }],
             ..Label::default()
         };
@@ -810,6 +844,7 @@ mod tests {
                     w_mm: 20.0,
                     h_mm: 20.0,
                 }),
+                rotation: 0,
             }],
             ..Label::default()
         };
@@ -892,6 +927,7 @@ mod tests {
                     w_mm: 10.0,
                     h_mm: 2.0 * tape_mm,
                 }),
+                rotation: 0,
             }],
             ..Label::default()
         };
@@ -928,6 +964,7 @@ mod tests {
                     w_mm: 9.0,
                     h_mm: 9.0,
                 }),
+                rotation: 0,
             }],
             padding_mm: 1.0,
             ..Label::default()
@@ -938,6 +975,86 @@ mod tests {
             image::load_from_memory(&render_label_preview(&label, model, 12, 4).unwrap()).unwrap();
         assert_eq!(hires.height(), 4 * normal.height());
         assert!((hires.width() as i64 - 4 * normal.width() as i64).abs() <= 4);
+    }
+
+    #[test]
+    fn rotated_box_keeps_its_footprint() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let item = |rotation| Item {
+            element: Element::Barcode {
+                symbology: Symbology::Code128,
+                data: "AB".into(),
+            },
+            rect: Some(Rect {
+                x_mm: 0.0,
+                y_mm: 0.0,
+                w_mm: 8.0,
+                h_mm: 9.0,
+            }),
+            rotation,
+        };
+        for rotation in [0, 90, 180, 270] {
+            let label = Label {
+                elements: vec![item(rotation)],
+                ..Label::default()
+            };
+            let bitmap = render_label(&label, model, geometry).unwrap();
+            let lines = ink_lines(&bitmap);
+            assert!(
+                *lines.last().unwrap() < mm_to_dots(8.0),
+                "rotation {rotation}"
+            );
+        }
+        // 90°: bars now run along the tape -> one ink line has many more pins
+        // inked than at 0° on the edge rows... simply check it differs.
+        let a = render_label(
+            &Label {
+                elements: vec![item(0)],
+                ..Label::default()
+            },
+            model,
+            geometry,
+        )
+        .unwrap();
+        let b = render_label(
+            &Label {
+                elements: vec![item(90)],
+                ..Label::default()
+            },
+            model,
+            geometry,
+        )
+        .unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn fill_element_is_solid() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let label = Label {
+            elements: vec![Item {
+                element: Element::Fill,
+                rect: Some(Rect {
+                    x_mm: 1.0,
+                    y_mm: 0.0,
+                    w_mm: 0.5,
+                    h_mm: 9.0,
+                }),
+                rotation: 0,
+            }],
+            ..Label::default()
+        };
+        let bitmap = render_label(&label, model, geometry).unwrap();
+        let line = mm_to_dots(1.0) + 1;
+        let inked = (0..model.head_pins)
+            .filter(|&p| bitmap.pixel(p, line))
+            .count();
+        assert_eq!(
+            inked as u32,
+            mm_to_dots(9.0).min(geometry.printable_pins as u32)
+        );
     }
 
     #[test]

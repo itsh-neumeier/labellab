@@ -46,6 +46,7 @@ const state = {
   devices: [] as Device[],
   selected: -1,
   fonts: [] as string[],
+  symbols: [] as string[],
   csv: null as (api.Csv & { name: string }) | null,
   /** Last focused text field in an element card (CSV column insertion). */
   lastField: null as { el: HTMLInputElement | HTMLTextAreaElement; apply: (v: string) => void } | null,
@@ -170,7 +171,7 @@ async function updatePreview(): Promise<void> {
 
   try {
     const scale = previewScale();
-    const base64 = await api.renderPreview(state.label, model, width, previewRow(), scale);
+    const base64 = await api.renderPreview(state.label, model, width, previewRow() ?? 1, numbering(), scale);
     if (seq !== previewSeq) return; // a newer render is on its way
     const url = `data:image/png;base64,${base64}`;
     img.onload = () => {
@@ -238,6 +239,19 @@ function repositionBoxes(): void {
 function fitZoom(): void {
   const z = Math.min(10, Math.max(1, Math.round(FIT_TAPE_PX / (labelHeightMm() * DOTS_PER_MM))));
   $<HTMLInputElement>("zoom").value = String(z);
+}
+
+/** Running number settings for `{{n}}`/`{{A}}`. */
+function numbering(): api.Numbering {
+  return {
+    start: Math.trunc(Number($<HTMLInputElement>("num-start").value) || 0),
+    step: Math.trunc(Number($<HTMLInputElement>("num-step").value) || 0),
+  };
+}
+
+/** Labels in a numbered series without CSV (0 = single label). */
+function numberedCount(): number {
+  return Math.max(0, Math.trunc(Number($<HTMLInputElement>("num-count").value) || 0));
 }
 
 /** CSV record shown in the preview, or null without CSV. */
@@ -308,6 +322,10 @@ function boxCaption(item: Item): string {
       return `${elementTitle(item)}: ${item.data}`;
     case "image":
       return item.path.split(/[\\/]/).pop() || elementTitle(item);
+    case "symbol":
+      return `${elementTitle(item)}: ${item.name}`;
+    case "fill":
+      return elementTitle(item);
   }
 }
 
@@ -433,7 +451,7 @@ function newRect(type: Element["type"]): Rect {
   const h = labelHeightMm();
   const end = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
   const x = state.label.elements.length ? end + NEW_ITEM_GAP_MM : state.label.padding_mm;
-  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5 }[type];
+  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5 }[type];
   return roundRect({ x_mm: x, y_mm: 0, w_mm: w, h_mm: h });
 }
 
@@ -643,6 +661,27 @@ function contentFields(item: Item): HTMLElement[] {
       invert.append(box, ` ${t("elements.invert")}`);
       return [row, invert];
     }
+    case "symbol": {
+      const select = document.createElement("select");
+      const names = state.symbols.includes(item.name) ? state.symbols : [item.name, ...state.symbols];
+      for (const n of names) select.add(new Option(n, n, false, n === item.name));
+      select.addEventListener("change", () => {
+        item.name = select.value;
+        changed(true);
+      });
+      const invert = document.createElement("label");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = item.invert;
+      box.addEventListener("change", () => {
+        item.invert = box.checked;
+        changed(true);
+      });
+      invert.append(box, ` ${t("elements.invert")}`);
+      return [select, invert];
+    }
+    case "fill":
+      return [];
   }
 }
 
@@ -669,8 +708,13 @@ function elementCard(item: Item, index: number): HTMLLIElement {
   const header = document.createElement("header");
   const title = document.createElement("strong");
   title.textContent = `${index + 1}. ${elementTitle(item)}`;
+  if (item.rotation) title.textContent += ` · ${item.rotation}°`;
   header.append(
     title,
+    makeButton("⟳", t("elements.rotate"), () => {
+      item.rotation = ((item.rotation ?? 0) + 90) % 360;
+      changed(true);
+    }),
     makeButton("⧉", t("elements.duplicate"), () => duplicateItem(index)),
     makeButton("✕", t("elements.remove"), () => removeItem(index)),
   );
@@ -701,6 +745,10 @@ function defaultElement(type: Element["type"]): Element {
       return { type, symbology: "code128", data: "12345" };
     case "image":
       return { type, path: "", invert: false };
+    case "symbol":
+      return { type, name: state.symbols[0] ?? "warning", invert: false };
+    case "fill":
+      return { type };
   }
 }
 
@@ -897,6 +945,8 @@ async function print(): Promise<void> {
         chain: $<HTMLInputElement>("chain").checked,
         marginDots: Math.max(0, Number($<HTMLInputElement>("margin").value) || 0),
         rows: selectedRows(),
+        count: state.csv ? null : numberedCount() || null,
+        numbering: numbering(),
       },
     });
   } catch (e) {
@@ -1024,6 +1074,72 @@ async function saveFile(): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------- wizard (M7 layouts)
+
+const num = (id: string) => Number($<HTMLInputElement>(id).value) || 0;
+
+function wizardLayout(): api.Layout {
+  const kind = $<HTMLSelectElement>("wz-kind").value;
+  const text = $<HTMLInputElement>("wz-text").value;
+  const diameter_mm = Math.max(0.5, num("wz-diameter"));
+  if (kind === "cable_flag") return { kind, text, diameter_mm, flag_mm: Math.max(5, num("wz-flag")) };
+  if (kind === "cable_wrap") {
+    const repeats = Math.trunc(num("wz-repeats"));
+    return { kind, text, diameter_mm, repeats: repeats > 0 ? repeats : null, vertical: $<HTMLInputElement>("wz-vertical").checked };
+  }
+  return {
+    kind: "patch_panel",
+    count: Math.max(1, Math.trunc(num("wz-count"))),
+    pitch_mm: Math.max(1, num("wz-pitch")),
+    start: Math.trunc(num("wz-start")),
+    step: Math.trunc(num("wz-step")),
+    prefix: $<HTMLInputElement>("wz-prefix").value,
+    digits: Math.max(0, Math.trunc(num("wz-digits"))),
+    separators: $<HTMLInputElement>("wz-separators").checked,
+    margin_mm: Math.max(0, num("wz-margin")),
+  };
+}
+
+function updateWizard(): void {
+  const kind = $<HTMLSelectElement>("wz-kind").value;
+  document.querySelectorAll<HTMLElement>("#wizard .wz-group").forEach((g) => {
+    g.hidden = !(g.dataset.kind ?? "").split(" ").includes(kind);
+  });
+  const layout = wizardLayout();
+  const info = $("wz-info");
+  if (layout.kind === "patch_panel") {
+    info.textContent = t("wizard.panelInfo", { length: (2 * layout.margin_mm + layout.count * layout.pitch_mm).toFixed(1) });
+  } else {
+    info.textContent = t("wizard.wrapInfo", { wrap: (Math.PI * layout.diameter_mm).toFixed(1) });
+  }
+}
+
+function bindWizard(): void {
+  const dialog = $<HTMLDialogElement>("wizard");
+  $("btn-wizard").addEventListener("click", () => {
+    updateWizard();
+    dialog.showModal();
+  });
+  dialog.addEventListener("input", updateWizard);
+  dialog.addEventListener("change", updateWizard);
+  $("wz-create").addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      const label = await api.generateLayout(wizardLayout(), selectedModel(), selectedWidth());
+      for (const item of label.elements) {
+        if (item.rect) item.rect = roundRect(item.rect);
+      }
+      state.label = label;
+      state.selected = -1;
+      dialog.close();
+      changed(true);
+      renderAll();
+    } catch (err) {
+      $("wz-info").textContent = t("error.prefix", { error: String(err) });
+    }
+  });
+}
+
 // ---------------------------------------------------------------- startup
 
 function isTyping(): boolean {
@@ -1057,6 +1173,11 @@ function bindUi(): void {
   $("btn-refresh").addEventListener("click", () => void refreshDevices());
   $("device").addEventListener("change", () => applyDeviceModel(state.devices[Number($<HTMLSelectElement>("device").value)]));
   $("btn-csv").addEventListener("click", loadCsvFile);
+  for (const id of ["num-count", "num-start", "num-step"]) $(id).addEventListener("input", schedulePreview);
+  document.querySelectorAll<HTMLButtonElement>("#num-chips [data-token]").forEach((b) =>
+    b.addEventListener("click", () => insertPlaceholder(b.dataset.token!)),
+  );
+  bindWizard();
   $("btn-csv-clear").addEventListener("click", clearCsvFile);
   $("preview-row").addEventListener("input", schedulePreview);
   for (const id of ["row-from", "row-to"]) $(id).addEventListener("input", updateCsvSummary);
@@ -1159,6 +1280,10 @@ async function init(): Promise<void> {
   renderCsv();
   setPrinting(false);
   // Font scan can take a moment; fill the font pickers when it's done.
+  api.symbols().then((names) => {
+    state.symbols = names;
+    renderElements();
+  });
   api.fontFamilies().then((fonts) => {
     state.fonts = fonts;
     renderElements();

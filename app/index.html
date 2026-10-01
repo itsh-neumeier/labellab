@@ -14,6 +14,8 @@
       <span class="sep"></span>
       <button id="btn-undo" data-i18n="toolbar.undo" data-i18n-title="toolbar.undoHint"></button>
       <button id="btn-redo" data-i18n="toolbar.redo" data-i18n-title="toolbar.redoHint"></button>
+      <span class="sep"></span>
+      <button id="btn-wizard" data-i18n="toolbar.wizard"></button>
       <span class="spacer"></span>
       <span id="file-name" class="muted"></span>
       <select id="lang" aria-label="Sprache / Language">
@@ -56,6 +58,8 @@
           <button data-add="qr" data-i18n="elements.qr"></button>
           <button data-add="barcode" data-i18n="elements.barcode"></button>
           <button data-add="image" data-i18n="elements.image"></button>
+          <button data-add="symbol" data-i18n="elements.symbol"></button>
+          <button data-add="fill" data-i18n="elements.fill"></button>
         </div>
 
         <h2 data-i18n="layout.title"></h2>
@@ -66,6 +70,24 @@
           <input id="min-length" type="number" min="0" step="1" data-i18n-placeholder="layout.auto" />
           <label for="frame" data-i18n="layout.frame"></label>
           <input id="frame" type="checkbox" />
+        </div>
+
+        <h2 data-i18n="numbering.title"></h2>
+        <div class="grid">
+          <label for="num-count" data-i18n="numbering.count"></label>
+          <input id="num-count" type="number" min="0" value="0" />
+          <label for="num-start" data-i18n="numbering.start"></label>
+          <input id="num-start" type="number" value="1" />
+          <label for="num-step" data-i18n="numbering.step"></label>
+          <input id="num-step" type="number" value="1" />
+        </div>
+        <p class="muted hint" data-i18n="numbering.hint"></p>
+        <div class="chips" id="num-chips">
+          <button class="chip" data-token="n">{{n}}</button>
+          <button class="chip" data-token="n:02">{{n:02}}</button>
+          <button class="chip" data-token="n:03">{{n:03}}</button>
+          <button class="chip" data-token="A">{{A}}</button>
+          <button class="chip" data-token="a">{{a}}</button>
         </div>
 
         <h2 data-i18n="data.title"></h2>
@@ -137,6 +159,45 @@
       <span class="spacer"></span>
       <button id="btn-print" class="primary" data-i18n="print.print"></button>
     </footer>
+
+    <dialog id="wizard">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="wizard.title"></h2>
+        <label><span data-i18n="wizard.kind"></span>
+          <select id="wz-kind">
+            <option value="cable_flag" data-i18n="wizard.cableFlag"></option>
+            <option value="cable_wrap" data-i18n="wizard.cableWrap"></option>
+            <option value="patch_panel" data-i18n="wizard.patchPanel"></option>
+          </select>
+        </label>
+        <div class="wz-group" data-kind="cable_flag cable_wrap">
+          <label><span data-i18n="wizard.text"></span><input id="wz-text" type="text" value="Kabel 1" /></label>
+          <label><span data-i18n="wizard.diameter"></span><input id="wz-diameter" type="number" min="0.5" step="0.5" value="6" /></label>
+        </div>
+        <div class="wz-group" data-kind="cable_flag">
+          <label><span data-i18n="wizard.flag"></span><input id="wz-flag" type="number" min="5" step="1" value="25" /></label>
+        </div>
+        <div class="wz-group" data-kind="cable_wrap">
+          <label><span data-i18n="wizard.repeats"></span><input id="wz-repeats" type="number" min="0" step="1" value="0" data-i18n-placeholder="layout.auto" /></label>
+          <label class="check"><input id="wz-vertical" type="checkbox" checked /> <span data-i18n="wizard.vertical"></span></label>
+        </div>
+        <div class="wz-group" data-kind="patch_panel">
+          <label><span data-i18n="wizard.count"></span><input id="wz-count" type="number" min="1" value="24" /></label>
+          <label><span data-i18n="wizard.pitch"></span><input id="wz-pitch" type="number" min="1" step="0.1" value="12.7" /></label>
+          <label><span data-i18n="wizard.prefix"></span><input id="wz-prefix" type="text" value="" /></label>
+          <label><span data-i18n="numbering.start"></span><input id="wz-start" type="number" value="1" /></label>
+          <label><span data-i18n="numbering.step"></span><input id="wz-step" type="number" value="1" /></label>
+          <label><span data-i18n="wizard.digits"></span><input id="wz-digits" type="number" min="0" max="6" value="0" /></label>
+          <label><span data-i18n="wizard.margin"></span><input id="wz-margin" type="number" min="0" step="0.5" value="0" /></label>
+          <label class="check"><input id="wz-separators" type="checkbox" checked /> <span data-i18n="wizard.separators"></span></label>
+        </div>
+        <p class="muted hint" id="wz-info"></p>
+        <div class="row end">
+          <button value="cancel" data-i18n="wizard.cancel"></button>
+          <button id="wz-create" value="create" class="primary" data-i18n="wizard.create"></button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

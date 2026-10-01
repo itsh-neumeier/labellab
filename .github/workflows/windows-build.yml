@@ -37,7 +37,11 @@ jobs:
         run: npm ci
       - name: build GUI (portable exe, bundling disabled in tauri.conf.json)
         working-directory: app
-        run: npx tauri build
+        # The ll-* crates are path dependencies of the app workspace, so
+        # rust-cache restores them like registry crates; force a rebuild.
+        run: |
+          cargo clean --manifest-path src-tauri/Cargo.toml --release -p ll-core -p ll-render -p ll-protocol -p ll-transport
+          npx tauri build
       - name: build CLI
         run: cargo build --release -p ll-cli
       - name: collect files

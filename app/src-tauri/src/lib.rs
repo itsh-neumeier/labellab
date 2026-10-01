@@ -12,8 +12,9 @@ use std::sync::Mutex;
 use base64::Engine;
 use ll_core::device::{self, Connection};
 use ll_core::label::{self, Label, Rect};
+use ll_core::layouts::{self, Layout};
 use ll_core::print::PrintOptions;
-use ll_core::series::{self, DataSet};
+use ll_core::series::{self, DataSet, Numbering};
 use ll_protocol::model::{self, dots_to_mm, ModelInfo, MODELS};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
@@ -30,11 +31,18 @@ impl SeriesState {
 
 /// `label` with placeholders filled from record `row` of the loaded CSV,
 /// or unchanged without CSV/row.
-fn with_record(label: Label, series: &SeriesState, row: Option<usize>) -> Label {
-    match (series.get(), row) {
-        (Some(data), Some(n)) => series::apply(&label, &data, n),
-        _ => label,
+fn with_record(
+    label: Label,
+    series: &SeriesState,
+    row: Option<usize>,
+    numbering: Option<Numbering>,
+) -> Label {
+    let Some(n) = row else { return label };
+    let data = series.get();
+    if data.is_none() && numbering.is_none() {
+        return label;
     }
+    series::apply(&label, data.as_ref(), n, numbering.unwrap_or_default())
 }
 
 /// Baud rate for serial ports picked in the GUI. Virtual Bluetooth-SPP
@@ -91,10 +99,11 @@ fn render_preview(
     model: String,
     width_mm: u8,
     row: Option<usize>,
+    numbering: Option<Numbering>,
     scale: u32,
     series: State<'_, SeriesState>,
 ) -> Result<String, String> {
-    let label = with_record(label, &series, row);
+    let label = with_record(label, &series, row, numbering);
     let png = label::render_label_preview(&label, find_model(&model)?, width_mm, scale.clamp(1, 8))
         .map_err(err)?;
     Ok(base64::engine::general_purpose::STANDARD.encode(png))
@@ -221,6 +230,10 @@ struct PrintJob {
     /// Record numbers (1-based, inclusive) of the loaded CSV; `None`
     /// without CSV prints the label as is, with CSV all records.
     rows: Option<(usize, usize)>,
+    /// Without CSV: number of labels of a numbered series (`{{n}}`).
+    count: Option<usize>,
+    /// Running number start/step for `{{n}}`/`{{a}}`/`{{A}}`.
+    numbering: Option<Numbering>,
 }
 
 /// Progress event payload (`print-progress`).
@@ -242,15 +255,23 @@ async fn print_label(
     series: State<'_, SeriesState>,
 ) -> Result<(), String> {
     let model = find_model(&model)?;
-    let labels: Vec<Label> = match series.get() {
-        Some(data) => {
+    let numbering = job.numbering.unwrap_or_default();
+    let labels: Vec<Label> = match (series.get(), job.count) {
+        (Some(data), _) => {
             let range = data.select(job.rows.map(|(a, b)| a..=b));
             if range.is_empty() {
                 return Err("no records in the selected range".into());
             }
-            range.map(|n| series::apply(&label, &data, n)).collect()
+            range
+                .map(|n| series::apply(&label, Some(&data), n, numbering))
+                .collect()
         }
-        None => vec![label],
+        (None, Some(count)) if count > 0 => (1..=count)
+            .map(|n| series::apply(&label, None, n, numbering))
+            .collect(),
+        // Single label: still fill {{n}}/{{A}} with the first number so
+        // print matches the preview.
+        (None, _) => vec![series::apply(&label, None, 1, numbering)],
     };
     let options = PrintOptions {
         frame: false,
@@ -310,6 +331,23 @@ async fn font_families() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Bundled symbol names for the symbol element.
+#[tauri::command]
+fn symbols() -> Vec<&'static str> {
+    ll_render::SYMBOL_NAMES.to_vec()
+}
+
+/// Builds a cable flag / cable wrap / patch panel label for the tape.
+#[tauri::command]
+fn generate_layout(layout: Layout, model: String, width_mm: u8) -> Result<Label, String> {
+    let model = find_model(&model)?;
+    let geometry = label::geometry_for(model, width_mm).map_err(err)?;
+    Ok(layouts::generate(
+        &layout,
+        dots_to_mm(geometry.printable_pins as u32),
+    ))
+}
+
 /// Default feed margin before the cut, for the GUI's initial value.
 #[tauri::command]
 fn default_margin_dots() -> u16 {
@@ -341,6 +379,8 @@ pub fn run() {
             load_csv,
             clear_csv,
             font_families,
+            symbols,
+            generate_layout,
             default_margin_dots,
             load_label,
             save_label,

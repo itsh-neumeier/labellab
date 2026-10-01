@@ -38,10 +38,33 @@ export type Element =
     }
   | { type: "qr"; data: string }
   | { type: "barcode"; symbology: Symbology; data: string }
-  | { type: "image"; path: string; invert: boolean };
+  | { type: "image"; path: string; invert: boolean }
+  | { type: "symbol"; name: string; invert: boolean }
+  | { type: "fill" };
 
-/** An element plus its box (`ll_core::label::Item`, serialized flat). */
-export type Item = Element & { rect?: Rect | null };
+/** An element plus its box and rotation (`ll_core::label::Item`, serialized flat). */
+export type Item = Element & { rect?: Rect | null; rotation?: number };
+
+/** Running number for `{{n}}`/`{{a}}`/`{{A}}`. */
+export interface Numbering {
+  start: number;
+  step: number;
+}
+
+export type Layout =
+  | { kind: "cable_flag"; text: string; diameter_mm: number; flag_mm: number }
+  | { kind: "cable_wrap"; text: string; diameter_mm: number; repeats: number | null; vertical: boolean }
+  | {
+      kind: "patch_panel";
+      count: number;
+      pitch_mm: number;
+      start: number;
+      step: number;
+      prefix: string;
+      digits: number;
+      separators: boolean;
+      margin_mm: number;
+    };
 
 export interface Label {
   version: number;
@@ -97,8 +120,18 @@ export const loadLabel = (path: string) => invoke<Label>("load_label", { path })
 export const saveLabel = (path: string, label: Label) => invoke<void>("save_label", { path, label });
 
 /** Base64 PNG of the label as it will be printed (same render path). */
-export const renderPreview = (label: Label, model: string, widthMm: number, row: number | null, scale: number) =>
-  invoke<string>("render_preview", { label, model, widthMm, row, scale });
+export const renderPreview = (
+  label: Label,
+  model: string,
+  widthMm: number,
+  row: number | null,
+  numbering: Numbering | null,
+  scale: number,
+) => invoke<string>("render_preview", { label, model, widthMm, row, numbering, scale });
+
+export const symbols = () => invoke<string[]>("symbols");
+export const generateLayout = (layout: Layout, model: string, widthMm: number) =>
+  invoke<Label>("generate_layout", { layout, model, widthMm });
 
 /** Boxes for every element as rendered (flow elements included). */
 export const resolveRects = (label: Label, model: string, widthMm: number) =>
@@ -111,6 +144,9 @@ export interface PrintJob {
   marginDots: number;
   /** 1-based inclusive record range of the loaded CSV; null = all. */
   rows: [number, number] | null;
+  /** Without CSV: labels in a numbered series (null = single label). */
+  count: number | null;
+  numbering: Numbering | null;
 }
 
 export const printLabel = (args: { label: Label; connection: Connection; model: string; job: PrintJob }) =>

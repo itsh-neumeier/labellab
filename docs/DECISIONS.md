@@ -347,3 +347,31 @@ Vorlage:
   Weitergabe erhalten bleiben (`NOTICE.md`). **M5 ist damit vollständig** (Schriften, Rahmen,
   QR, 6 Barcode-Symbologien, Bilder inkl. SVG, Symbolbibliothek, `render` → PNG) — bis auf
   ausstehende Hardware-Tests für mehrere Teile.
+
+## ADR-020: M7-Vorlagen (Kabelfahne, Kabelwickel, Patchpanel), Nummernfolgen, Drehung, Fläche
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Offene M7-Punkte aus `MASTER_PROMPT.md`: Kabelfahne, Kabelwickel, Patchpanel/Port-
+  Labels, Serien mit `{n}`/Start/Schritt/Stellen und Buchstabenfolgen. Der Kabelwickel braucht
+  Text quer zum Band, Patchpanels brauchen Trennstriche.
+- Entscheidung:
+  - **Generatoren statt eigener Labeltypen:** `ll_core::layouts` (`CableFlag`, `CableWrap`,
+    `PatchPanel`, `Layout` mit `"kind"`-Tag) erzeugen ein normales `Label` mit Boxen und fester
+    Länge (`min_length_mm`, `padding_mm = 0`). Das Ergebnis bleibt im Editor bearbeitbar, als
+    `.llabel` speicherbar und mit CSV/Nummerierung kombinierbar. Kabelfahne: Text,
+    Wickelbereich π × Durchmesser, Text. Kabelwickel: Umfang π × Durchmesser, Text n-mal
+    (Standard ≈ alle 15 mm), optional 90° gedreht. Patchpanel: `count` Felder à `pitch_mm`,
+    Nummer = `start + i·step` mit Präfix und Nullauffüllung, optional 0,3-mm-Trennstriche.
+  - **Drehung:** `Item::rotation` (0/90/180/270°, im Uhrzeigersinn), nur für Boxen; der
+    Inhalt wird in die getauschte Box gerendert und per `Bitmap::rotated` gedreht.
+  - **Fläche:** `Element::Fill` = gefüllte Box (Trennstriche, Balken, Blöcke).
+  - **Nummernfolgen:** `series::Numbering { start, step }`; Platzhalter `{{n}}`, `{{n:03}}`
+    (Nullen), `{{a}}`/`{{A}}` (a…z, aa…), zusätzlich zu `{{Spalte}}`/`{{#}}`; CSV-Spalten
+    haben Vorrang vor gleichnamigen Eingebauten. Ohne CSV: `count` Labels
+    (CLI `--count/--start/--step`, GUI-Bereich „Nummerierung“). Ein Einzeldruck füllt
+    `{{n}}` mit dem Startwert (Vorschau = Druck).
+  - CLI `labellab generate cable-flag|cable-wrap|patch-panel … -o datei.llabel`; GUI
+    „Assistent …“ (Backend-Befehl `generate_layout`), außerdem Elemente „Symbol“
+    (Bibliothek aus ADR-019) und „Linie/Fläche“ sowie ⟳-Knopf je Element.
+- Konsequenzen: Text in Generator-Feldern ist auto-skaliert (an Feldbreite/-höhe); sehr lange
+  Texte werden klein. Echte Längen-Genauigkeit hängt an der Vorschub-Genauigkeit des Druckers
+  (hardware-offen, wichtig für Patchpanels).

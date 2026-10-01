@@ -63,4 +63,8 @@ jobs:
         run: cargo fmt --all -- --check
       - name: clippy
         working-directory: app/src-tauri
-        run: cargo clippy --all-targets -- -D warnings
+        # The ll-* crates are path dependencies here, so rust-cache restores
+        # them like registry crates; force a rebuild against the checkout.
+        run: |
+          cargo clean -p ll-core -p ll-render -p ll-protocol -p ll-transport
+          cargo clippy --all-targets -- -D warnings
