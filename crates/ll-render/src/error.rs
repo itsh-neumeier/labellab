@@ -18,6 +18,9 @@ pub enum RenderError {
     #[error("barcode error: {0}")]
     Barcode(String),
 
+    #[error("image error: {0}")]
+    Image(String),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }

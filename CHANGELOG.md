@@ -22,5 +22,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - M5 (Teil): QR-Codes (`qrcode`-Crate) — `labellab print --qr "..."` und
   `labellab render --qr "..." -o vorschau.png` — hardware-verifiziert (gedruckt + gescannt)
 - M5 (Teil): Code128-Barcode (`barcoders`-Crate) — `labellab print --barcode "..."` und
-  `labellab render --barcode "..." -o vorschau.png`. Weitere Barcode-Symbologien/Bilder/
-  Symbole/Rahmen noch offen.
+  `labellab render --barcode "..." -o vorschau.png` — gedruckt (sauberes Balkenmuster),
+  Scan-Lesbarkeit noch nicht verifiziert
+- M5 (Teil): Bildimport (PNG/JPEG/BMP) mit Floyd-Steinberg-Dithering — `labellab print --image
+  <datei> [--invert]` und `labellab render --image <datei> -o vorschau.png`. SVG-Import,
+  weitere Barcode-Symbologien, Symbole/Rahmen noch offen.

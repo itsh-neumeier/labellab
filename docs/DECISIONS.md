@@ -127,3 +127,19 @@ Vorlage:
   `print_text()`/`print_qr()`.
 - Konsequenzen: Balkenbreite fest auf 3 Druckpunkte (TODO(verify) gegen echten Scanner).
   EAN-13/8, UPC-A, Code39, ITF bleiben offen. MIT-lizenziert.
+  Hardware-Test 2026-10-01: druckt sauberes, optisch korrektes Balkenmuster; Scan-Lesbarkeit
+  nicht verifiziert (kein Code128-Scanner beim Nutzer verfügbar).
+
+## ADR-011: Eigene Floyd-Steinberg-Dithering-Implementierung für Bilder (M5)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: M5 braucht Bildimport mit Dithering (`MASTER_PROMPT.md` Feature 6). `image`-Crate
+  (bereits Abhängigkeit für PNG-Export, ADR-008) deckt Dekodierung (PNG/JPEG/BMP) und Skalierung
+  ab, aber kein 1-Bit-Dithering.
+- Entscheidung: Features `jpeg`/`bmp` zu `image` hinzugefügt (neben vorhandenem `png`). Klassisches
+  Floyd-Steinberg-Error-Diffusion selbst implementiert (~30 Zeilen, kein eigenes Crate nötig,
+  Algorithmus ist Standard/gut dokumentiert). `ll_render::picture::render_gray()` ist die reine,
+  dateisystemfreie Kernlogik (testbar mit synthetischen `GrayImage`s), `render_image()` nur ein
+  dünner Dateilade-Wrapper darum. Bild wird auf `printable_pins` Höhe skaliert (Seitenverhältnis
+  erhalten), `--invert`-Flag für Bilder mit hellem Motiv auf dunklem Grund. SVG bleibt offen
+  (braucht eigenen Rasterizer wie `resvg`, `image`-Crate kann das nicht).
+- Konsequenzen: Keine Symbolbibliothek (separates M5-Los). MIT-lizenziert.

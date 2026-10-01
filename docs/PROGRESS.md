@@ -11,7 +11,8 @@
   end-to-end auf echter Hardware.
 - **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes hardware-verifiziert.
   Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
-  (kein Code128-Scanner beim Nutzer verfügbar). Rahmen/Bilder/Symbole offen.
+  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport + Dithering fertig (Code grün,
+  noch nicht auf Band gedruckt). Rahmen/Symbole offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -29,13 +30,14 @@
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
   App, BlueZ (Linux), USB fehlen noch.
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
-  **Teilstand:** echte Systemschriften (`fontdue`, **hardware-verifiziert**) und QR-Codes
-  (`qrcode`-Crate, ADR-009, **hardware-verifiziert**, gedruckt + gescannt) fertig. Code128-Barcode
-  (`barcoders`-Crate, `ll_render::linear_barcode::render_code128`, ADR-010, **noch nicht auf
-  Band gedruckt**) neu. `ll_render::png` + CLI `render ["Text"|--qr <daten>|--barcode <daten>]
-  -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_code128` teilen sich
-  die Protokoll-Sequenz (`ll-core::print::send_bitmap()`). Noch offen: Rahmen/Linien, weitere
-  Barcode-Symbologien (EAN/UPC/Code39/ITF), Bilder (PNG/JPG/BMP/SVG, Dithering), Symbolbibliothek.
+  **Teilstand:** echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt +
+  gescannt). Code128-Barcode (ADR-010) gedruckt, Scan-Lesbarkeit offen. Bildimport
+  (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`, ADR-011, `ll_render::picture`) neu,
+  **noch nicht auf Band gedruckt**. `ll_render::png` + CLI `render ["Text"|--qr|--barcode|
+  --image <datei>] -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/
+  `print_code128`/`print_image` teilen sich die Protokoll-Sequenz
+  (`ll-core::print::send_bitmap()`). Noch offen: Rahmen/Linien, weitere Barcode-Symbologien
+  (EAN/UPC/Code39/ITF), SVG-Import, Symbolbibliothek.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -46,11 +48,11 @@
 | – | – | – | – |
 
 ## Nächste Schritte
-1. **Hardware-Test Code128 (auf dem Gerät mit dem Drucker):** `labellab print --barcode
-   "ABC-123" --bt --device <ID>` — druckt, scannt der Code mit einem Scanner/Handy? Balkenbreite
-   fest auf 3 Druckpunkte (ADR-010), ggf. nachjustieren.
+1. **Hardware-Test Bildimport (auf dem Gerät mit dem Drucker):** `labellab print --image
+   pfad\zu\bild.png --bt --device <ID>` — ein echtes Foto/Logo drucken, Dithering-Qualität auf
+   Band prüfen (PNG-Vorschau sah gut aus, aber Papier ist nicht Bildschirm).
 2. M5 weiter: Rahmen/Linien, weitere Barcode-Symbologien (EAN/UPC/Code39/ITF via `barcoders`),
-   Bilder (Import + Floyd-Steinberg-Dithering via `image`), Symbolbibliothek.
+   SVG-Import (braucht `resvg`), Symbolbibliothek.
 3. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
 4. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
@@ -85,6 +87,8 @@
   2026-10-01: sauberes, optisch korrekt aussehendes Balkenmuster (Foto bestätigt).
 - [ ] M5: Code128-Scan-Lesbarkeit mit einem echten Scanner/einer Scanner-App verifizieren
   (Nutzer hatte keinen Code128-fähigen Scanner zur Hand). Balkenbreite 3 Druckpunkte, ADR-010.
+- [ ] M5: `labellab print --image <datei> --bt` gegen echten Drucker testen — Dithering-Qualität
+  auf echtem Band, nicht nur PNG-Vorschau.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -122,6 +126,27 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – Bildimport + Dithering
+- `ll-render`: neues `picture`-Modul (`render_image()` lädt PNG/JPEG/BMP, `render_gray()` ist
+  die reine, dateisystemfreie Kernlogik — testbar mit synthetischen `GrayImage`s statt echten
+  Dateien). Skaliert auf `printable_pins` Höhe (Seitenverhältnis erhalten), klassisches
+  Floyd-Steinberg-Error-Diffusion selbst implementiert (kein eigenes Dithering-Crate, siehe
+  ADR-011), `--invert`-Option. `image`-Crate um `jpeg`/`bmp`-Features erweitert (neben
+  vorhandenem `png`). Visuell per Wegwerf-Beispiel geprüft: Radialverlauf dithert korrekt
+  (klassisches FS-Streumuster erkennbar), danach entfernt.
+- `ll-core::print`: neues `print_image()`, teilt sich `read_status_and_geometry()`/
+  `send_bitmap()` mit den anderen `print_*`-Funktionen. Test mit echter Temp-PNG-Datei
+  (`image`-Crate als Dev-Dependency für `ll-core`).
+- `ll-cli`: `--image <datei>` + `--invert` auf `print` und `render` (schließt sich mit
+  `text`/`--qr`/`--barcode` aus). `Content`-Enum um `Image`-Variante erweitert, `ContentArgs`
+  bündelt die vier sich gegenseitig ausschließenden Inhaltsquellen plus `invert`
+  (sonst `clippy::too_many_arguments`). Smoke-getestet: synthetisches Radialverlauf-PNG über
+  `render --image ... -o out.png` korrekt gedithert.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (45 Unit-Tests, vorher 38).
+- **Noch nicht gemacht:** Bilddruck auf echtes Band getestet (nur PNG-Vorschau verifiziert).
+- **Noch offen in M5:** Rahmen/Linien, weitere Barcode-Symbologien, SVG-Import,
+  Symbolbibliothek.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – Code128-Barcode
 - `ll-render`: neues `linear_barcode`-Modul (`render_code128()` via `barcoders`-Crate, siehe
   ADR-010). Anders als Text/QR: ein Balken-Modul füllt die **gesamte** bedruckbare Bandbreite

@@ -5,10 +5,12 @@
 //!
 //! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
 //! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
-//! denselben Renderpfad"). `print_text`/`print_qr`/`print_code128` share
-//! the protocol sequence; only the rendered content differs (frames,
-//! other barcode symbologies, images and symbols are still open M5 scope).
+//! denselben Renderpfad"). `print_text`/`print_qr`/`print_code128`/
+//! `print_image` share the protocol sequence; only the rendered content
+//! differs (frames, other barcode symbologies and symbols are still open
+//! M5 scope).
 
+use std::path::Path;
 use std::time::Duration;
 
 use ll_protocol::{
@@ -79,6 +81,27 @@ pub async fn print_code128(
         model.head_pins,
         geometry.printable_pins,
         geometry.left_offset_pins,
+    )?;
+    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+}
+
+/// Resets the printer, reads its status, renders the image at `path`
+/// (scaled to fit the currently loaded tape, Floyd-Steinberg dithered)
+/// and prints it. Same failure behavior as [`print_text`].
+pub async fn print_image(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+    path: &Path,
+    invert: bool,
+    auto_cut: bool,
+) -> Result<(), CoreError> {
+    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
+    let bitmap = ll_render::render_image(
+        path,
+        model.head_pins,
+        geometry.printable_pins,
+        geometry.left_offset_pins,
+        invert,
     )?;
     send_bitmap(transport, &bitmap, width_mm, auto_cut).await
 }
@@ -319,6 +342,26 @@ mod tests {
         print_code128(&mut transport, p710bt(), "LABELLAB-123", false)
             .await
             .unwrap();
+
+        let written = transport.written();
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());
+        assert_eq!(*written.last().unwrap(), 0x1A);
+    }
+
+    #[tokio::test]
+    async fn print_image_sends_raster_mode_and_feed() {
+        let img = image::GrayImage::from_pixel(10, 10, image::Luma([0u8]));
+        let path = std::env::temp_dir().join("labellab_print_image_test.png");
+        img.save(&path).unwrap();
+
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+
+        print_image(&mut transport, p710bt(), &path, false, false)
+            .await
+            .unwrap();
+
+        std::fs::remove_file(&path).ok();
 
         let written = transport.written();
         assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());

@@ -50,12 +50,17 @@ enum Command {
         /// Code128-Barcode statt Text drucken.
         #[arg(long, conflicts_with_all = ["text", "qr"])]
         barcode: Option<String>,
+        /// Bilddatei (PNG/JPEG/BMP) statt Text drucken, skaliert auf die
+        /// Bandbreite, Floyd-Steinberg-gedithert.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
+        image: Option<String>,
+        /// Bild invertieren (nur mit --image).
+        #[arg(long)]
+        invert: bool,
         #[arg(long)]
         template: Option<String>,
         #[arg(long)]
         csv: Option<String>,
-        #[arg(long)]
-        image: Option<String>,
         #[arg(long)]
         cut: bool,
         #[arg(long, default_value_t = 1)]
@@ -84,6 +89,13 @@ enum Command {
         /// Code128-Barcode statt Text rendern.
         #[arg(long, conflicts_with_all = ["text", "qr"])]
         barcode: Option<String>,
+        /// Bilddatei (PNG/JPEG/BMP) statt Text rendern, skaliert auf die
+        /// Bandbreite, Floyd-Steinberg-gedithert.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
+        image: Option<String>,
+        /// Bild invertieren (nur mit --image).
+        #[arg(long)]
+        invert: bool,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -111,9 +123,10 @@ async fn main() -> anyhow::Result<()> {
             text,
             qr,
             barcode,
+            image,
+            invert,
             template,
             csv,
-            image,
             cut,
             copies,
             device,
@@ -121,16 +134,18 @@ async fn main() -> anyhow::Result<()> {
             baud,
             model,
         } => {
-            if template.is_some() || csv.is_some() || image.is_some() {
-                eprintln!(
-                    "--template/--csv/--image sind noch nicht implementiert (folgen in M5/M7)."
-                );
+            if template.is_some() || csv.is_some() {
+                eprintln!("--template/--csv sind noch nicht implementiert (folgt in M7).");
                 std::process::exit(1);
             }
             print(
-                text,
-                qr,
-                barcode,
+                ContentArgs {
+                    text,
+                    qr,
+                    barcode,
+                    image,
+                    invert,
+                },
                 cut,
                 copies,
                 ConnectOpts { device, bt, baud },
@@ -142,10 +157,23 @@ async fn main() -> anyhow::Result<()> {
             text,
             qr,
             barcode,
+            image,
+            invert,
             output,
             width,
             model,
-        } => render(text, qr, barcode, output, width, model),
+        } => render(
+            ContentArgs {
+                text,
+                qr,
+                barcode,
+                image,
+                invert,
+            },
+            output,
+            width,
+            model,
+        ),
     }
 }
 
@@ -263,50 +291,56 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
     Ok(())
 }
 
-/// What to render: plain text, a QR code or a Code128 barcode.
-/// `print`/`render` take exactly one of `text`/`--qr`/`--barcode`
-/// (`clap`'s `conflicts_with_all` keeps the other two out).
+/// `text`/`--qr`/`--barcode`/`--image` from `print`/`render`, grouped so
+/// those commands don't need five separate parameters each (`clap`'s
+/// `conflicts_with_all` keeps more than one of them from being set at once).
+struct ContentArgs {
+    text: Option<String>,
+    qr: Option<String>,
+    barcode: Option<String>,
+    image: Option<String>,
+    invert: bool,
+}
+
+/// What to render: plain text, a QR code, a Code128 barcode or an image.
 enum Content {
     Text(String),
     Qr(String),
     Code128(String),
+    Image(std::path::PathBuf, bool),
 }
 
 impl Content {
-    fn from_args(
-        text: Option<String>,
-        qr: Option<String>,
-        barcode: Option<String>,
-    ) -> Option<Self> {
-        match (text, qr, barcode) {
-            (Some(t), None, None) => Some(Content::Text(t)),
-            (None, Some(q), None) => Some(Content::Qr(q)),
-            (None, None, Some(b)) => Some(Content::Code128(b)),
+    fn from_args(args: ContentArgs) -> Option<Self> {
+        match (args.text, args.qr, args.barcode, args.image) {
+            (Some(t), None, None, None) => Some(Content::Text(t)),
+            (None, Some(q), None, None) => Some(Content::Qr(q)),
+            (None, None, Some(b), None) => Some(Content::Code128(b)),
+            (None, None, None, Some(i)) => Some(Content::Image(i.into(), args.invert)),
             _ => None,
         }
     }
 
-    fn label(&self) -> &str {
+    fn label(&self) -> String {
         match self {
-            Content::Text(t) => t,
-            Content::Qr(d) => d,
-            Content::Code128(d) => d,
+            Content::Text(t) => t.clone(),
+            Content::Qr(d) => d.clone(),
+            Content::Code128(d) => d.clone(),
+            Content::Image(p, _) => p.display().to_string(),
         }
     }
 }
 
 async fn print(
-    text: Option<String>,
-    qr: Option<String>,
-    barcode: Option<String>,
+    content_args: ContentArgs,
     cut: bool,
     copies: u32,
     connect: ConnectOpts,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(text, qr, barcode) else {
+    let Some(content) = Content::from_args(content_args) else {
         eprintln!(
-            "Bitte Text, --qr oder --barcode angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
+            "Bitte Text, --qr, --barcode oder --image angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
         );
         std::process::exit(1);
     };
@@ -349,6 +383,9 @@ async fn print(
             Content::Code128(data) => {
                 ll_core::print::print_code128(transport.as_mut(), model, data, cut).await?
             }
+            Content::Image(path, invert) => {
+                ll_core::print::print_image(transport.as_mut(), model, path, *invert, cut).await?
+            }
         }
     }
     transport.close().await?;
@@ -358,15 +395,15 @@ async fn print(
 }
 
 fn render(
-    text: Option<String>,
-    qr: Option<String>,
-    barcode: Option<String>,
+    content_args: ContentArgs,
     output: String,
     width_mm: u8,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(content) = Content::from_args(text, qr, barcode) else {
-        eprintln!("Bitte Text, --qr oder --barcode angeben: labellab render \"Text\" -o datei.png");
+    let Some(content) = Content::from_args(content_args) else {
+        eprintln!(
+            "Bitte Text, --qr, --barcode oder --image angeben: labellab render \"Text\" -o datei.png"
+        );
         std::process::exit(1);
     };
     let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
@@ -416,6 +453,13 @@ fn render(
             model.head_pins,
             geometry.printable_pins,
             geometry.left_offset_pins,
+        )?,
+        Content::Image(path, invert) => ll_render::render_image(
+            path,
+            model.head_pins,
+            geometry.printable_pins,
+            geometry.left_offset_pins,
+            *invert,
         )?,
     };
     let png = ll_render::png::to_png(&bitmap, geometry.left_offset_pins, geometry.printable_pins)?;
