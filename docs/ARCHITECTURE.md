@@ -40,8 +40,8 @@ Jedes `ll-*`-Bibliotheks-Crate hat einen eigenen `thiserror`-Fehlertyp (`Protoco
 | `ll-protocol` | `command` (Befehle inkl. `0C`/`1A`), `status` (32-Byte-Status), `media` (Band-/Schriftfarben), `model` (Modell-/Bandtabelle, `mm_to_dots`, `pt_to_dots`, 180 dpi), `packbits` |
 | `ll-transport` | `Transport`-Trait, `bluetooth` (WinRT-RFCOMM, Gerätename), `serial`, `usb` (`nusb`), `mock` |
 | `ll-render` | `Bitmap` (inkl. `blit`), `text` (Fluss-Text), `boxed` (Element in Box: Text mehrzeilig/Größe/Ausrichtung, QR, Barcode, Bild), `fonts` (Systemschriften via fontdb, fett/kursiv, Ersatz), `barcode` (QR), `linear_barcode`, `picture` (PNG/JPEG/BMP/SVG + Dithering), `frame`, `png` (PNG, transparente Maske) |
-| `ll-core` | `label` (`Label`/`Item`/`Rect`, `.llabel` v2, `Canvas` für Mehrband/Vorschau-Skalierung, `render_label`, `render_label_pages`, `render_label_preview`, `resolved_rects`), `print` (`print_labels`: Einzelaufträge oder Kettendruck, Fortschritt), `series` (CSV, Platzhalter), `device` (`Connection`, USB/BT/seriell, Modell aus Gerätename) |
-| `ll-cli` | `labellab devices/status/print/render` (`--usb`, `--bt`, `--template`, `--csv`, `--rows`, `--chain`) |
+| `ll-core` | `label` (`Label`/`Item`/`Rect`, `.llabel` v2, `Canvas` für Mehrband/Vorschau-Skalierung, `render_label`, `render_label_pages`, `render_label_preview`, `resolved_rects`), `print` (`print_labels`: Einzelaufträge oder Kettendruck, Fortschritt), `series` (CSV, Platzhalter, Nummernfolgen), `layouts` (Kabelfahne, Kabelwickel, Patchpanel), `device` (`Connection`, USB/BT/seriell, Modell aus Gerätename) |
+| `ll-cli` | `labellab devices/status/print/render/generate/symbols` (`--usb`, `--bt`, `--template`, `--csv`, `--rows`, `--count`, `--chain`) |
 | `app/` | Tauri 2, eigener Cargo-Workspace (`app/src-tauri`, Befehle in `lib.rs`), Frontend Vite + TypeScript (`main.ts` Editor, `snap.ts` Einrasten, `tapes.ts` Bandfarben, `api.ts`, `i18n/` de/en) |
 
 Renderpfad: `Label` → `compose` (Fluss-Layout + Boxen auf einer `Canvas`) → `Bitmap`. Druck nutzt

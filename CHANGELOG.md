@@ -51,6 +51,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Gerätesuche zeigt den Bluetooth-Gerätenamen statt „SPP SERVER“, erkennt den Drucker, wählt ihn
   aus und liest den Bandstatus automatisch
 - Druckknopf zeigt „Wird gedruckt … n/m“ und ist während der Übertragung gesperrt
+- Vorlagen-Assistent und `labellab generate`: Kabelfahne (Wickelbereich π × Durchmesser),
+  Kabelwickel (Text wiederholt, optional gedreht), Patchpanel/Port-Labels (festes Raster,
+  Nummerierung, Trennstriche)
+- Nummernfolgen ohne CSV: `{{n}}`, `{{n:03}}`, `{{A}}`/`{{a}}` mit Start/Schritt/Anzahl
+  (`--count/--start/--step`, Bereich „Nummerierung“)
+- Elemente drehen (90°-Schritte), neues Element „Linie/Fläche“, Symbol-Element in der Oberfläche
 - Symbole aus der mitgelieferten Bibliothek auch in Vorlagen und Serien (`{"type": "symbol"}`)
 - Vorlagenformat `.llabel` Version 2 (Boxen, Textgröße/-ausrichtung); Version 1 wird weiter gelesen
 - Windows: portable `LabelLab.exe` (ohne Installation startbar) und `labellab.exe` werden bei
@@ -69,6 +75,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt.
 
 ### Behoben
+- `labellab` brach nach dem Zusammenführen mit der Symbolbibliothek beim Start ab
+  (`--symbol` widersprach sich selbst)
 - Vorschau blieb in der Windows-Oberfläche leer
 - Cutter schnitt direkt am Ende des gedruckten Inhalts ohne Nachlauf (`margin(0)` war fest
   einprogrammiert). `--margin <dots>` auf `print` macht den Leervorschub vor dem Schnitt

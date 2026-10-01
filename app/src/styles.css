@@ -165,3 +165,17 @@ button.primary.busy::before {
 .strip-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(229, 54, 122, 0.8); }
 .zoom label { display: flex; align-items: center; gap: 6px; }
 .zoom { flex-wrap: wrap; row-gap: 4px; }
+
+/* ---- wizard dialog ---- */
+dialog#wizard {
+  border: 1px solid var(--border); border-radius: 10px; padding: 0;
+  background: var(--panel); color: var(--text); width: min(460px, 92vw);
+}
+dialog#wizard::backdrop { background: rgba(0, 0, 0, 0.35); }
+.wizard { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.wizard h2 { margin: 0 0 4px; font-size: 16px; }
+.wizard label { display: grid; grid-template-columns: 1fr 9em; gap: 8px; align-items: center; }
+.wizard label.check { display: flex; }
+.wz-group { display: flex; flex-direction: column; gap: 8px; }
+.wz-group[hidden] { display: none; }
+.row.end { display: flex; justify-content: flex-end; gap: 8px; }
