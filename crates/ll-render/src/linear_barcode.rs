@@ -1,11 +1,15 @@
-//! Linear (1D) barcode rendering into a [`Bitmap`]. Code128 only for now;
-//! EAN-13/8, UPC-A, Code39, ITF are still open M5 scope.
+//! Linear (1D) barcode rendering into a [`Bitmap`]. Code128, EAN-13/8,
+//! UPC-A, Code39, ITF (interleaved 2-of-5).
 //!
 //! Orientation differs from `text`/QR: a 1D barcode's bars run across the
 //! *whole* printable tape width for every module, varying only along the
 //! raster-line (length) axis — there's no vertical structure to encode.
 
 use barcoders::sym::code128::Code128;
+use barcoders::sym::code39::Code39;
+use barcoders::sym::ean13::{EAN13, UPCA};
+use barcoders::sym::ean8::EAN8;
+use barcoders::sym::tf::TF;
 
 use crate::{Bitmap, RenderError};
 
@@ -13,23 +17,89 @@ use crate::{Bitmap, RenderError};
 /// confirm whether this is wide enough to read reliably at 180 dpi.
 const MODULE_PX: u32 = 3;
 
-/// Renders `data` as a Code128 barcode for a tape with `head_pins` total
-/// print-head pins, filling `printable_pins` starting at
-/// `left_offset_pins` for every bar.
-///
-/// `data` may use barcoders' character-set-switch syntax (starting with
-/// `À`/`Ɓ`/`Ć`); if it doesn't, character-set B (general alphanumeric) is
-/// assumed.
+/// Which linear barcode symbology to encode with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Symbology {
+    /// Any ASCII text/data. Defaults to character-set B if `data` doesn't
+    /// already start with a charset-switch character.
+    Code128,
+    /// 12 or 13 digits (12 without, 13 with a trailing check digit).
+    Ean13,
+    /// 7 or 8 digits (7 without, 8 with a trailing check digit).
+    Ean8,
+    /// 12 or 13 digits, i.e. an EAN-13 that starts with `0`.
+    UpcA,
+    /// Digits, uppercase letters and a handful of symbols (`-. $/+%` and space).
+    Code39,
+    /// Digits only (interleaved 2-of-5); odd-length input gets an
+    /// auto-computed trailing check digit.
+    Itf,
+}
+
+/// Renders `data` as a barcode of the given `symbology` for a tape with
+/// `head_pins` total print-head pins, filling `printable_pins` starting
+/// at `left_offset_pins` for every bar.
+pub fn render_barcode(
+    symbology: Symbology,
+    data: &str,
+    head_pins: u16,
+    printable_pins: u16,
+    left_offset_pins: u16,
+) -> Result<Bitmap, RenderError> {
+    let modules = match symbology {
+        Symbology::Code128 => {
+            let prefixed = ensure_start_charset(data);
+            Code128::new(&prefixed)
+                .map_err(|e| RenderError::Barcode(e.to_string()))?
+                .encode()
+        }
+        Symbology::Ean13 => EAN13::new(data)
+            .map_err(|e| RenderError::Barcode(e.to_string()))?
+            .encode(),
+        Symbology::Ean8 => EAN8::new(data)
+            .map_err(|e| RenderError::Barcode(e.to_string()))?
+            .encode(),
+        Symbology::UpcA => UPCA::new(data)
+            .map_err(|e| RenderError::Barcode(e.to_string()))?
+            .encode(),
+        Symbology::Code39 => Code39::new(data)
+            .map_err(|e| RenderError::Barcode(e.to_string()))?
+            .encode(),
+        Symbology::Itf => TF::interleaved(data)
+            .map_err(|e| RenderError::Barcode(e.to_string()))?
+            .encode(),
+    };
+    Ok(render_modules(
+        &modules,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+    ))
+}
+
+/// Renders `data` as a Code128 barcode. Shorthand for
+/// `render_barcode(Symbology::Code128, ...)`.
 pub fn render_code128(
     data: &str,
     head_pins: u16,
     printable_pins: u16,
     left_offset_pins: u16,
 ) -> Result<Bitmap, RenderError> {
-    let prefixed = ensure_start_charset(data);
-    let code = Code128::new(&prefixed).map_err(|e| RenderError::Barcode(e.to_string()))?;
-    let modules = code.encode();
+    render_barcode(
+        Symbology::Code128,
+        data,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+    )
+}
 
+fn render_modules(
+    modules: &[u8],
+    head_pins: u16,
+    printable_pins: u16,
+    left_offset_pins: u16,
+) -> Bitmap {
     let total_lines = modules.len() as u32 * MODULE_PX;
     let mut bitmap = Bitmap::new(head_pins, total_lines);
 
@@ -45,7 +115,7 @@ pub fn render_code128(
         }
     }
 
-    Ok(bitmap)
+    bitmap
 }
 
 /// Code128 data must start with a character-set switch (`À`/`Ɓ`/`Ć`).
@@ -62,12 +132,15 @@ fn ensure_start_charset(data: &str) -> String {
 mod tests {
     use super::*;
 
+    fn has_ink(bmp: &Bitmap) -> bool {
+        (0..bmp.height_dots()).any(|y| bmp.row(y).iter().any(|&b| b != 0))
+    }
+
     #[test]
     fn renders_nonempty_barcode() {
         let bmp = render_code128("ABC-123", 128, 50, 39).unwrap();
         assert!(bmp.height_dots() > 0);
-        let has_ink = (0..bmp.height_dots()).any(|y| bmp.row(y).iter().any(|&b| b != 0));
-        assert!(has_ink, "rendered barcode has no set pixels");
+        assert!(has_ink(&bmp), "rendered barcode has no set pixels");
     }
 
     #[test]
@@ -89,6 +162,42 @@ mod tests {
     fn rejects_unencodable_character() {
         // Code128 character-sets A/B don't cover arbitrary Unicode.
         let err = render_code128("🎉", 128, 50, 39).unwrap_err();
+        assert!(matches!(err, RenderError::Barcode(_)));
+    }
+
+    #[test]
+    fn renders_ean13() {
+        let bmp = render_barcode(Symbology::Ean13, "012345678905", 128, 50, 39).unwrap();
+        assert!(has_ink(&bmp));
+    }
+
+    #[test]
+    fn renders_ean8() {
+        let bmp = render_barcode(Symbology::Ean8, "0123456", 128, 50, 39).unwrap();
+        assert!(has_ink(&bmp));
+    }
+
+    #[test]
+    fn renders_upca() {
+        let bmp = render_barcode(Symbology::UpcA, "012345612345", 128, 50, 39).unwrap();
+        assert!(has_ink(&bmp));
+    }
+
+    #[test]
+    fn renders_code39() {
+        let bmp = render_barcode(Symbology::Code39, "LABELLAB-123", 128, 50, 39).unwrap();
+        assert!(has_ink(&bmp));
+    }
+
+    #[test]
+    fn renders_itf() {
+        let bmp = render_barcode(Symbology::Itf, "123456", 128, 50, 39).unwrap();
+        assert!(has_ink(&bmp));
+    }
+
+    #[test]
+    fn ean13_rejects_wrong_length() {
+        let err = render_barcode(Symbology::Ean13, "123", 128, 50, 39).unwrap_err();
         assert!(matches!(err, RenderError::Barcode(_)));
     }
 }

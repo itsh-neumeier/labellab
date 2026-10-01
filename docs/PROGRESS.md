@@ -11,8 +11,9 @@
   end-to-end auf echter Hardware.
 - **Aktueller Meilenstein:** M5 läuft — echte Schriften und QR-Codes hardware-verifiziert.
   Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
-  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport + Dithering und Rahmen fertig (Code
-  grün, noch nicht auf Band gedruckt). Nur noch Symbolbibliothek + weitere Barcode-Typen offen.
+  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport + Dithering, Rahmen und 4 weitere
+  Barcode-Symbologien (EAN-13/8, UPC-A, Code39, ITF) fertig (Code grün, noch nicht auf Band
+  gedruckt). Nur noch Symbolbibliothek + SVG-Import offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -31,14 +32,15 @@
   App, BlueZ (Linux), USB fehlen noch.
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
   **Teilstand:** echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt +
-  gescannt). Code128-Barcode (ADR-010) gedruckt, Scan-Lesbarkeit offen. Bildimport
-  (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`, ADR-011, `ll_render::picture`) und
-  Rahmen (`ll_render::frame::draw_border`, `--frame`-Flag) neu, **noch nicht auf Band
-  gedruckt**. `ll_render::png` + CLI `render ["Text"|--qr|--barcode|--image <datei>] [--frame]
-  -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_code128`/
-  `print_image` teilen sich die Protokoll-Sequenz (`ll-core::print::send_bitmap()`) und das
-  optionale Rahmenzeichnen. Noch offen: weitere Barcode-Symbologien (EAN/UPC/Code39/ITF),
-  SVG-Import, Symbolbibliothek.
+  gescannt). 6 Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010,
+  `ll_render::Symbology`, CLI `--barcode-type`) — Code128 gedruckt (Scan-Lesbarkeit offen),
+  Rest nur PNG-Vorschau. Bildimport (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`,
+  ADR-011) und Rahmen (`ll_render::frame::draw_border`, `--frame`-Flag) fertig, **noch nicht
+  auf Band gedruckt**. `ll_render::png` + CLI `render ["Text"|--qr|--barcode [--barcode-type]|
+  --image <datei>] [--frame] -o x.png --width <mm>`, `print` ebenso. `print_text`/`print_qr`/
+  `print_barcode`/`print_image` teilen sich die Protokoll-Sequenz
+  (`ll-core::print::send_bitmap()`) und das optionale Rahmenzeichnen. Noch offen: SVG-Import,
+  Symbolbibliothek.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -55,12 +57,14 @@
    prüfen und erneut versuchen, Dithering-Qualität auf echtem Band beurteilen.
 2. **Hardware-Test Rahmen:** `labellab print "Text" --frame --bt --device <ID>` — druckt der
    Rahmen sauber (2 Druckpunkte dick, bisher nur PNG-Vorschau verifiziert)?
-3. M5 weiter: weitere Barcode-Symbologien (EAN/UPC/Code39/ITF via `barcoders`), SVG-Import
-   (braucht `resvg`), Symbolbibliothek.
-4. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
-5. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
+3. **Hardware-Test weitere Barcode-Symbologien:** z. B. `labellab print --barcode
+   "012345678905" --barcode-type ean13 --bt` — EAN/UPC/Code39/ITF bisher nur PNG-Vorschau,
+   keine auf echtem Band gedruckt.
+4. M5 Rest: SVG-Import (braucht `resvg`), Symbolbibliothek.
+5. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
+6. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
-6. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
+7. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
@@ -96,6 +100,8 @@
   (Datei nicht gefunden, kein Code-Befund), noch nicht erfolgreich wiederholt.
 - [ ] M5: `labellab print "Text" --frame --bt` gegen echten Drucker testen — Rahmen (2
   Druckpunkte) nur in PNG-Vorschau verifiziert.
+- [ ] M5: EAN-13/EAN-8/UPC-A/Code39/ITF gegen echten Drucker/Scanner testen — bisher nur
+  PNG-Vorschau, nur Code128 wurde tatsächlich gedruckt.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -133,6 +139,27 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – weitere Barcode-Symbologien
+- `ll-render::linear_barcode`: `Symbology`-Enum (`Code128`/`Ean13`/`Ean8`/`UpcA`/`Code39`/`Itf`),
+  `render_barcode(symbology, data, ...)` generalisiert die bisherige Code128-only-Funktion
+  (`render_code128()` bleibt als dünner Wrapper für Abwärtskompatibilität). Alle fünf neuen
+  Symbologien kommen direkt aus `barcoders` (bereits Abhängigkeit seit Code128, ADR-010) —
+  `UPCA` ist dort sogar nur ein Typalias auf `EAN13` (12/13-stelliger Code mit führender `0`),
+  keine neue Abhängigkeit nötig. Gemeinsame `render_modules()`-Hilfsfunktion extrahiert
+  (vorher in `render_code128()` dupliziert). Visuell per Wegwerf-Beispiel geprüft: EAN-13 sieht
+  wie ein echter EAN-13-Barcode aus (Guard-Pattern erkennbar), danach entfernt.
+- `ll-core::print`: `print_code128()` → generalisiertes `print_barcode(symbology, data, ...)`.
+- `ll-cli`: `--barcode-type <code128|ean13|ean8|upca|code39|itf>` auf `print`/`render` (Default
+  `code128`, nur mit `--barcode` relevant). Lokales `BarcodeType`-Enum mit `clap::ValueEnum`
+  (Waisenregel: kann `ValueEnum` nicht direkt für das fremde `ll_render::Symbology`
+  implementieren), `From<BarcodeType> for Symbology`. Smoke-getestet:
+  `render --barcode "012345678905" --barcode-type ean13 -o out.png` erzeugt gültig
+  aussehenden EAN-13-Code.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (56 Unit-Tests, vorher 50).
+- **Noch nicht gemacht:** keine der fünf neuen Symbologien auf echtes Band gedruckt oder
+  gescannt (nur PNG-Vorschau). Nur Code128 wurde bisher tatsächlich gedruckt.
+- **Noch offen in M5:** SVG-Import, Symbolbibliothek. Das war die letzten zwei fehlenden Stücke.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – Rahmen
 - `ll-render`: neues `frame`-Modul (`draw_border()` zeichnet ein Rechteck um das ganze Label:
   kurze „Kappen“ an Anfang/Ende entlang der Pin-Achse, lange „Seiten“ entlang der

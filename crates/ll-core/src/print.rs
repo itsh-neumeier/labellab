@@ -5,10 +5,10 @@
 //!
 //! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
 //! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
-//! denselben Renderpfad"). `print_text`/`print_qr`/`print_code128`/
+//! denselben Renderpfad"). `print_text`/`print_qr`/`print_barcode`/
 //! `print_image` share the protocol sequence; only the rendered content
-//! differs (frames, other barcode symbologies and symbols are still open
-//! M5 scope).
+//! differs (a bundled symbol library and SVG import are still open M5
+//! scope).
 
 use std::path::Path;
 use std::time::Duration;
@@ -18,7 +18,7 @@ use ll_protocol::{
     model::{ModelInfo, TapeGeometry},
     status::StatusBlock,
 };
-use ll_render::{Bitmap, QrErrorCorrection};
+use ll_render::{Bitmap, QrErrorCorrection, Symbology};
 use ll_transport::Transport;
 
 use crate::CoreError;
@@ -74,18 +74,20 @@ pub async fn print_qr(
     send_bitmap(transport, &bitmap, width_mm, auto_cut).await
 }
 
-/// Resets the printer, reads its status, renders `data` as a Code128
-/// barcode to fit the currently loaded tape and prints it. Same failure
-/// behavior as [`print_text`].
-pub async fn print_code128(
+/// Resets the printer, reads its status, renders `data` as a barcode of
+/// the given `symbology` to fit the currently loaded tape and prints it.
+/// Same failure behavior as [`print_text`].
+pub async fn print_barcode(
     transport: &mut dyn Transport,
     model: &ModelInfo,
+    symbology: Symbology,
     data: &str,
     frame: bool,
     auto_cut: bool,
 ) -> Result<(), CoreError> {
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let mut bitmap = ll_render::render_code128(
+    let mut bitmap = ll_render::render_barcode(
+        symbology,
         data,
         model.head_pins,
         geometry.printable_pins,
@@ -359,13 +361,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn print_code128_sends_raster_mode_and_feed() {
+    async fn print_barcode_sends_raster_mode_and_feed() {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
 
-        print_code128(&mut transport, p710bt(), "LABELLAB-123", false, false)
-            .await
-            .unwrap();
+        print_barcode(
+            &mut transport,
+            p710bt(),
+            Symbology::Code128,
+            "LABELLAB-123",
+            false,
+            false,
+        )
+        .await
+        .unwrap();
 
         let written = transport.written();
         assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());

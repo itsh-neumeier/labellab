@@ -112,23 +112,26 @@ Vorlage:
   nicht erschöpfend geprüft). Fehlerkorrekturstufe aktuell fest auf `Medium` in der CLI, noch
   keine `--ec-level`-Option. MIT-lizenziert.
 
-## ADR-010: `barcoders`-Crate für Code128 (M5)
+## ADR-010: `barcoders`-Crate für lineare Barcodes (M5)
 - Datum / Status: 2026-10-01 · angenommen
 - Kontext: M5 braucht lineare Barcodes (`MASTER_PROMPT.md` Feature 4). Code128 zuerst, weil es
   beliebige ASCII-Daten kodieren kann (im Gegensatz zu EAN/UPC, die feste Ziffernformate mit
   Prüfziffer verlangen) und damit die meisten CLI-Anwendungsfälle abdeckt.
 - Entscheidung: `barcoders`-Crate (MIT, reines Rust, `encode()` liefert direkt eine
   Modulbreiten-Sequenz als `Vec<u8>`), nur `std`-Feature (kein `image`/`svg`/`json`, wir bauen
-  unser eigenes `Bitmap`). `ll_render::linear_barcode::render_code128()` füllt pro Balken-Modul
+  unser eigenes `Bitmap`). `ll_render::linear_barcode::render_barcode()` füllt pro Balken-Modul
   die **gesamte** bedruckbare Bandbreite (anders als QR/Text: 1D-Barcodes haben keine vertikale
-  Struktur). `barcoders` verlangt ein Zeichensatz-Präfix (`À`/`Ɓ`/`Ć`) am Dateneingang; unser
-  Wrapper setzt automatisch Zeichensatz B (allgemein alphanumerisch), wenn der Aufrufer keins
-  angibt. `ll-core::print::print_code128()` teilt sich die Protokoll-Sequenz mit
+  Struktur). `barcoders` verlangt ein Zeichensatz-Präfix (`À`/`Ɓ`/`Ć`) am Code128-Dateneingang;
+  unser Wrapper setzt automatisch Zeichensatz B (allgemein alphanumerisch), wenn der Aufrufer
+  keins angibt. `ll-core::print::print_barcode()` teilt sich die Protokoll-Sequenz mit
   `print_text()`/`print_qr()`.
 - Konsequenzen: Balkenbreite fest auf 3 Druckpunkte (TODO(verify) gegen echten Scanner).
-  EAN-13/8, UPC-A, Code39, ITF bleiben offen. MIT-lizenziert.
-  Hardware-Test 2026-10-01: druckt sauberes, optisch korrektes Balkenmuster; Scan-Lesbarkeit
-  nicht verifiziert (kein Code128-Scanner beim Nutzer verfügbar).
+  MIT-lizenziert. Hardware-Test 2026-10-01 (Code128): druckt sauberes, optisch korrektes
+  Balkenmuster; Scan-Lesbarkeit nicht verifiziert (kein Code128-Scanner beim Nutzer verfügbar).
+- **Update 2026-10-01:** `barcoders` deckt auch EAN-13, EAN-8, UPC-A (= EAN-13 mit führender
+  `0`), Code39 und ITF (interleaved 2-of-5) ab, ohne weitere Abhängigkeit — alle fünf zusätzlich
+  implementiert (`Symbology`-Enum, CLI `--barcode-type`). Nur noch über PNG-Vorschau geprüft,
+  nicht auf Band gedruckt.
 
 ## ADR-011: Eigene Floyd-Steinberg-Dithering-Implementierung für Bilder (M5)
 - Datum / Status: 2026-10-01 · angenommen

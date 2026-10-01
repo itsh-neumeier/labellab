@@ -10,6 +10,31 @@ const DEFAULT_BAUD_RATE: u32 = 9600;
 /// Default model, looked up in `ll_protocol::model::MODELS`.
 const DEFAULT_MODEL: &str = "PT-P710BT";
 
+/// `clap`-friendly mirror of `ll_render::Symbology` (can't derive
+/// `clap::ValueEnum` on a foreign type).
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum BarcodeType {
+    Code128,
+    Ean13,
+    Ean8,
+    UpcA,
+    Code39,
+    Itf,
+}
+
+impl From<BarcodeType> for ll_render::Symbology {
+    fn from(value: BarcodeType) -> Self {
+        match value {
+            BarcodeType::Code128 => ll_render::Symbology::Code128,
+            BarcodeType::Ean13 => ll_render::Symbology::Ean13,
+            BarcodeType::Ean8 => ll_render::Symbology::Ean8,
+            BarcodeType::UpcA => ll_render::Symbology::UpcA,
+            BarcodeType::Code39 => ll_render::Symbology::Code39,
+            BarcodeType::Itf => ll_render::Symbology::Itf,
+        }
+    }
+}
+
 #[derive(Parser)]
 #[command(
     name = "labellab",
@@ -47,9 +72,12 @@ enum Command {
         /// QR-Code statt Text drucken (Daten für den Code, z. B. eine URL).
         #[arg(long, conflicts_with_all = ["text", "barcode"])]
         qr: Option<String>,
-        /// Code128-Barcode statt Text drucken.
+        /// Barcode statt Text drucken (Symbologie mit --barcode-type).
         #[arg(long, conflicts_with_all = ["text", "qr"])]
         barcode: Option<String>,
+        /// Barcode-Symbologie (nur mit --barcode).
+        #[arg(long, value_enum, default_value = "code128")]
+        barcode_type: BarcodeType,
         /// Bilddatei (PNG/JPEG/BMP) statt Text drucken, skaliert auf die
         /// Bandbreite, Floyd-Steinberg-gedithert.
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
@@ -89,9 +117,12 @@ enum Command {
         /// QR-Code statt Text rendern (Daten für den Code, z. B. eine URL).
         #[arg(long, conflicts_with_all = ["text", "barcode"])]
         qr: Option<String>,
-        /// Code128-Barcode statt Text rendern.
+        /// Barcode statt Text rendern (Symbologie mit --barcode-type).
         #[arg(long, conflicts_with_all = ["text", "qr"])]
         barcode: Option<String>,
+        /// Barcode-Symbologie (nur mit --barcode).
+        #[arg(long, value_enum, default_value = "code128")]
+        barcode_type: BarcodeType,
         /// Bilddatei (PNG/JPEG/BMP) statt Text rendern, skaliert auf die
         /// Bandbreite, Floyd-Steinberg-gedithert.
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
@@ -129,6 +160,7 @@ async fn main() -> anyhow::Result<()> {
             text,
             qr,
             barcode,
+            barcode_type,
             image,
             invert,
             frame,
@@ -150,6 +182,7 @@ async fn main() -> anyhow::Result<()> {
                     text,
                     qr,
                     barcode,
+                    barcode_type,
                     image,
                     invert,
                 },
@@ -165,6 +198,7 @@ async fn main() -> anyhow::Result<()> {
             text,
             qr,
             barcode,
+            barcode_type,
             image,
             invert,
             frame,
@@ -176,6 +210,7 @@ async fn main() -> anyhow::Result<()> {
                 text,
                 qr,
                 barcode,
+                barcode_type,
                 image,
                 invert,
             },
@@ -301,22 +336,24 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
     Ok(())
 }
 
-/// `text`/`--qr`/`--barcode`/`--image` from `print`/`render`, grouped so
-/// those commands don't need five separate parameters each (`clap`'s
-/// `conflicts_with_all` keeps more than one of them from being set at once).
+/// `text`/`--qr`/`--barcode`(`-type`)/`--image` from `print`/`render`,
+/// grouped so those commands don't need six separate parameters each
+/// (`clap`'s `conflicts_with_all` keeps more than one of them from being
+/// set at once).
 struct ContentArgs {
     text: Option<String>,
     qr: Option<String>,
     barcode: Option<String>,
+    barcode_type: BarcodeType,
     image: Option<String>,
     invert: bool,
 }
 
-/// What to render: plain text, a QR code, a Code128 barcode or an image.
+/// What to render: plain text, a QR code, a linear barcode or an image.
 enum Content {
     Text(String),
     Qr(String),
-    Code128(String),
+    Barcode(ll_render::Symbology, String),
     Image(std::path::PathBuf, bool),
 }
 
@@ -325,7 +362,7 @@ impl Content {
         match (args.text, args.qr, args.barcode, args.image) {
             (Some(t), None, None, None) => Some(Content::Text(t)),
             (None, Some(q), None, None) => Some(Content::Qr(q)),
-            (None, None, Some(b), None) => Some(Content::Code128(b)),
+            (None, None, Some(b), None) => Some(Content::Barcode(args.barcode_type.into(), b)),
             (None, None, None, Some(i)) => Some(Content::Image(i.into(), args.invert)),
             _ => None,
         }
@@ -335,7 +372,7 @@ impl Content {
         match self {
             Content::Text(t) => t.clone(),
             Content::Qr(d) => d.clone(),
-            Content::Code128(d) => d.clone(),
+            Content::Barcode(_, d) => d.clone(),
             Content::Image(p, _) => p.display().to_string(),
         }
     }
@@ -392,8 +429,16 @@ async fn print(
                 )
                 .await?
             }
-            Content::Code128(data) => {
-                ll_core::print::print_code128(transport.as_mut(), model, data, frame, cut).await?
+            Content::Barcode(symbology, data) => {
+                ll_core::print::print_barcode(
+                    transport.as_mut(),
+                    model,
+                    *symbology,
+                    data,
+                    frame,
+                    cut,
+                )
+                .await?
             }
             Content::Image(path, invert) => {
                 ll_core::print::print_image(transport.as_mut(), model, path, *invert, frame, cut)
@@ -462,7 +507,8 @@ fn render(
             geometry.left_offset_pins,
             ll_render::QrErrorCorrection::Medium,
         )?,
-        Content::Code128(data) => ll_render::render_code128(
+        Content::Barcode(symbology, data) => ll_render::render_barcode(
+            *symbology,
             data,
             model.head_pins,
             geometry.printable_pins,

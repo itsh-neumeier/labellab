@@ -27,4 +27,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - M5 (Teil): Bildimport (PNG/JPEG/BMP) mit Floyd-Steinberg-Dithering — `labellab print --image
   <datei> [--invert]` und `labellab render --image <datei> -o vorschau.png`
 - M5 (Teil): Rahmen um das ganze Label — `--frame` auf `print` und `render`, gilt für
-  Text/QR/Barcode/Bild. SVG-Import, weitere Barcode-Symbologien, Symbolbibliothek noch offen.
+  Text/QR/Barcode/Bild
+- M5 (Teil): EAN-13, EAN-8, UPC-A, Code39, ITF als weitere Barcode-Symbologien — `--barcode-type
+  <code128|ean13|ean8|upca|code39|itf>` auf `print`/`render`. Nur PNG-Vorschau geprüft, noch
+  nicht auf Band gedruckt. SVG-Import und Symbolbibliothek noch offen — letzte fehlende M5-Teile.
