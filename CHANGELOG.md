@@ -16,3 +16,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - M3: `labellab print "Text" --device <...> [--bt] [--cut] [--copies N]` — erster echter
   Druckjob (Status lesen, Band automatisch erkennen, Platzhalter-Bitmapfont rendern, PackBits,
   an den Drucker senden) — hardware-verifiziert: druckt lesbaren Text auf echtes Band
+- M5 (Teil): echte Systemschriften (`fontdue`) ersetzen den M3-Platzhalter-Font;
+  `labellab render "Text" -o vorschau.png --width <mm>` für Vorschau ohne Drucker (gleicher
+  Renderpfad wie der Druck). Barcodes/Bilder/Symbole/Rahmen noch offen.

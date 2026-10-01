@@ -13,9 +13,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: install libudev (Linux, needed by the serialport crate)
+      - name: install libudev and a system font (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libudev-dev
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev fonts-dejavu-core
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

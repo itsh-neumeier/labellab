@@ -18,3 +18,4 @@ serde_json.workspace = true
 ll-core = { path = "../ll-core" }
 ll-protocol = { path = "../ll-protocol" }
 ll-transport = { path = "../ll-transport" }
+ll-render = { path = "../ll-render" }

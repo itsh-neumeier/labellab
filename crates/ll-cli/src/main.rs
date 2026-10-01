@@ -65,11 +65,21 @@ enum Command {
         #[arg(long, default_value = DEFAULT_MODEL)]
         model: String,
     },
-    /// Label ohne Drucker in eine PNG-Datei rendern.
+    /// Text ohne Drucker in eine PNG-Datei rendern (Vorschau).
+    ///
+    /// Provisorisch: nimmt reinen Text statt eines `.llabel`-Vorlagenformats
+    /// (das kommt erst mit dem GUI-Editor in M6) — daher `--width` statt
+    /// einer live abgefragten Bandbreite.
     Render {
-        template: String,
+        text: String,
         #[arg(short, long)]
         output: String,
+        /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
+        /// erkennbar).
+        #[arg(long, default_value_t = 12)]
+        width: u8,
+        #[arg(long, default_value = DEFAULT_MODEL)]
+        model: String,
     },
 }
 
@@ -105,10 +115,12 @@ async fn main() -> anyhow::Result<()> {
             }
             print(text, cut, copies, device, bt, baud, model).await
         }
-        Command::Render { .. } => {
-            eprintln!("Noch nicht implementiert (folgt in M5). Siehe docs/PROGRESS.md.");
-            std::process::exit(1);
-        }
+        Command::Render {
+            text,
+            output,
+            width,
+            model,
+        } => render(text, output, width, model),
     }
 }
 
@@ -257,6 +269,48 @@ async fn print(
     transport.close().await?;
 
     println!("Gedruckt: \"{text}\" ({copies}x)");
+    Ok(())
+}
+
+fn render(text: String, output: String, width_mm: u8, model_name: String) -> anyhow::Result<()> {
+    let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
+        eprintln!(
+            "Unbekanntes Modell '{model_name}'. Bekannt: {}",
+            ll_protocol::model::MODELS
+                .iter()
+                .map(|m| m.name)
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        std::process::exit(1);
+    };
+    let Some(geometry) = model
+        .tape_geometries
+        .iter()
+        .find(|g| g.width_mm == width_mm)
+    else {
+        eprintln!(
+            "Bandbreite {width_mm} mm nicht bekannt für {model_name}. Bekannt: {}",
+            model
+                .tape_geometries
+                .iter()
+                .map(|g| g.width_mm.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        std::process::exit(1);
+    };
+
+    let bitmap = ll_render::render_text(
+        &text,
+        model.head_pins,
+        geometry.printable_pins,
+        geometry.left_offset_pins,
+    )?;
+    let png = ll_render::png::to_png(&bitmap, geometry.left_offset_pins, geometry.printable_pins)?;
+    std::fs::write(&output, png)?;
+
+    println!("Geschrieben: {output}");
     Ok(())
 }
 

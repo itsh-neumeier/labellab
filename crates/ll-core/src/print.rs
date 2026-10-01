@@ -3,10 +3,10 @@
 //! raster mode -> various/advanced mode -> margin -> print info ->
 //! compression -> raster lines -> print.
 //!
-//! Uses the same `ll_render::Bitmap` for the print path that preview will
-//! use later (see `AGENTS.md`: "Vorschau und Druck nutzen denselben
-//! Renderpfad"). Text rendering itself is `ll_render`'s placeholder font
-//! (M5 replaces it with real typography).
+//! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
+//! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
+//! denselben Renderpfad"). Text rendering is `ll_render::text`'s system-font
+//! renderer (frames/barcodes/images/symbols are still open M5 scope).
 
 use std::time::Duration;
 
@@ -60,7 +60,7 @@ pub async fn print_text(
         model.head_pins,
         geometry.printable_pins,
         geometry.left_offset_pins,
-    );
+    )?;
     let raster_lines = bitmap.height_dots();
 
     transport
@@ -174,7 +174,8 @@ mod tests {
             p710bt().head_pins,
             geometry.printable_pins,
             geometry.left_offset_pins,
-        );
+        )
+        .unwrap();
         let raster_command_count = written
             .iter()
             .filter(|&&b| b == 0x47 /* G */ || b == 0x5A /* Z */)

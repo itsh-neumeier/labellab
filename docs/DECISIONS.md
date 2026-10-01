@@ -79,3 +79,20 @@ Vorlage:
   → `.get()` (blockierend) verwendet; vor Einsatz im Tauri-GUI (M6) auf `spawn_blocking`
   umstellen. `read_exact_timeout`s Timeout wird für BT aktuell nicht erzwungen (TODO im Code).
   MIT/Apache-2.0-kompatibel.
+
+## ADR-008: `fontdue` + Systemschriften statt `cosmic-text` für M5-Text
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: M3s Platzhalter-Pixelfont (5x5-Stencil) sollte durch echte Typografie ersetzt werden.
+  `MASTER_PROMPT.md` nennt `cosmic-text` oder `fontdue`+`ttf-parser` als Optionen.
+- Entscheidung: `fontdue` (reiner Rasterizer, schnell, einfache API) statt `cosmic-text`
+  (komplexer, für Mehrzeilen-/Bidi-/Shaping-Layout gedacht, das M5 noch nicht braucht –
+  aktuell nur einzeilig). Schriftdatei kommt von `ll_render::fontsrc`: sucht eine kurze Liste
+  bekannter Systemschrift-Pfade pro OS (Windows: Segoe UI/Arial/Calibri/Tahoma; Linux:
+  DejaVu/Liberation/Noto), keine Bündelung einer eigenen Schriftdatei (keine Lizenzfragen,
+  kein Download nötig). `image`-Crate (nur `png`-Feature) für PNG-Export (`ll_render::png`,
+  CLI `render`).
+- Konsequenzen: Kein Font-Familien-/Gewicht-/Fallback-System bisher (nur ein Default-Font),
+  kein Mehrzeilen-/Bidi-Layout (kommt erst mit dem M6-Editor, dann ggf. Wechsel zu
+  `cosmic-text`). CI installiert `fonts-dejavu-core` auf `ubuntu-latest`, damit der
+  Linux-Pfad deterministisch eine Schrift findet (sonst würden Font-Tests dort lautlos
+  übersprungen, siehe `crates/ll-render/src/text.rs`). MIT-lizenziert (`fontdue`, `image`).

@@ -8,3 +8,5 @@ description = "Label model to 1-bit raster bitmap: text, frames, barcodes, image
 
 [dependencies]
 thiserror.workspace = true
+fontdue.workspace = true
+image.workspace = true

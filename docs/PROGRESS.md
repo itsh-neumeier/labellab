@@ -9,7 +9,8 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 (echter Renderer) oder M4-Rest (Pairing/BlueZ/USB) — offene Wahl
+- **Aktueller Meilenstein:** M5 läuft — echte Schriften + PNG-Vorschau fertig (noch nicht
+  hardware-/papier-getestet), Rahmen/Barcodes/QR/Bilder/Symbole offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -27,6 +28,11 @@
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
   App, BlueZ (Linux), USB fehlen noch.
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
+  **Teilstand:** echte Systemschriften (`fontdue`, `ll_render::fontsrc`/`text`) ersetzen den
+  M3-Platzhalter-Font, `ll_render::png` + CLI `render "Text" -o x.png --width <mm>` (gleicher
+  Renderpfad wie `print_text`). Noch offen: Rahmen/Linien, Barcodes/QR/DataMatrix,
+  Bilder (PNG/JPG/BMP/SVG, Dithering), Symbolbibliothek. Nicht papier-getestet (nur PNG-Vorschau
+  verifiziert, siehe unten).
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -37,14 +43,17 @@
 | – | – | – | – |
 
 ## Nächste Schritte
-1. Entscheiden: M5 (echter Renderer: `cosmic-text`/`fontdue`, Barcodes, Bilder — ersetzt den
-   M3-Platzhalter-Font) oder M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) zuerst.
-2. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
+1. **Hardware-Test M5 (auf dem Gerät mit dem Drucker):** `labellab print "Text" --bt --device
+   <ID>` erneut laufen lassen — druckt jetzt mit der echten Systemschrift statt dem
+   M3-Pixelfont, sollte deutlich besser aussehen. Prüfen ob Zeichenhöhe/-position auf dem Band
+   passt.
+2. M5 weiter: Rahmen/Linien, Barcodes (Code128/EAN/QR/DataMatrix via `rxing`/`qrcode`/
+   `barcoders`), Bilder (Import + Floyd-Steinberg-Dithering via `image`), Symbolbibliothek.
+3. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
+4. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
-3. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
+5. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
-4. `PrintInformation`-Validitätsflags (n1) jenseits des aktuell gesendeten Bits und Advanced
-   Mode sind noch TODO(verify)/ungenutzt (siehe Kommentare in `crates/ll-protocol/src/command.rs`).
 
 ## Hardware-Tests offen
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
@@ -64,6 +73,8 @@
 - [ ] `--cut` (Auto-Cut) hardware-testen — bisher nur ohne Schnitt gedruckt.
 - [ ] `PrintInformation`-Validitätsflags (n1) jenseits des gesendeten Bits (Medientyp/-länge
   gültig, Qualität/Recovery) gegen echtes Verhalten prüfen.
+- [ ] M5: `labellab print "Text" --bt` mit der neuen Systemschrift (`fontdue`) gegen echten
+  Drucker testen — bisher nur PNG-Vorschau verifiziert, nicht auf Band gedruckt.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -92,6 +103,29 @@
   Auto-Cut, ohne mehrere Kopien, mit dem M3-Platzhalter-Bitmapfont (kein echter Renderer).
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – echte Schriften + PNG-Vorschau
+- `ll-render`: M3-Platzhalter-Font (`font.rs`) entfernt. Neu: `fontsrc` (sucht eine kurze Liste
+  bekannter Systemschrift-Pfade pro OS — Windows: Segoe UI/Arial/Calibri/Tahoma; Linux:
+  DejaVu/Liberation/Noto — lädt die erste gefundene Datei), `text::render_text()`/
+  `render_text_with_font()` (echtes Rasterizing via `fontdue`, Schriftgröße automatisch an
+  `printable_pins` angepasst, gleiche Pin-/Raster-Zeilen-Orientierung wie zuvor), `png::to_png()`
+  (Bitmap → PNG für Vorschau, gleicher Renderpfad wie der Druck). Neue Abhängigkeiten `fontdue`,
+  `image` (nur `png`-Feature), siehe ADR-008.
+- Visuell per Wegwerf-Beispiel geprüft: "HELLO LabelLab 123" sauber und lesbar in echter
+  Systemschrift (Segoe UI/Arial auf dieser Maschine) gerendert, danach entfernt.
+- `ll-core::print::print_text()`: `render_text()`-Aufruf an neue `Result`-Signatur angepasst
+  (Fehler propagieren über `CoreError::Render`, z. B. wenn keine Systemschrift gefunden wird).
+- `ll-cli`: `render "Text" -o datei.png [--width mm] [--model ...]` echt implementiert
+  (provisorisch: nimmt reinen Text statt eines `.llabel`-Vorlagenformats, das kommt erst mit
+  dem M6-GUI-Editor — `--width` nötig, weil ohne Drucker keine Bandbreite abfragbar ist).
+  Smoke-getestet: `render "LabelLab M5" -o out.png --width 12` erzeugt lesbares PNG.
+- CI: `fonts-dejavu-core` zusätzlich zu `libudev-dev` auf `ubuntu-latest` installiert, damit
+  die Font-Tests dort nicht mangels Systemschrift übersprungen werden.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (30 Unit-Tests, unverändert in der
+  Zahl — Font-Tests ersetzen die alten Platzhalter-Font-Tests 1:1).
+- **Noch offen in M5:** Rahmen/Linien, Barcodes/QR/DataMatrix, Bilder, Symbolbibliothek. Kein
+  echter Druck auf Band getestet (nur PNG-Vorschau) — nächster Schritt für den Nutzer.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M3 – Erster Druck (Code)
 - `ll-render`: `font` (Platzhalter-5x5-Pixelstencil: Leerzeichen, 0-9, A-Z, `. , - : !`,
   Groß-/Kleinschreibung gleich; explizit **nicht** der echte M5-Renderer), `text::render_text()`
