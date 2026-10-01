@@ -9,8 +9,8 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 läuft — echte Schriften + PNG-Vorschau fertig (noch nicht
-  hardware-/papier-getestet), Rahmen/Barcodes/QR/Bilder/Symbole offen.
+- **Aktueller Meilenstein:** M5 läuft — echte Schriften hardware-verifiziert (Foto zeigt klaren
+  Unterschied zum M3-Pixelfont), Rahmen/Barcodes/QR/Bilder/Symbole noch offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -73,8 +73,9 @@
 - [ ] `--cut` (Auto-Cut) hardware-testen — bisher nur ohne Schnitt gedruckt.
 - [ ] `PrintInformation`-Validitätsflags (n1) jenseits des gesendeten Bits (Medientyp/-länge
   gültig, Qualität/Recovery) gegen echtes Verhalten prüfen.
-- [ ] M5: `labellab print "Text" --bt` mit der neuen Systemschrift (`fontdue`) gegen echten
-  Drucker testen — bisher nur PNG-Vorschau verifiziert, nicht auf Band gedruckt.
+- [x] ~~M5: `labellab print "Text" --bt` mit der neuen Systemschrift (`fontdue`) gegen echten
+  Drucker testen~~ – erfolgreich, 2026-10-01: sauberer "TEST"-Druck in echter Schrift (Foto im
+  Vergleich zum alten M3-Pixelfont bestätigt deutliche Verbesserung).
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -101,6 +102,9 @@
   PackBits-Kompression → Rasterzeilen → Druck mit Vorschub) funktioniert mit den aktuellen,
   bis dahin nur dokumentierten (nicht hardware-verifizierten) Befehls-Bytes. Getestet: ohne
   Auto-Cut, ohne mehrere Kopien, mit dem M3-Platzhalter-Bitmapfont (kein echter Renderer).
+- 2026-10-01: Echte Systemschrift (`fontdue`, M5) gegen echten Drucker getestet:
+  `labellab print "TEST" --bt` druckte sauberen, proportionalen Text — Foto-Vergleich mit dem
+  alten M3-Pixelfont-Druck bestätigt deutlich bessere Lesbarkeit/Optik.
 
 ## Session-Log
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – echte Schriften + PNG-Vorschau
@@ -123,8 +127,9 @@
   die Font-Tests dort nicht mangels Systemschrift übersprungen werden.
 - `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (30 Unit-Tests, unverändert in der
   Zahl — Font-Tests ersetzen die alten Platzhalter-Font-Tests 1:1).
-- **Noch offen in M5:** Rahmen/Linien, Barcodes/QR/DataMatrix, Bilder, Symbolbibliothek. Kein
-  echter Druck auf Band getestet (nur PNG-Vorschau) — nächster Schritt für den Nutzer.
+- **Hardware-Test erfolgreich:** Nutzer hat `labellab print "TEST" --bt` mit der neuen Schrift
+  gedruckt, Foto im Vergleich zum alten Pixelfont-Druck bestätigt sauberen, proportionalen Text.
+- **Noch offen in M5:** Rahmen/Linien, Barcodes/QR/DataMatrix, Bilder, Symbolbibliothek.
 
 ### 2026-10-01 – Claude Code (Sonnet 5), M3 – Erster Druck (Code)
 - `ll-render`: `font` (Platzhalter-5x5-Pixelstencil: Leerzeichen, 0-9, A-Z, `. , - : !`,
