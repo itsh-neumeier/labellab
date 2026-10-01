@@ -10,6 +10,16 @@
 /// `docs/PROTOCOL.md`. Shared by every model in [`MODELS`].
 pub const DOTS_PER_INCH: u32 = 180;
 
+/// RFCOMM channel of the printer's Serial Port Profile service, used on
+/// Linux where BlueZ has no SDP lookup in `bluer`. TODO(verify): channel 1
+/// is the common SPP default, not confirmed for the PT-P710BT (Windows
+/// resolves the service itself and doesn't need this).
+pub const BT_SPP_RFCOMM_CHANNEL: u8 = 1;
+
+/// PIN answered during Bluetooth pairing if the printer asks for one.
+/// TODO(verify): `0000` is an assumption (see `docs/PROTOCOL.md`).
+pub const BT_DEFAULT_PIN: &str = "0000";
+
 /// Converts a length in millimeters to print dots (rounded).
 pub fn mm_to_dots(mm: f32) -> u32 {
     (mm.max(0.0) * DOTS_PER_INCH as f32 / 25.4).round() as u32

@@ -140,9 +140,27 @@ pub fn text_in_box(
     size_px: Option<f32>,
     align: TextAlign,
 ) -> Result<Bitmap, RenderError> {
+    Ok(text_in_box_checked(text, face, box_w, box_h, size_px, align)?.0)
+}
+
+/// Ink this many dots outside the box still counts as fitting (glyph
+/// position rounding), see [`text_in_box_checked`].
+const CLIP_TOLERANCE_DOTS: i64 = 1;
+
+/// Like [`text_in_box`], additionally reporting whether any ink was
+/// clipped because the text does not fit the box.
+pub fn text_in_box_checked(
+    text: &str,
+    face: &Face,
+    box_w: u32,
+    box_h: u16,
+    size_px: Option<f32>,
+    align: TextAlign,
+) -> Result<(Bitmap, bool), RenderError> {
     let mut bitmap = Bitmap::new(box_h, box_w);
+    let mut clipped = false;
     if text.trim().is_empty() || box_w == 0 || box_h == 0 {
-        return Ok(bitmap);
+        return Ok((bitmap, clipped));
     }
     let font = &face.font;
     let px = size_px.unwrap_or_else(|| auto_font_px(font, text, Some(box_w as f32), box_h as f32));
@@ -188,7 +206,18 @@ pub fn text_in_box(
                 if coverage[gy * glyph.width + gx] < INK_THRESHOLD {
                     continue;
                 }
-                let line = glyph.x.round() as i32 + gx as i32 + slant;
+                let base = glyph.x.round() as i64 + gx as i64;
+                // Overflow is judged on the plain glyph (not the synthetic
+                // slant/bold), with one dot of rounding tolerance.
+                let tol = CLIP_TOLERANCE_DOTS;
+                if base < -tol
+                    || base >= box_w as i64 + tol
+                    || i64::from(pin) < -tol
+                    || i64::from(pin) >= i64::from(box_h) + tol
+                {
+                    clipped = true;
+                }
+                let line = base as i32 + slant;
                 for extra in 0..=embolden {
                     if line + extra >= 0 && pin >= 0 {
                         bitmap.set_pixel(pin as u16, (line + extra) as u32, true);
@@ -197,7 +226,7 @@ pub fn text_in_box(
             }
         }
     }
-    Ok(bitmap)
+    Ok((bitmap, clipped))
 }
 
 /// Copies `src` (box-local, possibly shorter) into a fresh `box_w` x
@@ -344,6 +373,18 @@ mod tests {
         let bmp = text_in_box("Hallo", &font, 200, 60, None, TextAlign::Center).unwrap();
         assert_eq!((bmp.width_pins(), bmp.height_dots()), (60, 200));
         assert!(pin_extent(&bmp).is_some());
+    }
+
+    #[test]
+    fn reports_clipped_text() {
+        let font = require_font!();
+        let fits = text_in_box_checked("Hi", &font, 300, 60, Some(20.0), TextAlign::Left);
+        assert!(!fits.unwrap().1);
+        let auto = text_in_box_checked("Hallo Welt", &font, 300, 60, None, TextAlign::Left);
+        assert!(!auto.unwrap().1);
+        // 80 px text in a 40-dot-high box cannot fit.
+        let tall = text_in_box_checked("Hallo", &font, 300, 40, Some(80.0), TextAlign::Left);
+        assert!(tall.unwrap().1);
     }
 
     #[test]

@@ -38,10 +38,11 @@
   [--cut] [--copies N]`, 3 Golden-/Strukturtests mit `MockTransport`.
   **Hardware-verifiziert 2026-10-01:** echter, lesbarer Druck auf 9-mm-Band bestätigt (Foto).
 - [ ] **M4 – Native Bluetooth/USB:** WinRT-RFCOMM inkl. Kopplung, BlueZ, USB (`nusb`)
-  **Teilstand:** WinRT-RFCOMM-Connect (ohne programmatisches Pairing) fertig, **hardware-verifiziert
-  gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
-  App, BlueZ (Linux) fehlen noch. **USB-Transport (`nusb`, ADR-013) fertig** (Code + Unit-Tests
-  grün, CLI `--usb`), noch nicht gegen echten Drucker getestet.
+  **Code-vollständig (ADR-021), Hardware-Tests teilweise offen.** WinRT-RFCOMM-Connect
+  **hardware-verifiziert** (2026-10-01, PT-P710BT). Neu: Kopplung per Programm unter Windows
+  (WinRT Custom Pairing, PIN `0000`) und Linux (BlueZ-Agent), BlueZ-RFCOMM-Transport (`bluer`,
+  Kanal 1), CLI `labellab pair [Gerät]`, GUI „Koppeln …“. USB-Transport (`nusb`, ADR-013) fertig.
+  Offen am Gerät: Kopplung (Windows/Linux), BlueZ-Druck, Kanal 1, USB.
 - [x] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
   Echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt + gescannt). 6
   Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010, `ll_render::Symbology`,
@@ -106,15 +107,15 @@
 4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64-portable“ des
     Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
     Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
-4b. GUI-Ausbau: verständliche (deutsche) Fehlertexte für Druckerfehler/Timeouts, zuletzt
-    verwendete Labels, Warnung bei überlaufendem Text, Vorschau aller Serien-Labels.
+4b. GUI-Ausbau: zuletzt verwendete Labels, Vorschau aller Serien-Labels. (Erledigt:
+    übersetzte Fehlertexte über `CoreError::code()`, Warnung bei abgeschnittenem Text.)
 4c. M8 (Release v1.0.0): Versionsnummern, Release-Workflow per Tag `v*` existiert (portable
     `.exe`), Screenshots/Doku für Endnutzer, ggf. Code-Signierung.
 5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
    `labellab status --usb`, dann `labellab print "TEST" --usb`. Unter Windows wird das Öffnen
    vermutlich scheitern, solange `usbprint.sys`/Brother-Treiber gebunden ist (WinUSB per Zadig
    nötig, ADR-013); unter Linux udev-Regel aus `docs/PROTOCOL.md`.
-5a. M4-Rest (programmatisches Pairing, BlueZ/Linux) — wann immer eingeschoben.
+5a. **Hardware-Test M4-Kopplung/BlueZ:** siehe „Hardware-Tests offen“ (ADR-021).
 6. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
 7. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
@@ -123,6 +124,10 @@
 ## Hardware-Tests offen
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
 
+- [ ] M4: Kopplung unter Windows: Drucker in den Windows-Einstellungen entfernen, dann
+  `labellab pair` (bzw. GUI „Koppeln …“) — klappt Custom Pairing mit PIN `0000` oder ohne PIN?
+- [ ] M4: Linux/BlueZ: `labellab pair`, `labellab devices`, `labellab status --bt --device <MAC>`
+  und `print` — ist der SPP-Dienst auf RFCOMM-Kanal 1 (`TODO(verify)` in `ll-protocol`)?
 - [ ] Pin-Offsets/bedruckbare Pins je Bandbreite (3,5 / 6 / 9 / 12 / 18 / 24 mm) bestätigen
 - [ ] Status-Byte für Akkustand vorhanden?
 - [ ] Half-Cut am PT-P710BT unterstützt? (vermutlich nein)
@@ -218,6 +223,30 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, GUI: übersetzte Fehlertexte, Warnung bei abgeschnittenem Text
+- PR itsh-neumeier/labellab#2 (M7) nach CI-Grün per Squash nach `main` gemergt.
+- `ll-core`: `CoreError::code()` liefert stabile Fehlercodes (`timeout`, `no_device`,
+  `printer_error`, `too_tall`, `file_not_found` …). App-Befehle liefern `{ code, detail }`;
+  Frontend zeigt `error.<code>` aus den i18n-Dateien plus Rohtext in Klammern (`errorText`).
+- `ll-render`: `text_in_box_checked` meldet abgeschnittene Tinte (Basisglyphe, 1 Punkt Toleranz,
+  synthetisches Fett/Kursiv zählt nicht). `render_label_preview` liefert `Preview { png,
+  overflowing }`; der Editor markiert betroffene Boxen orange gestrichelt mit Hinweistext.
+- Geprüft: Tests, fmt/clippy (Workspace, App), Frontend-Build grün.
+
+### 2026-10-01 – Claude Code, M4 – BlueZ (Linux) und Kopplung aus CLI/GUI (ADR-021)
+- `ll-transport`: neues `bluetooth/linux.rs` (`bluer`): `list_devices`, `discover` (8 s Scan),
+  `pair` (Agent beantwortet PIN/Bestätigung), `BluetoothTransport` über RFCOMM. Windows:
+  `list_unpaired_devices`, `pair` (Custom Pairing, PIN aus `ll-protocol`).
+- `ll-protocol`: `BT_SPP_RFCOMM_CHANNEL = 1`, `BT_DEFAULT_PIN = "0000"` (beide `TODO(verify)`).
+- `ll-core::device`: plattformübergreifend `list/discover_bluetooth_devices`, `pair_bluetooth`.
+  CLI `labellab pair [Gerät]` (ohne Argument: Suche + Liste). App: `discover_bluetooth`,
+  `pair_bluetooth`, Dialog „Koppeln …“.
+- CI/AGENTS.md: Linux braucht jetzt `libdbus-1-dev` + `pkg-config`.
+- Geprüft: 118 Tests, fmt/clippy (Linux, Windows-Cross-Check, App), Frontend-Build grün; Dialog
+  unter Xvfb (zeigt im Container erwartungsgemäß D-Bus-Fehler, kein BlueZ). Nicht am Gerät.
+- Außerdem PR itsh-neumeier/labellab#2 (M7) CI repariert: rust-cache stellte veraltete
+  Pfad-Crates in `app/` wieder her → `cargo clean -p …` vor clippy/Build.
+
 ### 2026-10-01 – Claude Code, M7 – Generatoren, Nummernfolgen, Drehung, Fläche (ADR-020)
 - PR itsh-neumeier/labellab#1 nach CI-Grün per Squash gemergt (Repo erlaubt keine
   Merge-Commits). Vorher Fix: `--symbol` stand beim Merge in seiner eigenen Konfliktliste →

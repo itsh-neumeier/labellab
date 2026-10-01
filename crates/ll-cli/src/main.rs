@@ -63,7 +63,8 @@ enum Command {
         #[arg(long)]
         device: Option<String>,
         /// Natives Bluetooth RFCOMM statt seriellem COM-Port verwenden
-        /// (nur Windows; `device` ist dann die Geraete-ID aus `devices`).
+        /// (Windows und Linux; `device` ist dann Name oder ID aus `devices`,
+        /// unter Linux auch die MAC-Adresse).
         #[arg(long)]
         bt: bool,
         /// USB statt seriellem COM-Port verwenden. `device` ist dann optional:
@@ -136,7 +137,8 @@ enum Command {
         #[arg(long)]
         device: Option<String>,
         /// Natives Bluetooth RFCOMM statt seriellem COM-Port verwenden
-        /// (nur Windows; `device` ist dann die Geraete-ID aus `devices`).
+        /// (Windows und Linux; `device` ist dann Name oder ID aus `devices`,
+        /// unter Linux auch die MAC-Adresse).
         #[arg(long)]
         bt: bool,
         /// USB statt seriellem COM-Port verwenden. `device` ist dann optional:
@@ -200,6 +202,12 @@ enum Command {
     },
     /// Mitgelieferte Symbole auflisten (für `print --symbol`/`render --symbol`).
     Symbols,
+    /// Bluetooth-Drucker koppeln. Ohne Angabe: Geräte in der Nähe auflisten,
+    /// die gekoppelt werden können (Drucker zuerst).
+    Pair {
+        /// Name oder ID aus der Liste.
+        device: Option<String>,
+    },
     /// Vorlage für Kabel/Netzwerk erzeugen (als `.llabel`, danach mit
     /// `print --template` drucken oder in der Oberfläche öffnen).
     Generate {
@@ -395,6 +403,7 @@ async fn main() -> anyhow::Result<()> {
             width,
             model,
         } => generate(kind, &output, width, &model),
+        Command::Pair { device } => pair(device).await,
         Command::Symbols => {
             println!("Mitgelieferte Symbole:");
             for name in ll_render::SYMBOL_NAMES {
@@ -450,12 +459,17 @@ async fn devices(json: bool) -> anyhow::Result<()> {
         Vec::new()
     });
 
-    #[cfg(windows)]
-    let bt_devices: Vec<(String, String)> = device::list_bluetooth_devices()?
+    #[cfg(any(windows, target_os = "linux"))]
+    let bt_devices: Vec<(String, String)> = device::list_bluetooth_devices()
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("Bluetooth-Geräte konnten nicht aufgelistet werden: {e}");
+            Vec::new()
+        })
         .into_iter()
         .map(|d| (d.id, d.name))
         .collect();
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     let bt_devices: Vec<(String, String)> = Vec::new();
 
     if json {
@@ -835,6 +849,37 @@ fn generate(
         label.elements.len()
     );
     Ok(())
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+async fn pair(spec: Option<String>) -> anyhow::Result<()> {
+    eprintln!("Suche Bluetooth-Geräte in der Nähe ...");
+    let mut found = device::discover_bluetooth_devices().await?;
+    found.sort_by_key(|d| device::model_for_device_name(&d.name).is_none());
+    let Some(spec) = spec else {
+        if found.is_empty() {
+            println!("Keine koppelbaren Geräte gefunden (Drucker eingeschaltet und sichtbar?).");
+        }
+        for d in &found {
+            let model = device::model_for_device_name(&d.name)
+                .map(|m| format!(" – Drucker {}", m.name))
+                .unwrap_or_default();
+            println!("  {}{model}  (labellab pair \"{}\")", d.name, d.name);
+        }
+        return Ok(());
+    };
+    let target = found
+        .iter()
+        .find(|d| d.id.eq_ignore_ascii_case(&spec) || d.name.eq_ignore_ascii_case(&spec))
+        .map_or(spec.clone(), |d| d.id.clone());
+    device::pair_bluetooth(&target).await?;
+    println!("Gekoppelt: {spec}");
+    Ok(())
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
+async fn pair(_spec: Option<String>) -> anyhow::Result<()> {
+    anyhow::bail!("Bluetooth-Kopplung wird nur unter Windows und Linux unterstützt.")
 }
 
 #[cfg(test)]

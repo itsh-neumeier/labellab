@@ -30,6 +30,7 @@
       </label>
       <button id="btn-refresh" data-i18n="device.refresh"></button>
       <button id="btn-status" data-i18n="device.readStatus"></button>
+      <button id="btn-pair" data-i18n="pair.open"></button>
       <span id="status" class="status"></span>
       <span class="spacer"></span>
       <label><span data-i18n="device.model"></span>
@@ -159,6 +160,19 @@
       <span class="spacer"></span>
       <button id="btn-print" class="primary" data-i18n="print.print"></button>
     </footer>
+
+    <dialog id="pair-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="pair.title"></h2>
+        <p class="muted hint" data-i18n="pair.hint"></p>
+        <ul id="pair-list" class="pair-list"></ul>
+        <p id="pair-msg" class="muted hint"></p>
+        <div class="row end">
+          <button id="pair-rescan" type="button" data-i18n="pair.rescan"></button>
+          <button value="close" data-i18n="pair.close"></button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="wizard">
       <form method="dialog" class="wizard">

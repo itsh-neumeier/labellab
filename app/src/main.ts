@@ -6,7 +6,7 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
-import { applyLang, applyStatic, currentLang, setLang, t, type Lang } from "./i18n";
+import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
 import { roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
 
@@ -161,6 +161,15 @@ function schedulePreview(): void {
   previewTimer = window.setTimeout(updatePreview, PREVIEW_DEBOUNCE_MS);
 }
 
+/** Elements whose text was clipped in the last preview. */
+let overflowing = new Set<number>();
+
+function markOverflow(): void {
+  document
+    .querySelectorAll<HTMLElement>(".box")
+    .forEach((b) => b.classList.toggle("overflow", overflowing.has(Number(b.dataset.index))));
+}
+
 async function updatePreview(): Promise<void> {
   const seq = ++previewSeq;
   const img = $<HTMLImageElement>("preview");
@@ -171,9 +180,9 @@ async function updatePreview(): Promise<void> {
 
   try {
     const scale = previewScale();
-    const base64 = await api.renderPreview(state.label, model, width, previewRow() ?? 1, numbering(), scale);
+    const preview = await api.renderPreview(state.label, model, width, previewRow() ?? 1, numbering(), scale);
     if (seq !== previewSeq) return; // a newer render is on its way
-    const url = `data:image/png;base64,${base64}`;
+    const url = `data:image/png;base64,${preview.png}`;
     img.onload = () => {
       img.dataset.scale = String(scale);
       const ink = $("ink");
@@ -189,12 +198,16 @@ async function updatePreview(): Promise<void> {
       msg.textContent = t("preview.error", { error: "PNG" });
     };
     img.src = url;
-    msg.textContent = "";
+    overflowing = new Set(preview.overflowing);
+    markOverflow();
+    msg.textContent = preview.overflowing.length
+      ? t("preview.overflow", { items: preview.overflowing.map((i) => i + 1).join(", ") })
+      : "";
   } catch (e) {
     if (seq !== previewSeq) return;
     $("ink").classList.add("stale");
     $("dims").textContent = "";
-    msg.textContent = t("preview.error", { error: String(e) });
+    msg.textContent = t("preview.error", { error: errorText(e) });
   }
 }
 
@@ -343,7 +356,7 @@ function renderBoxes(): void {
   state.label.elements.forEach((item, index) => {
     if (!item.rect) return;
     const box = document.createElement("div");
-    box.className = `box${index === state.selected ? " selected" : ""}`;
+    box.className = `box${index === state.selected ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}`;
     box.dataset.index = String(index);
     box.title = boxCaption(item);
     placeBox(box, item.rect);
@@ -898,7 +911,7 @@ async function readStatus(): Promise<boolean> {
     setStatus(t("device.statusOk", { width: s.width_mm }), "ok");
     return true;
   } catch (e) {
-    setStatus(t("error.prefix", { error: String(e) }), "error");
+    setStatus(t("error.prefix", { error: errorText(e) }), "error");
     return false;
   }
 }
@@ -950,7 +963,7 @@ async function print(): Promise<void> {
       },
     });
   } catch (e) {
-    setMessage(t("error.prefix", { error: String(e) }), true);
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
   } finally {
     unlisten();
     setPrinting(false);
@@ -1024,7 +1037,7 @@ async function loadCsvFile(): Promise<void> {
     schedulePreview();
     setMessage("");
   } catch (e) {
-    setMessage(t("error.prefix", { error: String(e) }), true);
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
   }
 }
 
@@ -1057,7 +1070,7 @@ async function openFile(): Promise<void> {
     renderAll();
     setMessage("");
   } catch (e) {
-    setMessage(t("error.prefix", { error: String(e) }), true);
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
   }
 }
 
@@ -1070,8 +1083,51 @@ async function saveFile(): Promise<void> {
     updateFileName();
     setMessage(t("file.saved", { path }));
   } catch (e) {
-    setMessage(t("error.prefix", { error: String(e) }), true);
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
   }
+}
+
+// ---------------------------------------------------------------- Bluetooth pairing
+
+async function scanPairable(): Promise<void> {
+  const list = $("pair-list");
+  const msg = $("pair-msg");
+  list.replaceChildren();
+  msg.textContent = t("pair.searching");
+  try {
+    const found = await api.discoverBluetooth();
+    msg.textContent = found.length ? "" : t("pair.none");
+    for (const d of found) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = d.model ? `${d.name} – ${d.model}` : d.name;
+      const button = makeButton(t("pair.pair"), "", async () => {
+        button.disabled = true;
+        msg.textContent = t("pair.pairing", { name: d.name });
+        try {
+          await api.pairBluetooth(d.id);
+          msg.textContent = t("pair.done", { name: d.name });
+          await refreshDevices();
+        } catch (e) {
+          msg.textContent = t("error.prefix", { error: errorText(e) });
+          button.disabled = false;
+        }
+      });
+      li.append(label, button);
+      list.append(li);
+    }
+  } catch (e) {
+    msg.textContent = t("error.prefix", { error: errorText(e) });
+  }
+}
+
+function bindPairing(): void {
+  const dialog = $<HTMLDialogElement>("pair-dialog");
+  $("btn-pair").addEventListener("click", () => {
+    dialog.showModal();
+    void scanPairable();
+  });
+  $("pair-rescan").addEventListener("click", () => void scanPairable());
 }
 
 // ---------------------------------------------------------------- wizard (M7 layouts)
@@ -1135,7 +1191,7 @@ function bindWizard(): void {
       changed(true);
       renderAll();
     } catch (err) {
-      $("wz-info").textContent = t("error.prefix", { error: String(err) });
+      $("wz-info").textContent = t("error.prefix", { error: errorText(err) });
     }
   });
 }
@@ -1178,6 +1234,7 @@ function bindUi(): void {
     b.addEventListener("click", () => insertPlaceholder(b.dataset.token!)),
   );
   bindWizard();
+  bindPairing();
   $("btn-csv-clear").addEventListener("click", clearCsvFile);
   $("preview-row").addEventListener("input", schedulePreview);
   for (const id of ["row-from", "row-to"]) $(id).addEventListener("input", updateCsvSummary);
@@ -1291,4 +1348,4 @@ async function init(): Promise<void> {
   await refreshDevices();
 }
 
-init().catch((e) => setMessage(t("error.prefix", { error: String(e) }), true));
+init().catch((e) => setMessage(t("error.prefix", { error: errorText(e) }), true));

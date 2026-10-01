@@ -23,7 +23,8 @@
 |---|---|---|---|
 | Profil | Classic BT 2.1+EDR, SPP | verifiziert | Hardware-Test 2026-10-01 |
 | SPP-UUID | `00001101-0000-1000-8000-00805F9B34FB` | verifiziert | Hardware-Test 2026-10-01 (natives RFCOMM, PT-P710BT meldet Dienstnamen „SPP SERVER“) |
-| PIN | ggf. `0000` | unverifiziert | Annahme |
+| PIN | ggf. `0000` (`BT_DEFAULT_PIN`, für programmatische Kopplung) | unverifiziert | Annahme; Hardware-Test offen (PROGRESS) |
+| RFCOMM-Kanal SPP (Linux/BlueZ, kein SDP-Lookup in `bluer`) | `1` (`BT_SPP_RFCOMM_CHANNEL`) | unverifiziert | Annahme (übliche SPP-Belegung); Windows ermittelt den Kanal per SDP selbst |
 | Statusabfrage über ausgehenden BT-COM-Port (seriell) | `00×100, 1B 40, 1B 69 53` → 32 Byte, Byte0 `0x80` | **widerlegt** | Hardware-Test 2026-10-01: funktionierte einmalig auf einer anderen Maschine (COM9), scheitert auf der Zielmaschine reproduzierbar mit `ERROR_SEM_TIMEOUT`/`ERROR_INVALID_FUNCTION` (sowohl .NET `SerialPort` als auch `tokio-serial`). Serieller BT-SPP-Fallback gilt als unzuverlässig, siehe ADR-007. |
 | Statusabfrage über natives WinRT-RFCOMM (kein virtueller COM-Port) | `00×100, 1B 40, 1B 69 53` → 32 Byte, Byte0 `0x80` | **verifiziert** | Hardware-Test 2026-10-01, PT-P710BT über `labellab status --bt`: 9 mm Band korrekt erkannt, `error1=0, error2=0, media_type=1, tape_color=1, text_color=8` |
 | Eingehende BT-COM-Ports | unbrauchbar für Statusabfrage | verifiziert | Hardware-Test 2026-10-01 |
