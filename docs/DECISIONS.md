@@ -60,3 +60,22 @@ Vorlage:
   mit `AsyncRead`/`AsyncWrite`) statt `serialport` + manuellem `spawn_blocking`.
 - Konsequenzen: Weniger eigener Glue-Code. Auf Linux braucht `serialport` zur Port-Erkennung
   `libudev-dev` zur Build-Zeit → CI-Workflow installiert das für `ubuntu-latest`. MIT-lizenziert.
+
+## ADR-007: Natives WinRT-RFCOMM (M4) vor M3 vorgezogen, kein eigener Treiber
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Der serielle BT-SPP-Fallback aus M2 (ADR-006) scheitert auf der Zielhardware
+  reproduzierbar mit `ERROR_SEM_TIMEOUT` – sowohl mit .NET `SerialPort` als auch mit
+  `tokio-serial`, also kein Fehler in unserem Code, sondern eine strukturelle Schwäche der
+  virtuellen-COM-Port-Kompatibilitätsschicht von Windows für Bluetooth SPP (genau das, was
+  ADR-002 schon als Risiko benannt hatte). Diskutiert wurde auch ein eigener (Klon-)
+  Bluetooth-Treiber – verworfen: widerspricht der nicht verhandelbaren Anforderung „kein
+  Treiber nötig“ (`AGENTS.md`), bräuchte Kernel-Signing und Installation.
+- Entscheidung: `ll-transport::bluetooth` (Windows: `windows`-Crate, `Devices.Bluetooth.Rfcomm`
+  + `Networking.Sockets.StreamSocket`) implementiert, noch ohne programmatisches Pairing
+  (Gerät muss in Windows bereits gekoppelt sein). Neue Abhängigkeit `windows` 0.58, nur für
+  `cfg(windows)`. Linux/BlueZ und USB (`nusb`) bleiben als M4-Rest offen.
+- Konsequenzen: Umgeht die kaputte virtuelle-COM-Schicht komplett, kein Treiber, keine
+  Installation, keine Admin-Rechte. `windows` 0.58 hat kein `.await` für WinRT-Async-Operationen
+  → `.get()` (blockierend) verwendet; vor Einsatz im Tauri-GUI (M6) auf `spawn_blocking`
+  umstellen. `read_exact_timeout`s Timeout wird für BT aktuell nicht erzwungen (TODO im Code).
+  MIT/Apache-2.0-kompatibel.

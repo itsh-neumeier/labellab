@@ -1,6 +1,9 @@
-//! Device discovery and status queries. Bluetooth/USB native discovery
-//! lands in M4; for now devices are addressed by serial/COM port path
-//! (the BT-SPP fallback, see `docs/PROTOCOL.md`).
+//! Device discovery and status queries.
+//!
+//! Two transports exist today: serial (COM-port / BT-SPP fallback, see
+//! `docs/PROTOCOL.md`) and, on Windows, native Bluetooth RFCOMM via WinRT
+//! (bypasses the flaky BT-SPP virtual-COM-port shim, see ADR-002 and
+//! `docs/PROGRESS.md`). Linux native Bluetooth (BlueZ) is still a TODO.
 
 use std::time::Duration;
 
@@ -23,6 +26,38 @@ pub async fn query_status_over_serial(
     baud_rate: u32,
 ) -> Result<StatusBlock, CoreError> {
     let mut transport = SerialTransport::open(port, baud_rate)?;
+    let status = query_status(&mut transport).await;
+    transport.close().await?;
+    status
+}
+
+#[cfg(windows)]
+pub use bluetooth::{list_bluetooth_devices, query_status_over_bluetooth};
+
+#[cfg(windows)]
+mod bluetooth {
+    use ll_transport::bluetooth::{self, BluetoothDeviceInfo, BluetoothTransport};
+
+    use super::*;
+
+    /// Lists paired Bluetooth devices offering the Serial Port Profile.
+    /// Not filtered by name; multiple PT-P7xx/E7xx models exist, see
+    /// `ll_protocol::model`.
+    pub fn list_bluetooth_devices() -> Result<Vec<BluetoothDeviceInfo>, CoreError> {
+        Ok(bluetooth::list_paired_devices()?)
+    }
+
+    /// Resets the printer and reads its status block over native
+    /// Bluetooth RFCOMM.
+    pub async fn query_status_over_bluetooth(device_id: &str) -> Result<StatusBlock, CoreError> {
+        let mut transport = BluetoothTransport::connect(device_id).await?;
+        let status = query_status(&mut transport).await;
+        transport.close().await?;
+        status
+    }
+}
+
+async fn query_status(transport: &mut dyn Transport) -> Result<StatusBlock, CoreError> {
     transport.write_all(&command::invalidate()).await?;
     transport.write_all(&command::initialize()).await?;
     transport.write_all(&command::status_request()).await?;
@@ -31,7 +66,6 @@ pub async fn query_status_over_serial(
     transport
         .read_exact_timeout(&mut buf, STATUS_TIMEOUT)
         .await?;
-    transport.close().await?;
 
     Ok(StatusBlock::parse(&buf)?)
 }

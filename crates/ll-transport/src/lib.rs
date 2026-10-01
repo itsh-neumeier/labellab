@@ -5,6 +5,7 @@
 //! this crate behind the same trait so `ll-core` never depends on a
 //! concrete transport.
 
+pub mod bluetooth;
 mod error;
 pub mod mock;
 pub mod serial;

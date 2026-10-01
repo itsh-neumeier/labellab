@@ -11,3 +11,14 @@ thiserror.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
 tokio-serial.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Devices_Bluetooth",
+    "Devices_Bluetooth_Rfcomm",
+    "Devices_Enumeration",
+    "Foundation_Collections",
+    "Networking",
+    "Networking_Sockets",
+    "Storage_Streams",
+] }
