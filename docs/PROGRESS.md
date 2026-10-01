@@ -9,8 +9,8 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 läuft — echte Schriften hardware-verifiziert (Foto zeigt klaren
-  Unterschied zum M3-Pixelfont), Rahmen/Barcodes/QR/Bilder/Symbole noch offen.
+- **Aktueller Meilenstein:** M5 läuft — echte Schriften hardware-verifiziert, QR-Codes fertig
+  (Code grün, noch nicht auf Band gedruckt). Rahmen/lineare Barcodes/Bilder/Symbole offen.
 - **Letzte Aktualisierung:** 2026-10-01
 
 ## Meilensteine
@@ -28,11 +28,12 @@
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
   App, BlueZ (Linux), USB fehlen noch.
 - [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
-  **Teilstand:** echte Systemschriften (`fontdue`, `ll_render::fontsrc`/`text`) ersetzen den
-  M3-Platzhalter-Font, `ll_render::png` + CLI `render "Text" -o x.png --width <mm>` (gleicher
-  Renderpfad wie `print_text`). Noch offen: Rahmen/Linien, Barcodes/QR/DataMatrix,
-  Bilder (PNG/JPG/BMP/SVG, Dithering), Symbolbibliothek. Nicht papier-getestet (nur PNG-Vorschau
-  verifiziert, siehe unten).
+  **Teilstand:** echte Systemschriften (`fontdue`, `ll_render::fontsrc`/`text`, **hardware-
+  verifiziert**) und QR-Codes (`qrcode`-Crate, `ll_render::barcode::render_qr`, ADR-009,
+  **noch nicht auf Band gedruckt**) fertig. `ll_render::png` + CLI `render ["Text"|--qr <daten>]
+  -o x.png --width <mm>`, `print` ebenso mit `--qr`. `print_text`/`print_qr` teilen sich jetzt
+  die Protokoll-Sequenz (`ll-core::print::send_bitmap()`). Noch offen: Rahmen/Linien, lineare
+  Barcodes (Code128/EAN/...), Bilder (PNG/JPG/BMP/SVG, Dithering), Symbolbibliothek.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -43,12 +44,11 @@
 | – | – | – | – |
 
 ## Nächste Schritte
-1. **Hardware-Test M5 (auf dem Gerät mit dem Drucker):** `labellab print "Text" --bt --device
-   <ID>` erneut laufen lassen — druckt jetzt mit der echten Systemschrift statt dem
-   M3-Pixelfont, sollte deutlich besser aussehen. Prüfen ob Zeichenhöhe/-position auf dem Band
-   passt.
-2. M5 weiter: Rahmen/Linien, Barcodes (Code128/EAN/QR/DataMatrix via `rxing`/`qrcode`/
-   `barcoders`), Bilder (Import + Floyd-Steinberg-Dithering via `image`), Symbolbibliothek.
+1. **Hardware-Test QR (auf dem Gerät mit dem Drucker):** `labellab print --qr "https://..."
+   --bt --device <ID>` — druckt, scannt der Code mit einem Handy? Ruhezone ist mit 2 statt der
+   üblichen 4 Modulen knapp bemessen (ADR-009), ggf. nachjustieren falls Scan unzuverlässig.
+2. M5 weiter: Rahmen/Linien, lineare Barcodes (Code128/EAN/Code39 via `barcoders`), Bilder
+   (Import + Floyd-Steinberg-Dithering via `image`), Symbolbibliothek.
 3. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
 4. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
@@ -76,6 +76,8 @@
 - [x] ~~M5: `labellab print "Text" --bt` mit der neuen Systemschrift (`fontdue`) gegen echten
   Drucker testen~~ – erfolgreich, 2026-10-01: sauberer "TEST"-Druck in echter Schrift (Foto im
   Vergleich zum alten M3-Pixelfont bestätigt deutliche Verbesserung).
+- [ ] M5: `labellab print --qr "..." --bt` gegen echten Drucker testen — druckt es, und scannt
+  der Code (Ruhezone nur 2 Module statt der spec-üblichen 4, siehe ADR-009)?
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -107,6 +109,24 @@
   alten M3-Pixelfont-Druck bestätigt deutlich bessere Lesbarkeit/Optik.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – QR-Codes
+- `ll-render`: neues `barcode`-Modul (`render_qr()` via `qrcode`-Crate, siehe ADR-009). Rastert
+  die Modul-Matrix direkt ins `Bitmap`, gleiche Pin-/Raster-Zeilen-Orientierung wie `text`.
+  Modulgröße automatisch an `printable_pins` angepasst (Ruhezone 2 Module statt der
+  spec-üblichen 4, TODO(verify) Scanbarkeit). Visuell per Wegwerf-Beispiel geprüft: korrekte
+  QR-Struktur (drei Finder-Pattern erkennbar), danach entfernt.
+- `ll-core::print`: auf gemeinsame `read_status_and_geometry()`/`send_bitmap()`-Hilfsfunktionen
+  refaktoriert, `print_text()` und neues `print_qr()` teilen sich jetzt die Protokoll-Sequenz
+  statt sie zu duplizieren.
+- `ll-cli`: `--qr <daten>` auf `print` und `render` (schließt sich mit Text-Argument aus,
+  `clap conflicts_with`), `Content`-Enum für die Text-oder-QR-Unterscheidung, `ConnectOpts`
+  bündelt `--device`/`--bt`/`--baud` (sonst `clippy::too_many_arguments`). Smoke-getestet:
+  `render --qr "https://..." -o out.png` erzeugt gültig aussehenden QR-Code.
+- `cargo fmt`/`clippy -D warnings`/`test --workspace` grün (34 Unit-Tests, vorher 30).
+- **Noch nicht gemacht:** QR-Druck auf echtes Band getestet (nur PNG-Vorschau verifiziert).
+- **Noch offen in M5:** Rahmen/Linien, lineare Barcodes (Code128/EAN/...), Bilder,
+  Symbolbibliothek.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – echte Schriften + PNG-Vorschau
 - `ll-render`: M3-Platzhalter-Font (`font.rs`) entfernt. Neu: `fontsrc` (sucht eine kurze Liste
   bekannter Systemschrift-Pfade pro OS — Windows: Segoe UI/Arial/Calibri/Tahoma; Linux:

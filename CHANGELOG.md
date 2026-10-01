@@ -18,4 +18,6 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   an den Drucker senden) — hardware-verifiziert: druckt lesbaren Text auf echtes Band
 - M5 (Teil): echte Systemschriften (`fontdue`) ersetzen den M3-Platzhalter-Font;
   `labellab render "Text" -o vorschau.png --width <mm>` für Vorschau ohne Drucker (gleicher
-  Renderpfad wie der Druck). Barcodes/Bilder/Symbole/Rahmen noch offen.
+  Renderpfad wie der Druck) — hardware-verifiziert
+- M5 (Teil): QR-Codes (`qrcode`-Crate) — `labellab print --qr "..."` und
+  `labellab render --qr "..." -o vorschau.png`. Lineare Barcodes/Bilder/Symbole/Rahmen noch offen.

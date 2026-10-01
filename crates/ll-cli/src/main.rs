@@ -44,6 +44,9 @@ enum Command {
     /// Textlabel drucken.
     Print {
         text: Option<String>,
+        /// QR-Code statt Text drucken (Daten für den Code, z. B. eine URL).
+        #[arg(long, conflicts_with = "text")]
+        qr: Option<String>,
         #[arg(long)]
         template: Option<String>,
         #[arg(long)]
@@ -71,7 +74,10 @@ enum Command {
     /// (das kommt erst mit dem GUI-Editor in M6) — daher `--width` statt
     /// einer live abgefragten Bandbreite.
     Render {
-        text: String,
+        text: Option<String>,
+        /// QR-Code statt Text rendern (Daten für den Code, z. B. eine URL).
+        #[arg(long, conflicts_with = "text")]
+        qr: Option<String>,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -97,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
         } => status(device, bt, baud, json).await,
         Command::Print {
             text,
+            qr,
             template,
             csv,
             image,
@@ -113,15 +120,33 @@ async fn main() -> anyhow::Result<()> {
                 );
                 std::process::exit(1);
             }
-            print(text, cut, copies, device, bt, baud, model).await
+            print(
+                text,
+                qr,
+                cut,
+                copies,
+                ConnectOpts { device, bt, baud },
+                model,
+            )
+            .await
         }
         Command::Render {
             text,
+            qr,
             output,
             width,
             model,
-        } => render(text, output, width, model),
+        } => render(text, qr, output, width, model),
     }
+}
+
+/// `--device`/`--bt`/`--baud`, grouped so `print`/`status` don't need a
+/// handful of separate parameters each (keeps `clippy::too_many_arguments`
+/// happy too).
+struct ConnectOpts {
+    device: Option<String>,
+    bt: bool,
+    baud: u32,
 }
 
 /// Opens a transport by CLI args: `--bt` picks native Bluetooth RFCOMM
@@ -229,20 +254,45 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
     Ok(())
 }
 
+/// What to render: plain text or a QR code. `print`/`render` both take
+/// either `text` or `--qr`, never both (`clap`'s `conflicts_with`).
+enum Content {
+    Text(String),
+    Qr(String),
+}
+
+impl Content {
+    fn from_args(text: Option<String>, qr: Option<String>) -> Option<Self> {
+        match (text, qr) {
+            (Some(t), None) => Some(Content::Text(t)),
+            (None, Some(q)) => Some(Content::Qr(q)),
+            _ => None,
+        }
+    }
+
+    fn label(&self) -> &str {
+        match self {
+            Content::Text(t) => t,
+            Content::Qr(d) => d,
+        }
+    }
+}
+
 async fn print(
     text: Option<String>,
+    qr: Option<String>,
     cut: bool,
     copies: u32,
-    device: Option<String>,
-    bt: bool,
-    baud: u32,
+    connect: ConnectOpts,
     model_name: String,
 ) -> anyhow::Result<()> {
-    let Some(text) = text else {
-        eprintln!("Bitte Text angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>");
+    let Some(content) = Content::from_args(text, qr) else {
+        eprintln!(
+            "Bitte Text oder --qr angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
+        );
         std::process::exit(1);
     };
-    let Some(device) = device else {
+    let Some(device) = connect.device else {
         eprintln!("Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`).");
         std::process::exit(1);
     };
@@ -258,21 +308,45 @@ async fn print(
         std::process::exit(1);
     };
 
-    let mut transport = open_transport(&device, bt, baud).await?;
+    let mut transport = open_transport(&device, connect.bt, connect.baud).await?;
 
     for copy in 1..=copies {
         if copies > 1 {
             eprintln!("Drucke Kopie {copy}/{copies} ...");
         }
-        ll_core::print::print_text(transport.as_mut(), model, &text, cut).await?;
+        match &content {
+            Content::Text(text) => {
+                ll_core::print::print_text(transport.as_mut(), model, text, cut).await?
+            }
+            Content::Qr(data) => {
+                ll_core::print::print_qr(
+                    transport.as_mut(),
+                    model,
+                    data,
+                    ll_render::QrErrorCorrection::Medium,
+                    cut,
+                )
+                .await?
+            }
+        }
     }
     transport.close().await?;
 
-    println!("Gedruckt: \"{text}\" ({copies}x)");
+    println!("Gedruckt: \"{}\" ({copies}x)", content.label());
     Ok(())
 }
 
-fn render(text: String, output: String, width_mm: u8, model_name: String) -> anyhow::Result<()> {
+fn render(
+    text: Option<String>,
+    qr: Option<String>,
+    output: String,
+    width_mm: u8,
+    model_name: String,
+) -> anyhow::Result<()> {
+    let Some(content) = Content::from_args(text, qr) else {
+        eprintln!("Bitte Text oder --qr angeben: labellab render \"Text\" -o datei.png");
+        std::process::exit(1);
+    };
     let Some(model) = ll_protocol::model::find_by_name(&model_name) else {
         eprintln!(
             "Unbekanntes Modell '{model_name}'. Bekannt: {}",
@@ -301,12 +375,21 @@ fn render(text: String, output: String, width_mm: u8, model_name: String) -> any
         std::process::exit(1);
     };
 
-    let bitmap = ll_render::render_text(
-        &text,
-        model.head_pins,
-        geometry.printable_pins,
-        geometry.left_offset_pins,
-    )?;
+    let bitmap = match &content {
+        Content::Text(text) => ll_render::render_text(
+            text,
+            model.head_pins,
+            geometry.printable_pins,
+            geometry.left_offset_pins,
+        )?,
+        Content::Qr(data) => ll_render::render_qr(
+            data,
+            model.head_pins,
+            geometry.printable_pins,
+            geometry.left_offset_pins,
+            ll_render::QrErrorCorrection::Medium,
+        )?,
+    };
     let png = ll_render::png::to_png(&bitmap, geometry.left_offset_pins, geometry.printable_pins)?;
     std::fs::write(&output, png)?;
 

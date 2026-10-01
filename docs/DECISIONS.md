@@ -96,3 +96,17 @@ Vorlage:
   `cosmic-text`). CI installiert `fonts-dejavu-core` auf `ubuntu-latest`, damit der
   Linux-Pfad deterministisch eine Schrift findet (sonst würden Font-Tests dort lautlos
   übersprungen, siehe `crates/ll-render/src/text.rs`). MIT-lizenziert (`fontdue`, `image`).
+
+## ADR-009: `qrcode`-Crate für QR-Codes (M5)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: M5 braucht QR-Codes (siehe `MASTER_PROMPT.md` Feature 4 „Barcodes & QR“). Lineare
+  Barcodes (Code128/EAN/...) bleiben vorerst offen.
+- Entscheidung: `qrcode`-Crate (reine Rust-Implementierung, MIT, liefert die Modul-Matrix direkt
+  als `Color::Dark`/`Light`-Indizierung) statt `rxing` (deutlich größer, für
+  Encode+Decode/mehrere Symbologien gedacht, hier wird nur Encodieren gebraucht).
+  `ll_render::barcode::render_qr()` rastert die Matrix direkt ins `Bitmap`, gleiche
+  Pin-/Rasterzeilen-Orientierung wie `text`. `ll-core::print::print_qr()` teilt sich die
+  Protokoll-Sequenz mit `print_text()` (gemeinsame `send_bitmap()`-Hilfsfunktion).
+- Konsequenzen: Ruhezone (Quiet Zone) ist 2 Module statt der spec-üblichen 4 (spart Band,
+  TODO(verify) ob das noch zuverlässig scannt). Fehlerkorrekturstufe aktuell fest auf `Medium`
+  in der CLI, noch keine `--ec-level`-Option. MIT-lizenziert.

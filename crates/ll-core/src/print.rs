@@ -1,20 +1,22 @@
-//! Text print jobs. Follows the flow from `docs/PROTOCOL.md` "Ablauf eines
+//! Print jobs. Follows the flow from `docs/PROTOCOL.md` "Ablauf eines
 //! Druckjobs": invalidate -> initialize -> read status -> check tape ->
 //! raster mode -> various/advanced mode -> margin -> print info ->
 //! compression -> raster lines -> print.
 //!
 //! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
 //! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
-//! denselben Renderpfad"). Text rendering is `ll_render::text`'s system-font
-//! renderer (frames/barcodes/images/symbols are still open M5 scope).
+//! denselben Renderpfad"). `print_text`/`print_qr` share the protocol
+//! sequence; only the rendered content differs (frames/images/symbols are
+//! still open M5 scope).
 
 use std::time::Duration;
 
 use ll_protocol::{
     command::{self, PrintInformation},
-    model::ModelInfo,
+    model::{ModelInfo, TapeGeometry},
     status::StatusBlock,
 };
+use ll_render::{Bitmap, QrErrorCorrection};
 use ll_transport::Transport;
 
 use crate::CoreError;
@@ -31,6 +33,43 @@ pub async fn print_text(
     text: &str,
     auto_cut: bool,
 ) -> Result<(), CoreError> {
+    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
+    let bitmap = ll_render::render_text(
+        text,
+        model.head_pins,
+        geometry.printable_pins,
+        geometry.left_offset_pins,
+    )?;
+    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+}
+
+/// Resets the printer, reads its status, renders `data` as a QR code to
+/// fit the currently loaded tape and prints it. Same failure behavior as
+/// [`print_text`].
+pub async fn print_qr(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+    data: &str,
+    ec_level: QrErrorCorrection,
+    auto_cut: bool,
+) -> Result<(), CoreError> {
+    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
+    let bitmap = ll_render::render_qr(
+        data,
+        model.head_pins,
+        geometry.printable_pins,
+        geometry.left_offset_pins,
+        ec_level,
+    )?;
+    send_bitmap(transport, &bitmap, width_mm, auto_cut).await
+}
+
+/// Invalidate -> initialize -> status request -> parse. Returns the loaded
+/// tape's width and matching geometry entry from `model`.
+async fn read_status_and_geometry<'m>(
+    transport: &mut dyn Transport,
+    model: &'m ModelInfo,
+) -> Result<(u8, &'m TapeGeometry), CoreError> {
     transport.write_all(&command::invalidate()).await?;
     transport.write_all(&command::initialize()).await?;
     transport.write_all(&command::status_request()).await?;
@@ -54,13 +93,17 @@ pub async fn print_text(
         .iter()
         .find(|g| g.width_mm == width_mm)
         .ok_or(ll_protocol::ProtocolError::UnsupportedTapeWidth(width_mm))?;
+    Ok((width_mm, geometry))
+}
 
-    let bitmap = ll_render::render_text(
-        text,
-        model.head_pins,
-        geometry.printable_pins,
-        geometry.left_offset_pins,
-    )?;
+/// Raster-Modus/Various-Mode/Rand/PrintInformation/Kompression, then the
+/// raster lines (PackBits, blank rows as `Z`), then print-with-feed.
+async fn send_bitmap(
+    transport: &mut dyn Transport,
+    bitmap: &Bitmap,
+    width_mm: u8,
+    auto_cut: bool,
+) -> Result<(), CoreError> {
     let raster_lines = bitmap.height_dots();
 
     transport
@@ -227,5 +270,25 @@ mod tests {
             err,
             CoreError::Protocol(ll_protocol::ProtocolError::UnsupportedTapeWidth(200))
         ));
+    }
+
+    #[tokio::test]
+    async fn print_qr_sends_raster_mode_and_feed() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+
+        print_qr(
+            &mut transport,
+            p710bt(),
+            "https://example.com",
+            QrErrorCorrection::Medium,
+            false,
+        )
+        .await
+        .unwrap();
+
+        let written = transport.written();
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());
+        assert_eq!(*written.last().unwrap(), 0x1A);
     }
 }
