@@ -27,7 +27,11 @@ fn platform_err(e: windows::core::Error) -> TransportError {
 #[derive(Debug, Clone)]
 pub struct BluetoothDeviceInfo {
     pub id: String,
+    /// The paired device's name (e.g. `PT-P710BT5265`), or the service
+    /// name if that couldn't be resolved.
     pub name: String,
+    /// The SPP service name as enumerated (e.g. `SPP SERVER`).
+    pub service_name: String,
 }
 
 /// Lists paired devices that expose an RFCOMM SPP service. Does not filter
@@ -46,8 +50,23 @@ pub fn list_paired_devices() -> Result<Vec<BluetoothDeviceInfo>, TransportError>
     let mut out = Vec::new();
     for device in devices {
         let id = device.Id().map_err(platform_err)?.to_string_lossy();
-        let name = device.Name().map_err(platform_err)?.to_string_lossy();
-        out.push(BluetoothDeviceInfo { id, name });
+        let service_name = device.Name().map_err(platform_err)?.to_string_lossy();
+        // The enumeration yields the SPP *service* name ("SPP SERVER" on the
+        // PT-P710BT); the paired device's own name ("PT-P710BT5265") is on
+        // the service's BluetoothDevice. TODO(verify): not hardware-tested
+        // yet; falls back to the service name if it can't be resolved.
+        let device_name = RfcommDeviceService::FromIdAsync(&HSTRING::from(id.as_str()))
+            .ok()
+            .and_then(|op| op.get().ok())
+            .and_then(|service| service.Device().ok())
+            .and_then(|d| d.Name().ok())
+            .map(|n| n.to_string_lossy())
+            .filter(|n| !n.trim().is_empty());
+        out.push(BluetoothDeviceInfo {
+            id,
+            name: device_name.unwrap_or_else(|| service_name.clone()),
+            service_name,
+        });
     }
     Ok(out)
 }

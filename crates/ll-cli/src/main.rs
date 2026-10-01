@@ -369,7 +369,11 @@ async fn devices(json: bool) -> anyhow::Result<()> {
     } else {
         println!("Gekoppelte Bluetooth-Geräte (SPP), mit --bt verwendbar:");
         for (id, name) in bt_devices {
-            println!("  {name} ({id})");
+            let model = device::model_for_device_name(&name)
+                .map(|m| format!(" – Drucker {}", m.name))
+                .unwrap_or_default();
+            println!("  {name}{model}  (--bt --device \"{name}\")");
+            println!("      ID: {id}");
         }
     }
 

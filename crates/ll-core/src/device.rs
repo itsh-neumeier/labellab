@@ -38,9 +38,12 @@ pub async fn connect(connection: &Connection) -> Result<Box<dyn Transport>, Core
         }
         Connection::Usb { spec } => Ok(Box::new(open_usb(spec.as_deref()).await?)),
         #[cfg(windows)]
-        Connection::Bluetooth { device_id } => Ok(Box::new(
-            ll_transport::bluetooth::BluetoothTransport::connect(device_id).await?,
-        )),
+        Connection::Bluetooth { device_id } => {
+            let id = bluetooth::resolve_bluetooth_id(device_id);
+            Ok(Box::new(
+                ll_transport::bluetooth::BluetoothTransport::connect(&id).await?,
+            ))
+        }
         #[cfg(not(windows))]
         Connection::Bluetooth { .. } => Err(CoreError::Unsupported(
             "native Bluetooth is not implemented on this platform yet (BlueZ pending)",
@@ -60,6 +63,16 @@ pub async fn query_status_on(connection: &Connection) -> Result<StatusBlock, Cor
 /// Linux), including Bluetooth-SPP virtual COM ports.
 pub fn list_serial_devices() -> Result<Vec<String>, CoreError> {
     Ok(ll_transport::serial::list_ports()?)
+}
+
+/// The known model a Bluetooth device name belongs to: printers announce
+/// themselves as model name plus a suffix (e.g. `PT-P710BT5265`).
+pub fn model_for_device_name(name: &str) -> Option<&'static ModelInfo> {
+    let upper = name.trim().to_uppercase();
+    MODELS
+        .iter()
+        .filter(|m| upper.starts_with(&m.name.to_uppercase()))
+        .max_by_key(|m| m.name.len())
 }
 
 /// An attached USB device whose VID:PID matches a known model.
@@ -145,6 +158,25 @@ mod bluetooth {
     pub fn list_bluetooth_devices() -> Result<Vec<BluetoothDeviceInfo>, CoreError> {
         Ok(bluetooth::list_paired_devices()?)
     }
+
+    /// Accepts a full device id or a device/service name (as shown by
+    /// `labellab devices`, case-insensitive) and returns the device id.
+    /// Unknown names are passed through unchanged (connect reports them).
+    pub(super) fn resolve_bluetooth_id(spec: &str) -> String {
+        let Ok(devices) = bluetooth::list_paired_devices() else {
+            return spec.to_string();
+        };
+        devices
+            .iter()
+            .find(|d| d.id == spec)
+            .or_else(|| devices.iter().find(|d| d.name.eq_ignore_ascii_case(spec)))
+            .or_else(|| {
+                devices
+                    .iter()
+                    .find(|d| d.service_name.eq_ignore_ascii_case(spec))
+            })
+            .map_or_else(|| spec.to_string(), |d| d.id.clone())
+    }
 }
 
 pub(crate) async fn query_status(transport: &mut dyn Transport) -> Result<StatusBlock, CoreError> {
@@ -171,6 +203,20 @@ mod tests {
             product: None,
             serial_number: serial.map(str::to_owned),
         }
+    }
+
+    #[test]
+    fn recognizes_printer_models_by_device_name() {
+        assert_eq!(
+            model_for_device_name("PT-P710BT5265").map(|m| m.name),
+            Some("PT-P710BT")
+        );
+        assert_eq!(
+            model_for_device_name("pt-e720bt0001").map(|m| m.name),
+            Some("PT-E720BT")
+        );
+        assert!(model_for_device_name("SPP SERVER").is_none());
+        assert!(model_for_device_name("Kopfhörer").is_none());
     }
 
     #[test]
