@@ -32,8 +32,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   <code128|ean13|ean8|upca|code39|itf>` auf `print`/`render`. Nur PNG-Vorschau geprüft, noch
   nicht auf Band gedruckt.
 - M5 (Teil): SVG-Import über denselben `--image`-Pfad (`resvg`/`usvg`/`tiny-skia`, an `.svg`-
-  Endung erkannt). Nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt. Symbolbibliothek
-  noch offen — letztes fehlendes M5-Teil.
+  Endung erkannt). Nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt.
+- M5: Symbolbibliothek — 10 eingebettete Material-Symbols-Icons (Apache-2.0: `network`, `wifi`,
+  `power`, `warning`, `arrow-up/-down/-left/-right`, `fire`, `fire-extinguisher`) über
+  `--symbol <name>` auf `print`/`render`, `labellab symbols` listet verfügbare Namen. Eigene
+  SVGs bleiben unabhängig davon über `--image` nutzbar. **M5 damit code-seitig vollständig**;
+  nur PNG-Vorschau geprüft, noch nicht auf Band gedruckt.
 
 ### Behoben
 - Cutter schnitt direkt am Ende des gedruckten Inhalts ohne Nachlauf (`margin(0)` war fest

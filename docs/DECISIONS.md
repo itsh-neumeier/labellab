@@ -167,3 +167,27 @@ Vorlage:
   Band gedruckt, nur PNG-Vorschau (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
   Symbolbibliothek selbst (echte Icon-Dateien bündeln) ist jetzt technisch möglich, aber noch
   nicht umgesetzt — braucht eine explizite Entscheidung zu Lizenz/Icon-Set.
+
+## ADR-013: Material Symbols (kuratierte Auswahl) als Symbolbibliothek (M5)
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: Letztes offenes M5-Stück. Nutzer wollte sowohl eine mitgelieferte Bibliothek als
+  auch eigene SVGs nutzen können — Letzteres war mit ADR-012 (`--image icon.svg`) bereits
+  fertig. Für die Bibliothek selbst: keine geratenen URLs (Projektregel), echte Icon-Dateien
+  nötig.
+- Entscheidung: npm-Paket `@material-symbols/svg-400` (Variante „outlined“, Apache-2.0,
+  deps: keine) als verifizierte, deterministische Quelle statt vermuteter GitHub-Rohpfade.
+  10 Icons kuratiert und nach `crates/ll-render/assets/symbols/*.svg` kopiert (Attribution in
+  `NOTICE.md` dort): `network`, `wifi`, `power`, `warning`, `arrow-up/-down/-left/-right`,
+  `fire`, `fire-extinguisher`. **Kein elektrisches Erdungssymbol** — Material Symbols ist ein
+  allgemeines UI-Set, kein Satz elektrotechnischer Schaltzeichen; dafür ggf. eigenes
+  `--image erdung.svg` nutzen. Neues `ll_render::symbols`-Modul bettet die SVGs per
+  `include_bytes!` ein (`SYMBOL_NAMES`, `symbol_svg()`, `render_symbol()` auf demselben
+  `render_svg_bytes()`-Pfad wie ADR-012). `ll-core::print::print_symbol()`,
+  CLI `--symbol <name>` auf `print`/`render`, neuer `labellab symbols`-Befehl listet die Namen.
+- Konsequenzen: Icons fest im Binary (kein Laufzeit-Download, keine Netzabhängigkeit zur
+  Laufzeit). Erweiterung um weitere Icons = weitere Dateien kopieren + `symbols.rs`-Makro-Eintrag,
+  kein neuer Build-Abhängigkeits-Code. Noch nicht auf echtes Band gedruckt, nur PNG-Vorschau
+  (4 Symbole stichprobenartig geprüft, sahen korrekt aus). Apache-2.0-Lizenznotiz muss bei
+  Weitergabe erhalten bleiben (`NOTICE.md`). **M5 ist damit vollständig** (Schriften, Rahmen,
+  QR, 6 Barcode-Symbologien, Bilder inkl. SVG, Symbolbibliothek, `render` → PNG) — bis auf
+  ausstehende Hardware-Tests für mehrere Teile.

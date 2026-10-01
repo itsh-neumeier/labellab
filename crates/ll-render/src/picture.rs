@@ -1,6 +1,6 @@
 //! Imported-image rendering: PNG/JPEG/BMP/SVG -> 1-bit [`Bitmap`] via
-//! Floyd-Steinberg dithering. A bundled symbol library is still open M5
-//! scope.
+//! Floyd-Steinberg dithering. See [`crate::symbols`] for the bundled
+//! symbol library, which renders through [`render_svg_bytes`].
 //!
 //! Same orientation convention as `text`/QR: image height maps to the
 //! pin (tape-width) axis, image width maps to the raster-line
@@ -28,23 +28,35 @@ pub fn render_image(
         .and_then(|e| e.to_str())
         .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
 
-    let gray = if is_svg {
-        render_svg_to_gray(path, printable_pins)?
-    } else {
-        image::open(path)
-            .map_err(|e| RenderError::Image(e.to_string()))?
-            .to_luma8()
-    };
+    if is_svg {
+        let data = std::fs::read(path)?;
+        return render_svg_bytes(&data, head_pins, printable_pins, left_offset_pins, invert);
+    }
 
+    let gray = image::open(path)
+        .map_err(|e| RenderError::Image(e.to_string()))?
+        .to_luma8();
     render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
 }
 
-/// Rasterizes an SVG file to a grayscale image `target_height_px` pixels
+/// Renders raw SVG bytes (e.g. a bundled symbol, see [`crate::symbols`])
+/// the same way [`render_image`] renders an `.svg` file.
+pub fn render_svg_bytes(
+    data: &[u8],
+    head_pins: u16,
+    printable_pins: u16,
+    left_offset_pins: u16,
+    invert: bool,
+) -> Result<Bitmap, RenderError> {
+    let gray = render_svg_to_gray(data, printable_pins)?;
+    render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
+}
+
+/// Rasterizes SVG bytes to a grayscale image `target_height_px` pixels
 /// tall (aspect ratio preserved), white background. `render_gray` handles
 /// any further scaling/dithering, same as raster formats.
-fn render_svg_to_gray(path: &Path, target_height_px: u16) -> Result<GrayImage, RenderError> {
-    let data = std::fs::read(path)?;
-    let tree = usvg::Tree::from_data(&data, &usvg::Options::default())
+fn render_svg_to_gray(data: &[u8], target_height_px: u16) -> Result<GrayImage, RenderError> {
+    let tree = usvg::Tree::from_data(data, &usvg::Options::default())
         .map_err(|e| RenderError::Image(e.to_string()))?;
 
     let svg_size = tree.size();

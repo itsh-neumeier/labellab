@@ -78,11 +78,14 @@ enum Command {
         /// Barcode-Symbologie (nur mit --barcode).
         #[arg(long, value_enum, default_value = "code128")]
         barcode_type: BarcodeType,
-        /// Bilddatei (PNG/JPEG/BMP) statt Text drucken, skaliert auf die
-        /// Bandbreite, Floyd-Steinberg-gedithert.
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
+        /// Bilddatei (PNG/JPEG/BMP/SVG) statt Text drucken, skaliert auf
+        /// die Bandbreite, Floyd-Steinberg-gedithert.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "symbol"])]
         image: Option<String>,
-        /// Bild invertieren (nur mit --image).
+        /// Mitgeliefertes Symbol statt Text drucken (siehe `labellab symbols`).
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
+        symbol: Option<String>,
+        /// Bild/Symbol invertieren (nur mit --image/--symbol).
         #[arg(long)]
         invert: bool,
         /// Rahmen um das ganze Label zeichnen.
@@ -127,11 +130,14 @@ enum Command {
         /// Barcode-Symbologie (nur mit --barcode).
         #[arg(long, value_enum, default_value = "code128")]
         barcode_type: BarcodeType,
-        /// Bilddatei (PNG/JPEG/BMP) statt Text rendern, skaliert auf die
-        /// Bandbreite, Floyd-Steinberg-gedithert.
-        #[arg(long, conflicts_with_all = ["text", "qr", "barcode"])]
+        /// Bilddatei (PNG/JPEG/BMP/SVG) statt Text rendern, skaliert auf
+        /// die Bandbreite, Floyd-Steinberg-gedithert.
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "symbol"])]
         image: Option<String>,
-        /// Bild invertieren (nur mit --image).
+        /// Mitgeliefertes Symbol statt Text rendern (siehe `labellab symbols`).
+        #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image"])]
+        symbol: Option<String>,
+        /// Bild/Symbol invertieren (nur mit --image/--symbol).
         #[arg(long)]
         invert: bool,
         /// Rahmen um das ganze Label zeichnen.
@@ -146,6 +152,8 @@ enum Command {
         #[arg(long, default_value = DEFAULT_MODEL)]
         model: String,
     },
+    /// Mitgelieferte Symbole auflisten (für `print --symbol`/`render --symbol`).
+    Symbols,
 }
 
 #[tokio::main]
@@ -166,6 +174,7 @@ async fn main() -> anyhow::Result<()> {
             barcode,
             barcode_type,
             image,
+            symbol,
             invert,
             frame,
             margin,
@@ -189,6 +198,7 @@ async fn main() -> anyhow::Result<()> {
                     barcode,
                     barcode_type,
                     image,
+                    symbol,
                     invert,
                 },
                 ll_core::print::PrintOptions {
@@ -208,6 +218,7 @@ async fn main() -> anyhow::Result<()> {
             barcode,
             barcode_type,
             image,
+            symbol,
             invert,
             frame,
             output,
@@ -220,6 +231,7 @@ async fn main() -> anyhow::Result<()> {
                 barcode,
                 barcode_type,
                 image,
+                symbol,
                 invert,
             },
             frame,
@@ -227,6 +239,13 @@ async fn main() -> anyhow::Result<()> {
             width,
             model,
         ),
+        Command::Symbols => {
+            println!("Mitgelieferte Symbole:");
+            for name in ll_render::SYMBOL_NAMES {
+                println!("  {name}");
+            }
+            Ok(())
+        }
     }
 }
 
@@ -344,34 +363,40 @@ async fn status(device: Option<String>, bt: bool, baud: u32, json: bool) -> anyh
     Ok(())
 }
 
-/// `text`/`--qr`/`--barcode`(`-type`)/`--image` from `print`/`render`,
-/// grouped so those commands don't need six separate parameters each
-/// (`clap`'s `conflicts_with_all` keeps more than one of them from being
-/// set at once).
+/// `text`/`--qr`/`--barcode`(`-type`)/`--image`/`--symbol` from
+/// `print`/`render`, grouped so those commands don't need seven separate
+/// parameters each (`clap`'s `conflicts_with_all` keeps more than one of
+/// them from being set at once).
 struct ContentArgs {
     text: Option<String>,
     qr: Option<String>,
     barcode: Option<String>,
     barcode_type: BarcodeType,
     image: Option<String>,
+    symbol: Option<String>,
     invert: bool,
 }
 
-/// What to render: plain text, a QR code, a linear barcode or an image.
+/// What to render: plain text, a QR code, a linear barcode, an image or a
+/// bundled symbol.
 enum Content {
     Text(String),
     Qr(String),
     Barcode(ll_render::Symbology, String),
     Image(std::path::PathBuf, bool),
+    Symbol(String, bool),
 }
 
 impl Content {
     fn from_args(args: ContentArgs) -> Option<Self> {
-        match (args.text, args.qr, args.barcode, args.image) {
-            (Some(t), None, None, None) => Some(Content::Text(t)),
-            (None, Some(q), None, None) => Some(Content::Qr(q)),
-            (None, None, Some(b), None) => Some(Content::Barcode(args.barcode_type.into(), b)),
-            (None, None, None, Some(i)) => Some(Content::Image(i.into(), args.invert)),
+        match (args.text, args.qr, args.barcode, args.image, args.symbol) {
+            (Some(t), None, None, None, None) => Some(Content::Text(t)),
+            (None, Some(q), None, None, None) => Some(Content::Qr(q)),
+            (None, None, Some(b), None, None) => {
+                Some(Content::Barcode(args.barcode_type.into(), b))
+            }
+            (None, None, None, Some(i), None) => Some(Content::Image(i.into(), args.invert)),
+            (None, None, None, None, Some(s)) => Some(Content::Symbol(s, args.invert)),
             _ => None,
         }
     }
@@ -382,6 +407,7 @@ impl Content {
             Content::Qr(d) => d.clone(),
             Content::Barcode(_, d) => d.clone(),
             Content::Image(p, _) => p.display().to_string(),
+            Content::Symbol(name, _) => name.clone(),
         }
     }
 }
@@ -395,7 +421,7 @@ async fn print(
 ) -> anyhow::Result<()> {
     let Some(content) = Content::from_args(content_args) else {
         eprintln!(
-            "Bitte Text, --qr, --barcode oder --image angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
+            "Bitte Text, --qr, --barcode, --image oder --symbol angeben: labellab print \"Text\" --device <COM-Port oder BT-ID>"
         );
         std::process::exit(1);
     };
@@ -443,6 +469,10 @@ async fn print(
                 ll_core::print::print_image(transport.as_mut(), model, path, *invert, &options)
                     .await?
             }
+            Content::Symbol(name, invert) => {
+                ll_core::print::print_symbol(transport.as_mut(), model, name, *invert, &options)
+                    .await?
+            }
         }
     }
     transport.close().await?;
@@ -460,7 +490,7 @@ fn render(
 ) -> anyhow::Result<()> {
     let Some(content) = Content::from_args(content_args) else {
         eprintln!(
-            "Bitte Text, --qr, --barcode oder --image angeben: labellab render \"Text\" -o datei.png"
+            "Bitte Text, --qr, --barcode, --image oder --symbol angeben: labellab render \"Text\" -o datei.png"
         );
         std::process::exit(1);
     };
@@ -515,6 +545,13 @@ fn render(
         )?,
         Content::Image(path, invert) => ll_render::render_image(
             path,
+            model.head_pins,
+            geometry.printable_pins,
+            geometry.left_offset_pins,
+            *invert,
+        )?,
+        Content::Symbol(name, invert) => ll_render::render_symbol(
+            name,
             model.head_pins,
             geometry.printable_pins,
             geometry.left_offset_pins,

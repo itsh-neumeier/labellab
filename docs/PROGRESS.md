@@ -9,12 +9,12 @@
   9-mm-Band gedruckt (Foto vom Nutzer bestätigt, 2026-10-01). Komplette Pipeline (Status lesen →
   Band erkennen → Platzhalter-Font rendern → PackBits → natives BT → Drucker) funktioniert
   end-to-end auf echter Hardware.
-- **Aktueller Meilenstein:** M5 fast fertig — echte Schriften und QR-Codes hardware-verifiziert.
-  Code128 gedruckt (sauberes Balkenmuster, Foto bestätigt), **Scan-Lesbarkeit noch offen**
-  (kein Code128-Scanner beim Nutzer verfügbar). Bildimport inkl. SVG + Dithering, Rahmen und
-  4 weitere Barcode-Symbologien (EAN-13/8, UPC-A, Code39, ITF) fertig (Code grün, noch nicht
-  auf Band gedruckt). **Nur noch Symbolbibliothek offen** (braucht Lizenz-/Icon-Set-Entscheidung
-  vom Nutzer) — dann ist M5 komplett.
+- **Aktueller Meilenstein:** **M5 code-vollständig** (alle Teile implementiert, Unit-Tests
+  grün). Schriften und QR-Codes hardware-verifiziert (gedruckt). Code128 gedruckt
+  (Scan-Lesbarkeit offen, kein Scanner verfügbar). Rahmen, 4 weitere Barcode-Symbologien,
+  Bildimport inkl. SVG und die neue Symbolbibliothek (10 Material-Symbols-Icons,
+  Apache-2.0, ADR-013) **noch nicht auf Band gedruckt** — PNG-Vorschau sieht für alles korrekt
+  aus. Nächster sinnvoller Schritt: M5-Hardware-Tests nachholen, dann M4-Rest oder M6.
   **Bugfix:** Nutzer meldete, der Cutter schneidet direkt am Ende des Inhalts (kein Nachlauf) —
   Ursache war `margin(0)` fest einprogrammiert; jetzt konfigurierbar (`--margin`, Default 28
   Druckpunkte statt 0), noch nicht erneut hardware-getestet.
@@ -34,18 +34,19 @@
   **Teilstand:** WinRT-RFCOMM-Connect (ohne programmatisches Pairing) fertig, **hardware-verifiziert
   gegen echten PT-P710BT** (2026-10-01, Gerät „SPP SERVER“/`b4:22:00:eb:96:6f`). Kopplung aus der
   App, BlueZ (Linux), USB fehlen noch.
-- [ ] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
-  **Teilstand:** echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt +
-  gescannt). 6 Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010,
-  `ll_render::Symbology`, CLI `--barcode-type`) — Code128 gedruckt (Scan-Lesbarkeit offen),
-  Rest nur PNG-Vorschau. Bildimport (PNG/JPEG/BMP, Floyd-Steinberg-Dithering, `--invert`,
-  ADR-011) und Rahmen (`ll_render::frame::draw_border`, `--frame`-Flag) fertig, **noch nicht
-  auf Band gedruckt**. SVG-Import (`resvg`/`usvg`/`tiny-skia`, ADR-012) über denselben
-  `--image`-Pfad (an `.svg`-Endung erkannt) neu dazu. `ll_render::png` + CLI
-  `render ["Text"|--qr|--barcode [--barcode-type]|--image <datei>] [--frame] -o x.png
-  --width <mm>`, `print` ebenso. `print_text`/`print_qr`/`print_barcode`/`print_image` teilen
-  sich die Protokoll-Sequenz (`ll-core::print::send_bitmap()`) und das optionale
-  Rahmenzeichnen. Noch offen: Symbolbibliothek (letztes fehlendes M5-Stück).
+- [x] **M5 – Renderer komplett:** Schriften, Rahmen, Barcodes/QR, Bilder, Symbole, `render` → PNG
+  Echte Systemschriften und QR-Codes **hardware-verifiziert** (gedruckt + gescannt). 6
+  Barcode-Symbologien (Code128, EAN-13/8, UPC-A, Code39, ITF, ADR-010, `ll_render::Symbology`,
+  CLI `--barcode-type`) — Code128 gedruckt (Scan-Lesbarkeit offen), Rest nur PNG-Vorschau.
+  Bildimport inkl. SVG (PNG/JPEG/BMP/SVG, Floyd-Steinberg-Dithering, `--invert`, ADR-011/012)
+  und Rahmen (`ll_render::frame::draw_border`, `--frame`) fertig, noch nicht auf Band gedruckt.
+  Symbolbibliothek (10 Material-Symbols-Icons, Apache-2.0, `ll_render::symbols`, ADR-013, CLI
+  `--symbol <name>` + `labellab symbols`-Listenbefehl) neu, ebenfalls nur PNG-Vorschau. Alle
+  fünf Inhaltsarten (`text`/`--qr`/`--barcode`/`--image`/`--symbol`) teilen sich dieselbe
+  `ContentArgs`/`Content`-CLI-Struktur und dieselbe `ll-core::print::send_bitmap()`-
+  Protokoll-Sequenz samt optionalem Rahmenzeichnen (`print_text`/`print_qr`/`print_barcode`/
+  `print_image`/`print_symbol`). **M5 ist damit code-seitig vollständig** — offene
+  Hardware-Tests siehe unten, kein offener Code-Teil mehr.
 - [ ] **M6 – Tauri-GUI:** Geräteleiste mit Bandstatus, Editor, Live-Vorschau, Vorlagen
 - [ ] **M7 – Kabel/Serien/CSV + Kettendruck**
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
@@ -70,9 +71,10 @@
    keine auf echtem Band gedruckt.
 3a. **Hardware-Test SVG:** `labellab print --image icon.svg --bt` — bisher nur PNG-Vorschau
     (ein Uhr-Symbol testweise gerendert, sah korrekt aus).
-4. Symbolbibliothek: Lizenz/Icon-Set mit Nutzer klären (z. B. Material Symbols, Apache-2.0),
-   dann SVG-Dateien einbetten — letztes offenes M5-Stück.
-5. M4-Rest (programmatisches Pairing, BlueZ/Linux, USB `nusb`) — wann immer eingeschoben.
+4. **Hardware-Test Symbolbibliothek:** `labellab print --symbol warning --bt` (Liste:
+   `labellab symbols`) — bisher nur PNG-Vorschau (4 Symbole stichprobenartig geprüft).
+5. M5 ist code-seitig fertig — als Nächstes M4-Rest (programmatisches Pairing, BlueZ/Linux,
+   USB `nusb`) oder M6 (Tauri-GUI) angehen, je nach Priorität.
 6. `--cut` (Auto-Cut) und `--copies N` (Mehrfachdruck) hardware-testen — bisher nur der
    Einzeldruck ohne Schnitt verifiziert.
 7. Medientyp-/Farbcode-Bedeutung (Byte 11/24/25) gegen Brothers Farbcode-Tabelle prüfen
@@ -119,6 +121,8 @@
   0, TODO(verify) ob 28 ausreicht). Noch nicht erneut gegen echten Drucker getestet.
 - [ ] M5: SVG-Import (`labellab print --image icon.svg --bt`) gegen echten Drucker testen —
   bisher nur PNG-Vorschau.
+- [ ] M5: Symbolbibliothek (`labellab print --symbol <name> --bt`, Namen via `labellab
+  symbols`) gegen echten Drucker testen — bisher nur PNG-Vorschau.
 
 ## Bekannte Fakten aus der Hardware
 - 2026-10-01: Statusabfrage (`00×100, 1B 40, 1B 69 53`) über Windows-Bluetooth-COM-Port (ausgehend) beantwortet,
@@ -156,6 +160,36 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code (Sonnet 5), M5 fertig – Symbolbibliothek
+- Nutzer wollte Material Symbols **und** eigene SVGs nutzen können — eigene SVGs liefen schon
+  über `--image icon.svg` (SVG-Import, siehe vorheriger Eintrag). Für die Bibliothek: keine
+  geratenen Download-URLs (Projektregel) — stattdessen npm-Paket `@material-symbols/svg-400`
+  (Apache-2.0, deps: keine) als verifizierte Quelle genutzt (`npm view`/`npm pack`,
+  Tarball-Inhalt lokal geprüft, kein Rohpfad-Raten nötig).
+- 10 Icons kuratiert und nach `crates/ll-render/assets/symbols/*.svg` kopiert (Attribution in
+  `assets/symbols/NOTICE.md`): `network`, `wifi`, `power`, `warning`, `arrow-up/-down/-left/
+  -right`, `fire`, `fire-extinguisher`. Kein elektrisches Erdungssymbol — Material Symbols ist
+  ein allgemeines UI-Set, kein Satz elektrotechnischer Schaltzeichen (ADR-013).
+- `ll-render::symbols`: Makro bettet die SVGs per `include_bytes!` ein (`SYMBOL_NAMES`,
+  `symbol_svg()`, `render_symbol()`). `ll-render::picture` dafür refaktoriert:
+  `render_svg_to_gray()` nimmt jetzt Bytes statt eines Pfads, neue öffentliche
+  `render_svg_bytes()` als gemeinsamer Einstieg für Datei-SVGs und eingebettete Symbole.
+- `ll-core::print`: neues `print_symbol()`, teilt sich die Protokoll-Sequenz mit den anderen
+  vier `print_*`-Funktionen.
+- `ll-cli`: `--symbol <name>` auf `print`/`render` (schließt sich mit
+  `text`/`--qr`/`--barcode`/`--image` aus), neuer `labellab symbols`-Befehl listet die
+  verfügbaren Namen. `Content`-Enum um `Symbol`-Variante erweitert.
+- Visuell per Wegwerf-Beispiel geprüft: network/power/warning/fire sehen alle sauber und
+  korrekt erkennbar aus, danach entfernt.
+- 2 neue Tests in `ll-render` (alle 10 Symbole rendern Tinte, unbekannter Name gibt Fehler
+  statt Panic) + 1 in `ll-core` (`print_symbol` sendet Raster-Modus + Feed). 62 Unit-Tests
+  insgesamt (vorher 59).
+- **M5 ist damit code-seitig vollständig** (Schriften, Rahmen, QR, 6 Barcode-Symbologien,
+  Bilder inkl. SVG, Symbolbibliothek). Offene Hardware-Tests für mehrere Teile bleiben (siehe
+  „Hardware-Tests offen“) — nur Schriften und QR sind bisher tatsächlich gedruckt/verifiziert.
+- Session endet hier auf Nutzerwunsch (Handoff an Cloud-Session nach Nutzungslimit).
+  Release-Build erneuert, gepusht.
+
 ### 2026-10-01 – Claude Code (Sonnet 5), M5 (Teil) – SVG-Import
 - `ll-render::picture`: `render_image()` erkennt `.svg` an der Dateiendung (case-insensitiv)
   und rastert über neue `render_svg_to_gray()`-Funktion (`usvg::Tree::from_data` zum Parsen,

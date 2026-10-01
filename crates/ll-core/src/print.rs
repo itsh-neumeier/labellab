@@ -6,9 +6,8 @@
 //! Uses the same `ll_render::Bitmap` for the print path that `ll-cli
 //! render`'s PNG preview uses (see `AGENTS.md`: "Vorschau und Druck nutzen
 //! denselben Renderpfad"). `print_text`/`print_qr`/`print_barcode`/
-//! `print_image` share the protocol sequence; only the rendered content
-//! differs (a bundled symbol library and SVG import are still open M5
-//! scope).
+//! `print_image`/`print_symbol` share the protocol sequence; only the
+//! rendered content differs.
 
 use std::path::Path;
 use std::time::Duration;
@@ -137,6 +136,28 @@ pub async fn print_image(
     let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
     let mut bitmap = ll_render::render_image(
         path,
+        model.head_pins,
+        geometry.printable_pins,
+        geometry.left_offset_pins,
+        invert,
+    )?;
+    maybe_draw_border(&mut bitmap, geometry, options.frame);
+    send_bitmap(transport, &bitmap, width_mm, options).await
+}
+
+/// Resets the printer, reads its status, renders the bundled symbol
+/// `name` (see `ll_render::SYMBOL_NAMES`) and prints it. Same failure
+/// behavior as [`print_text`].
+pub async fn print_symbol(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+    name: &str,
+    invert: bool,
+    options: &PrintOptions,
+) -> Result<(), CoreError> {
+    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
+    let mut bitmap = ll_render::render_symbol(
+        name,
         model.head_pins,
         geometry.printable_pins,
         geometry.left_offset_pins,
@@ -488,5 +509,25 @@ mod tests {
             find_subsequence(written, &[0x1B, 0x69, 0x64, 100, 0]).is_some(),
             "margin(100) missing"
         );
+    }
+
+    #[tokio::test]
+    async fn print_symbol_sends_raster_mode_and_feed() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+
+        print_symbol(
+            &mut transport,
+            p710bt(),
+            "warning",
+            false,
+            &PrintOptions::default(),
+        )
+        .await
+        .unwrap();
+
+        let written = transport.written();
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x61, 0x01]).is_some());
+        assert_eq!(*written.last().unwrap(), 0x1A);
     }
 }
