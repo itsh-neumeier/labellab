@@ -1,0 +1,10 @@
+[package]
+name = "ll-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Brother raster command protocol: commands, status parser, PackBits encoder, model table"
+
+[dependencies]
+thiserror.workspace = true

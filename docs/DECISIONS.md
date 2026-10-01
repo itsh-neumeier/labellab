@@ -42,3 +42,12 @@ Vorlage:
 - Entscheidung: `AGENTS.md` als einzige Regelquelle, dünne Verweisdateien je Werkzeug. Fortschritt in
   `docs/PROGRESS.md`, Entscheidungen hier, Wartung in `docs/MAINTENANCE.md`.
 - Konsequenzen: Jeder Agent kann ohne Chatverlauf übernehmen. Disziplin nötig: Dateien am Sessionende pflegen.
+
+## ADR-005: Async `Transport`-Trait mit `tokio`/`async-trait`
+- Datum / Status: 2026-10-01 · angenommen
+- Kontext: `MASTER_PROMPT.md` skizziert den `Transport`-Trait bereits async (Bluetooth-/USB-I/O ist
+  nicht-blockierend sinnvoller, Tauri-Backend läuft ohnehin async).
+- Entscheidung: `ll-transport` hängt von `tokio` (nur `rt-multi-thread`, `macros`, `time`,
+  `io-util`) und `async-trait` ab. `ll-core`/`ll-cli` übernehmen das transitiv.
+- Konsequenzen: Einheitliches async-Modell über alle Transport-Implementierungen (Serial, BT,
+  USB, Mock). Etwas größere Abhängigkeitsfläche; MIT/Apache-2.0-kompatibel.

@@ -3,7 +3,7 @@
 Schnelle, schlanke Label-Software in Rust für Brother-Labeldrucker der PT-P7xx-Serie (primär **PT-P710BT**).
 Druckt direkt über **Bluetooth** oder **USB**, ohne Brother-Druckertreiber, unter **Windows und Linux**.
 
-> Status: Planung. Die Umsetzung folgt dem [Master-Prompt](docs/MASTER_PROMPT.md).
+> Status: M1 (Grundgerüst) abgeschlossen. Die Umsetzung folgt dem [Master-Prompt](docs/MASTER_PROMPT.md).
 
 ## Geplante Funktionen (v1.0)
 - Direktdruck per Bluetooth (Windows: native RFCOMM inkl. Kopplung, ohne virtuelle COM-Ports; Linux: BlueZ) und USB
@@ -16,7 +16,16 @@ Druckt direkt über **Bluetooth** oder **USB**, ohne Brother-Druckertreiber, unt
 ## Für Mitwirkende und KI-Agenten
 - [`AGENTS.md`](AGENTS.md): Regeln für alle KI-Werkzeuge
 - [`docs/PROGRESS.md`](docs/PROGRESS.md): aktueller Stand
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): Crate-Aufbau
+- [`docs/PROTOCOL.md`](docs/PROTOCOL.md): Druckerprotokoll (verifiziert/dokumentiert/unverifiziert)
 - [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md): Wartung und Release
+
+## Build
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo run -p ll-cli -- devices
+```
 
 ## Werkzeuge
 - [`tools/bt-diagnose.ps1`](tools/bt-diagnose.ps1): prüft unter Windows die Bluetooth-COM-Ports und fragt den Bandstatus direkt am Drucker ab.

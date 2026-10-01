@@ -1,0 +1,10 @@
+[package]
+name = "ll-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Label model to 1-bit raster bitmap: text, frames, barcodes, images, symbols"
+
+[dependencies]
+thiserror.workspace = true

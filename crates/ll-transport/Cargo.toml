@@ -1,0 +1,12 @@
+[package]
+name = "ll-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Transport trait and implementations: Bluetooth RFCOMM, Serial, USB, Mock"
+
+[dependencies]
+thiserror.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
