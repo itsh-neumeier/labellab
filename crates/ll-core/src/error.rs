@@ -18,6 +18,9 @@ pub enum CoreError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
+    #[error("not supported: {0}")]
+    Unsupported(&'static str),
+
     #[error("no printer connected")]
     NoDevice,
 

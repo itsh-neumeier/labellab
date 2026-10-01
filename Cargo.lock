@@ -545,7 +545,6 @@ dependencies = [
  "ll-core",
  "ll-protocol",
  "ll-render",
- "ll-transport",
  "serde_json",
  "tokio",
 ]

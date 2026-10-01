@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand};
 use ll_core::device;
 use ll_core::label::{Element, Label};
 use ll_protocol::status::{StatusBlock, StatusType};
-use ll_transport::Transport;
 
 /// Default baud rate for serial/COM-port connections. Virtual Bluetooth-SPP
 /// ports generally ignore it, but the OS API still requires a value.
@@ -271,39 +270,29 @@ struct ConnectOpts {
     baud: u32,
 }
 
-/// Opens a transport by CLI args: `--usb` picks USB (device optional),
-/// `--bt` native Bluetooth RFCOMM (Windows only), otherwise a serial/COM
-/// port at `baud`.
-async fn open_transport(connect: &ConnectOpts) -> anyhow::Result<Box<dyn Transport>> {
-    if connect.usb {
-        return Ok(Box::new(device::open_usb(connect.device.as_deref()).await?));
-    }
-    let Some(device) = connect.device.as_deref() else {
-        eprintln!(
-            "Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`), \
-             oder --usb verwenden."
-        );
-        std::process::exit(1);
-    };
-    let (bt, baud) = (connect.bt, connect.baud);
-    if bt {
-        #[cfg(windows)]
-        {
-            Ok(Box::new(
-                ll_transport::bluetooth::BluetoothTransport::connect(device).await?,
-            ))
+impl ConnectOpts {
+    /// Maps CLI flags to a [`device::Connection`]: `--usb` (device
+    /// optional), `--bt` (native Bluetooth), otherwise a serial port.
+    /// Exits with a hint if a required `--device` is missing.
+    fn into_connection(self) -> device::Connection {
+        if self.usb {
+            return device::Connection::Usb { spec: self.device };
         }
-        #[cfg(not(windows))]
-        {
-            let _ = device;
-            anyhow::bail!(
-                "Natives Bluetooth ist unter Linux noch nicht implementiert (BlueZ folgt)."
+        let Some(device) = self.device else {
+            eprintln!(
+                "Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`), \
+                 oder --usb verwenden."
             );
+            std::process::exit(1);
+        };
+        if self.bt {
+            device::Connection::Bluetooth { device_id: device }
+        } else {
+            device::Connection::Serial {
+                port: device,
+                baud_rate: self.baud,
+            }
         }
-    } else {
-        Ok(Box::new(ll_transport::serial::SerialTransport::open(
-            device, baud,
-        )?))
     }
 }
 
@@ -377,32 +366,7 @@ async fn devices(json: bool) -> anyhow::Result<()> {
 }
 
 async fn status(connect: ConnectOpts, json: bool) -> anyhow::Result<()> {
-    if connect.usb {
-        let status = device::query_status_over_usb(connect.device.as_deref()).await?;
-        return print_status(&status, json);
-    }
-    let (bt, baud) = (connect.bt, connect.baud);
-    let Some(device) = connect.device else {
-        eprintln!(
-            "Bitte --device angeben (COM-Port oder mit --bt eine Geraete-ID aus `devices`). \
-             Automatische Erkennung folgt später."
-        );
-        std::process::exit(1);
-    };
-
-    let status = if bt {
-        #[cfg(windows)]
-        {
-            device::query_status_over_bluetooth(&device).await?
-        }
-        #[cfg(not(windows))]
-        {
-            eprintln!("Natives Bluetooth ist unter Linux noch nicht implementiert (BlueZ folgt).");
-            std::process::exit(1);
-        }
-    } else {
-        device::query_status_over_serial(&device, baud).await?
-    };
+    let status = device::query_status_on(&connect.into_connection()).await?;
     print_status(&status, json)
 }
 
@@ -500,7 +464,7 @@ async fn print(
     };
     let model = find_model(&model_name);
 
-    let mut transport = open_transport(&connect).await?;
+    let mut transport = device::connect(&connect.into_connection()).await?;
     for copy in 1..=copies {
         if copies > 1 {
             eprintln!("Drucke Kopie {copy}/{copies} ...");

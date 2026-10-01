@@ -17,21 +17,49 @@ use crate::CoreError;
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// How to reach a printer; shared by the CLI flags and the GUI's device
+/// picker. Serialized with a `"kind"` tag for the GUI.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Connection {
+    /// COM port / `/dev/tty*`, incl. Bluetooth-SPP virtual ports.
+    Serial { port: String, baud_rate: u32 },
+    /// Native Bluetooth RFCOMM by OS device id (Windows only so far).
+    Bluetooth { device_id: String },
+    /// USB, picked by [`select_usb_printer`] (`None`: first found).
+    Usb { spec: Option<String> },
+}
+
+/// Opens the transport described by `connection`.
+pub async fn connect(connection: &Connection) -> Result<Box<dyn Transport>, CoreError> {
+    match connection {
+        Connection::Serial { port, baud_rate } => {
+            Ok(Box::new(SerialTransport::open(port, *baud_rate)?))
+        }
+        Connection::Usb { spec } => Ok(Box::new(open_usb(spec.as_deref()).await?)),
+        #[cfg(windows)]
+        Connection::Bluetooth { device_id } => Ok(Box::new(
+            ll_transport::bluetooth::BluetoothTransport::connect(device_id).await?,
+        )),
+        #[cfg(not(windows))]
+        Connection::Bluetooth { .. } => Err(CoreError::Unsupported(
+            "native Bluetooth is not implemented on this platform yet (BlueZ pending)",
+        )),
+    }
+}
+
+/// Connects, resets the printer and reads its status block.
+pub async fn query_status_on(connection: &Connection) -> Result<StatusBlock, CoreError> {
+    let mut transport = connect(connection).await?;
+    let status = query_status(transport.as_mut()).await;
+    transport.close().await?;
+    status
+}
+
 /// Lists available serial ports (COM-ports on Windows, `/dev/tty*` on
 /// Linux), including Bluetooth-SPP virtual COM ports.
 pub fn list_serial_devices() -> Result<Vec<String>, CoreError> {
     Ok(ll_transport::serial::list_ports()?)
-}
-
-/// Resets the printer and reads its status block over a serial connection.
-pub async fn query_status_over_serial(
-    port: &str,
-    baud_rate: u32,
-) -> Result<StatusBlock, CoreError> {
-    let mut transport = SerialTransport::open(port, baud_rate)?;
-    let status = query_status(&mut transport).await;
-    transport.close().await?;
-    status
 }
 
 /// An attached USB device whose VID:PID matches a known model.
@@ -102,20 +130,12 @@ pub async fn open_usb(spec: Option<&str>) -> Result<UsbTransport, CoreError> {
     .await?)
 }
 
-/// Resets the printer and reads its status block over USB.
-pub async fn query_status_over_usb(spec: Option<&str>) -> Result<StatusBlock, CoreError> {
-    let mut transport = open_usb(spec).await?;
-    let status = query_status(&mut transport).await;
-    transport.close().await?;
-    status
-}
-
 #[cfg(windows)]
-pub use bluetooth::{list_bluetooth_devices, query_status_over_bluetooth};
+pub use bluetooth::list_bluetooth_devices;
 
 #[cfg(windows)]
 mod bluetooth {
-    use ll_transport::bluetooth::{self, BluetoothDeviceInfo, BluetoothTransport};
+    use ll_transport::bluetooth::{self, BluetoothDeviceInfo};
 
     use super::*;
 
@@ -125,18 +145,9 @@ mod bluetooth {
     pub fn list_bluetooth_devices() -> Result<Vec<BluetoothDeviceInfo>, CoreError> {
         Ok(bluetooth::list_paired_devices()?)
     }
-
-    /// Resets the printer and reads its status block over native
-    /// Bluetooth RFCOMM.
-    pub async fn query_status_over_bluetooth(device_id: &str) -> Result<StatusBlock, CoreError> {
-        let mut transport = BluetoothTransport::connect(device_id).await?;
-        let status = query_status(&mut transport).await;
-        transport.close().await?;
-        status
-    }
 }
 
-async fn query_status(transport: &mut dyn Transport) -> Result<StatusBlock, CoreError> {
+pub(crate) async fn query_status(transport: &mut dyn Transport) -> Result<StatusBlock, CoreError> {
     transport.write_all(&command::invalidate()).await?;
     transport.write_all(&command::initialize()).await?;
     transport.write_all(&command::status_request()).await?;
