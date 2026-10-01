@@ -151,8 +151,11 @@ mod tests {
         if fontsrc::load_default_font().is_err() {
             return;
         }
-        let face = Face::load(Some("Does Not Exist 12345"), true, true).unwrap();
-        assert!(face.synthetic_bold && face.synthetic_italic);
+        let regular = || Face::default_face().unwrap();
+        let faked = Face::synthesize(regular(), true, true, false, false).unwrap();
+        assert!(faked.synthetic_bold && faked.synthetic_italic);
+        let real = Face::synthesize(regular(), true, true, true, true).unwrap();
+        assert!(!real.synthetic_bold && !real.synthetic_italic);
     }
 
     #[test]
