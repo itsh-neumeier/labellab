@@ -17,10 +17,11 @@
 //! Image paths in a template are stored as written; relative ones are
 //! resolved against the template's directory by [`Label::load`].
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use ll_protocol::model::{dots_to_mm, mm_to_dots, pt_to_dots, ModelInfo, TapeGeometry};
-use ll_render::{boxed, Bitmap, QrErrorCorrection, Symbology, TextAlign};
+use ll_render::{boxed, Bitmap, Face, QrErrorCorrection, Symbology, TextAlign};
 use serde::{Deserialize, Serialize};
 
 use crate::CoreError;
@@ -119,6 +120,13 @@ pub enum Element {
         size_pt: Option<f32>,
         #[serde(default)]
         align: TextAlign,
+        /// System font family; `None` = default font.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        font: Option<String>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        bold: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        italic: bool,
     },
     Qr {
         data: String,
@@ -141,6 +149,9 @@ impl Element {
             text: text.into(),
             size_pt: None,
             align: TextAlign::default(),
+            font: None,
+            bold: false,
+            italic: false,
         }
     }
 }
@@ -211,15 +222,37 @@ impl Label {
     }
 }
 
-/// Lazily loaded default system font (only needed if there's text).
-struct FontCache(Option<Vec<u8>>);
+/// Fonts loaded while rendering one label: the default font's raw bytes
+/// (flow fast path, unchanged since M5) and parsed faces per
+/// (family, bold, italic).
+#[derive(Default)]
+struct FontCache {
+    default_bytes: Option<Vec<u8>>,
+    faces: HashMap<(Option<String>, bool, bool), Face>,
+}
 
 impl FontCache {
-    fn get(&mut self) -> Result<&[u8], CoreError> {
-        if self.0.is_none() {
-            self.0 = Some(ll_render::fontsrc::load_default_font()?);
+    fn default_bytes(&mut self) -> Result<&[u8], CoreError> {
+        if self.default_bytes.is_none() {
+            self.default_bytes = Some(ll_render::fontsrc::load_default_font()?);
         }
-        Ok(self.0.as_deref().unwrap_or_default())
+        Ok(self.default_bytes.as_deref().unwrap_or_default())
+    }
+
+    fn face(
+        &mut self,
+        family: &Option<String>,
+        bold: bool,
+        italic: bool,
+    ) -> Result<&Face, CoreError> {
+        let key = (family.clone(), bold, italic);
+        if !self.faces.contains_key(&key) {
+            let face = Face::load(family.as_deref(), bold, italic)?;
+            self.faces.insert(key.clone(), face);
+        }
+        self.faces
+            .get(&key)
+            .ok_or(CoreError::Template("font cache".into()))
     }
 }
 
@@ -240,16 +273,22 @@ fn render_flow_element(
         Element::Text {
             text,
             size_pt: None,
+            font: None,
+            bold: false,
+            italic: false,
             ..
         } if !text.contains('\n') => {
-            ll_render::render_text_with_font(text, fonts.get()?, head, pins, offset)?
+            ll_render::render_text_with_font(text, fonts.default_bytes()?, head, pins, offset)?
         }
         Element::Text {
             text,
             size_pt,
             align,
+            font,
+            bold,
+            italic,
         } => {
-            let font = fonts.get()?;
+            let font = fonts.face(font, *bold, *italic)?;
             let size_px = size_pt.map(pt_to_dots);
             let width = boxed::text_natural_width(text, font, pins, size_px)?;
             let local = boxed::text_in_box(text, font, width, pins, size_px, *align)?;
@@ -281,7 +320,17 @@ fn render_boxed_element(
             text,
             size_pt,
             align,
-        } => boxed::text_in_box(text, fonts.get()?, w, h, size_pt.map(pt_to_dots), *align)?,
+            font,
+            bold,
+            italic,
+        } => boxed::text_in_box(
+            text,
+            fonts.face(font, *bold, *italic)?,
+            w,
+            h,
+            size_pt.map(pt_to_dots),
+            *align,
+        )?,
         Element::Qr { data } => boxed::qr_in_box(data, w, h, QrErrorCorrection::Medium)?,
         Element::Barcode { symbology, data } => boxed::barcode_in_box(*symbology, data, w, h)?,
         Element::Image { path, invert } => boxed::image_in_box(path, w, h, *invert)?,
@@ -318,9 +367,9 @@ fn compose(
     model: &ModelInfo,
     geometry: &TapeGeometry,
 ) -> Result<Composed, CoreError> {
-    let mut fonts = FontCache(None);
+    let mut fonts = FontCache::default();
     if label.has_text() {
-        fonts.get()?; // fail early with a clear "no font" error
+        fonts.default_bytes()?; // fail early with a clear "no font" error
     }
     let pins = geometry.printable_pins;
     let gap = mm_to_dots(label.gap_mm);
@@ -500,6 +549,9 @@ mod tests {
                         text: "Server 1\nRack 3".into(),
                         size_pt: Some(12.0),
                         align: TextAlign::Left,
+                        font: Some("DejaVu Sans".into()),
+                        bold: true,
+                        italic: false,
                     },
                     rect: Some(Rect {
                         x_mm: 1.0,
@@ -712,6 +764,9 @@ mod tests {
             text: "A\nB".into(),
             size_pt: Some(8.0),
             align: TextAlign::Left,
+            font: None,
+            bold: true,
+            italic: true,
         });
         let bitmap = render_label(&label, model, geometry).unwrap();
         assert!(!ink_lines(&bitmap).is_empty());

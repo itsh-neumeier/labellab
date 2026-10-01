@@ -11,15 +11,21 @@ use std::path::Path;
 use fontdue::layout::{
     CoordinateSystem, HorizontalAlign, Layout, LayoutSettings, TextStyle, VerticalAlign,
 };
-use fontdue::{Font, FontSettings};
+use fontdue::Font;
 use serde::{Deserialize, Serialize};
 
 use crate::linear_barcode::encode_modules;
 use crate::picture::{floyd_steinberg_dither, load_gray};
-use crate::{render_qr, Bitmap, QrErrorCorrection, RenderError, Symbology};
+use crate::{render_qr, Bitmap, Face, QrErrorCorrection, RenderError, Symbology};
 
 /// Alpha threshold (0-255) above which a rasterized pixel counts as ink.
 const INK_THRESHOLD: u8 = 128;
+
+/// Slant (dx per dy) of synthetic italic, about 12 degrees.
+const SYNTHETIC_ITALIC_SLANT: f32 = 0.21;
+
+/// Synthetic bold widens strokes by one dot per this many px of font size.
+const SYNTHETIC_BOLD_PX_PER_DOT: f32 = 24.0;
 
 /// Smallest font size (px = print dots per em) the auto-fit tries.
 const MIN_AUTO_FONT_PX: f32 = 4.0;
@@ -42,11 +48,6 @@ impl From<TextAlign> for HorizontalAlign {
             TextAlign::Right => HorizontalAlign::Right,
         }
     }
-}
-
-fn parse_font(font_data: &[u8]) -> Result<Font, RenderError> {
-    Font::from_bytes(font_data, FontSettings::default())
-        .map_err(|e| RenderError::Font(e.to_string()))
 }
 
 /// Layout settings shared by measuring and rendering, so a size that
@@ -117,13 +118,13 @@ fn auto_font_px(font: &Font, text: &str, max_w: Option<f32>, max_h: f32) -> f32 
 /// its natural length.
 pub fn text_natural_width(
     text: &str,
-    font_data: &[u8],
+    face: &Face,
     box_h: u16,
     size_px: Option<f32>,
 ) -> Result<u32, RenderError> {
-    let font = parse_font(font_data)?;
-    let px = size_px.unwrap_or_else(|| auto_font_px(&font, text, None, box_h as f32));
-    let l = layout(&font, text, px, &settings(None, None, TextAlign::Left));
+    let font = &face.font;
+    let px = size_px.unwrap_or_else(|| auto_font_px(font, text, None, box_h as f32));
+    let l = layout(font, text, px, &settings(None, None, TextAlign::Left));
     Ok(ink_width(&l).ceil().max(1.0) as u32 + 1)
 }
 
@@ -133,7 +134,7 @@ pub fn text_natural_width(
 /// Lines are vertically centered; overflow is clipped.
 pub fn text_in_box(
     text: &str,
-    font_data: &[u8],
+    face: &Face,
     box_w: u32,
     box_h: u16,
     size_px: Option<f32>,
@@ -143,30 +144,55 @@ pub fn text_in_box(
     if text.trim().is_empty() || box_w == 0 || box_h == 0 {
         return Ok(bitmap);
     }
-    let font = parse_font(font_data)?;
-    let px = size_px.unwrap_or_else(|| auto_font_px(&font, text, Some(box_w as f32), box_h as f32));
+    let font = &face.font;
+    let px = size_px.unwrap_or_else(|| auto_font_px(font, text, Some(box_w as f32), box_h as f32));
+    // Synthetic italic: shear glyph pixels right by this fraction of their
+    // height above the baseline. Synthetic bold: one extra dot of stroke
+    // width per this many dots of font size (at least one).
+    let shear = if face.synthetic_italic {
+        SYNTHETIC_ITALIC_SLANT
+    } else {
+        0.0
+    };
+    let embolden = if face.synthetic_bold {
+        ((px / SYNTHETIC_BOLD_PX_PER_DOT).round() as i32).max(1)
+    } else {
+        0
+    };
 
     let layout = layout(
-        &font,
+        font,
         text,
         px,
         &settings(Some(box_w as f32), Some(box_h as f32), align),
     );
 
+    let baselines: Vec<f32> = layout
+        .lines()
+        .map(|lines| lines.iter().map(|l| l.baseline_y).collect())
+        .unwrap_or_default();
     for glyph in layout.glyphs() {
         if glyph.width == 0 || glyph.height == 0 {
             continue;
         }
+        let baseline = baselines
+            .iter()
+            .copied()
+            .find(|b| *b >= glyph.y)
+            .unwrap_or(glyph.y + glyph.height as f32);
         let (_, coverage) = font.rasterize_config(glyph.key);
         for gy in 0..glyph.height {
+            let pin = glyph.y.round() as i32 + gy as i32;
+            let slant = ((baseline - pin as f32) * shear).round() as i32;
             for gx in 0..glyph.width {
                 if coverage[gy * glyph.width + gx] < INK_THRESHOLD {
                     continue;
                 }
-                let line = glyph.x.round() as i32 + gx as i32;
-                let pin = glyph.y.round() as i32 + gy as i32;
-                if line >= 0 && pin >= 0 {
-                    bitmap.set_pixel(pin as u16, line as u32, true);
+                let line = glyph.x.round() as i32 + gx as i32 + slant;
+                for extra in 0..=embolden {
+                    if line + extra >= 0 && pin >= 0 {
+                        bitmap.set_pixel(pin as u16, (line + extra) as u32, true);
+                    }
                 }
             }
         }
@@ -258,12 +284,11 @@ pub fn image_in_box(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fontsrc;
 
     macro_rules! require_font {
         () => {
-            match fontsrc::load_default_font() {
-                Ok(data) => data,
+            match Face::default_face() {
+                Ok(face) => face,
                 Err(_) => {
                     eprintln!("skip: no system font found, see ll_render::fontsrc");
                     return;

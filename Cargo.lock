@@ -576,6 +576,7 @@ name = "ll-render"
 version = "0.1.0"
 dependencies = [
  "barcoders",
+ "fontdb",
  "fontdue",
  "image",
  "qrcode",

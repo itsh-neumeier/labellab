@@ -10,6 +10,7 @@ description = "Label model to 1-bit raster bitmap: text, frames, barcodes, image
 thiserror.workspace = true
 serde.workspace = true
 fontdue.workspace = true
+fontdb.workspace = true
 image.workspace = true
 qrcode.workspace = true
 barcoders.workspace = true
