@@ -177,5 +177,14 @@
   "error.io": "Datei konnte nicht gelesen oder geschrieben werden.",
   "error.unsupported": "Wird auf diesem System nicht unterstützt.",
   "error.printer_error": "Der Drucker meldet einen Fehler (z. B. kein Band, Abdeckung offen, Band-Ende, Akku schwach).",
-  "error.no_records": "Im gewählten Bereich gibt es keine Datensätze."
+  "error.no_records": "Im gewählten Bereich gibt es keine Datensätze.",
+  "toolbar.recent": "Zuletzt verwendet …",
+  "series.open": "Serie ansehen …",
+  "series.openHint": "Vorschau aller Labels der Serie (CSV-Bereich bzw. Nummerierung)",
+  "series.title": "Alle Labels der Serie",
+  "series.close": "Schließen",
+  "series.loading": "Wird gezeichnet … {done}/{total}",
+  "series.count": "{total} Labels",
+  "series.limited": "{total} Labels – die ersten {shown} werden angezeigt.",
+  "series.label": "Nr. {n}"
 }

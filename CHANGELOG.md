@@ -78,6 +78,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Gerät getestet
 - Oberfläche: verständliche deutsche Fehlermeldungen (z. B. „Der Drucker antwortet nicht …“)
   und Warnung, wenn Text nicht in seine Box passt und abgeschnitten wird
+- Oberfläche: Liste „Zuletzt verwendet“ für Label-Dateien und Übersicht „Serie ansehen …“ mit
+  allen Labels einer CSV-/Nummern-Serie
 
 ### Behoben
 - `labellab` brach nach dem Zusammenführen mit der Symbolbibliothek beim Start ab

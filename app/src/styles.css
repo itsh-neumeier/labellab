@@ -189,3 +189,17 @@ dialog#pair-dialog {
 dialog#pair-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .pair-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
 .pair-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* ---- series overview dialog ---- */
+dialog#series-dialog {
+  border: 1px solid var(--border); border-radius: 10px; padding: 0;
+  background: var(--panel); color: var(--text); width: min(900px, 94vw);
+}
+dialog#series-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.series-list { display: flex; flex-direction: column; gap: 10px; max-height: 65vh; overflow: auto; }
+.series-item { display: flex; align-items: center; gap: 10px; }
+.series-item .num { min-width: 3em; text-align: right; }
+.series-item .tape { position: relative; flex: none; border-radius: 2px; box-shadow: 0 0 0 1px var(--border); }
+.series-item .tape .ink { width: 100%; height: 100%; }
+.series-item .tape.clear-tape { background-color: #e9edf1; }
+.series-item .warn { color: #d97706; }

@@ -157,6 +157,7 @@ let previewSeq = 0;
 let fitZoomPending = true;
 
 function schedulePreview(): void {
+  updateSeriesButton();
   window.clearTimeout(previewTimer);
   previewTimer = window.setTimeout(updatePreview, PREVIEW_DEBOUNCE_MS);
 }
@@ -1048,6 +1049,91 @@ async function clearCsvFile(): Promise<void> {
   schedulePreview();
 }
 
+// ---------------------------------------------------------------- series overview
+
+/** At most this many labels are drawn in the series overview. */
+const SERIES_PREVIEW_MAX = 100;
+
+/** Record/running numbers of the series that would be printed, or null for a single label. */
+function seriesNumbers(): number[] | null {
+  if (state.csv) {
+    const count = state.csv.rows.length;
+    const [from, to] = selectedRows() ?? [1, count];
+    const out: number[] = [];
+    for (let n = from; n <= Math.min(to, count); n++) out.push(n);
+    return out;
+  }
+  const count = numberedCount();
+  return count > 0 ? Array.from({ length: count }, (_, i) => i + 1) : null;
+}
+
+function updateSeriesButton(): void {
+  $("btn-series").hidden = seriesNumbers() === null;
+}
+
+async function showSeries(): Promise<void> {
+  const numbers = seriesNumbers();
+  const model = selectedModel();
+  const width = selectedWidth();
+  if (!numbers || !model || !width) return;
+  const dialog = $<HTMLDialogElement>("series-dialog");
+  const list = $("series-list");
+  const msg = $("series-msg");
+  list.replaceChildren();
+  dialog.showModal();
+  const shown = numbers.slice(0, SERIES_PREVIEW_MAX);
+  const st = parseStyleKey($<HTMLSelectElement>("tape-style").value) ?? TAPE_STYLES[0];
+  const bg = TAPE_CSS[st.tape];
+  const heightPx = 48;
+  const pxPerDot = heightPx / (labelHeightMm() * DOTS_PER_MM);
+  for (const [i, n] of shown.entries()) {
+    if (!dialog.open) return; // closed while drawing
+    msg.textContent = t("series.loading", { done: i, total: shown.length });
+    try {
+      const preview = await api.renderPreview(state.label, model, width, n, numbering(), 1);
+      const url = `data:image/png;base64,${preview.png}`;
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+      const item = document.createElement("div");
+      item.className = "series-item";
+      const num = document.createElement("span");
+      num.className = "num muted";
+      num.textContent = t("series.label", { n });
+      const tape = document.createElement("div");
+      tape.className = `tape${bg === null ? " clear-tape" : ""}`;
+      tape.style.backgroundColor = bg ?? "";
+      tape.style.width = `${img.naturalWidth * pxPerDot}px`;
+      tape.style.height = `${heightPx}px`;
+      const ink = document.createElement("div");
+      ink.className = "ink";
+      ink.style.backgroundColor = INK_CSS[st.ink] ?? INK_CSS.black;
+      ink.style.maskImage = `url("${url}")`;
+      ink.style.setProperty("-webkit-mask-image", `url("${url}")`);
+      tape.append(ink);
+      item.append(num, tape);
+      if (preview.overflowing.length) {
+        const warn = document.createElement("span");
+        warn.className = "warn";
+        warn.textContent = "⚠";
+        warn.title = t("preview.overflow", { items: preview.overflowing.map((x) => x + 1).join(", ") });
+        item.append(warn);
+      }
+      list.append(item);
+    } catch (e) {
+      msg.textContent = t("preview.error", { error: errorText(e) });
+      return;
+    }
+  }
+  msg.textContent =
+    numbers.length > shown.length
+      ? t("series.limited", { total: numbers.length, shown: shown.length })
+      : t("series.count", { total: numbers.length });
+}
+
 // ---------------------------------------------------------------- files
 
 function updateFileName(): void {
@@ -1061,6 +1147,10 @@ const LLABEL_FILTER = () => [{ name: t("file.filter"), extensions: ["llabel"] }]
 async function openFile(): Promise<void> {
   const path = await open({ multiple: false, filters: LLABEL_FILTER() });
   if (typeof path !== "string") return;
+  await openPath(path);
+}
+
+async function openPath(path: string): Promise<void> {
   try {
     state.label = await api.loadLabel(path);
     state.filePath = path;
@@ -1068,10 +1158,48 @@ async function openFile(): Promise<void> {
     await ensureRects();
     resetHistory();
     renderAll();
+    rememberRecent(path);
     setMessage("");
   } catch (e) {
     setMessage(t("error.prefix", { error: errorText(e) }), true);
   }
+}
+
+// ---------------------------------------------------------------- recent files
+
+const RECENT_KEY = "labellab.recent";
+const RECENT_MAX = 8;
+
+function recentFiles(): string[] {
+  try {
+    const list: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    return Array.isArray(list) ? list.filter((p): p is string => typeof p === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberRecent(path: string): void {
+  const list = [path, ...recentFiles().filter((p) => p !== path)].slice(0, RECENT_MAX);
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+  } catch {
+    // not remembered
+  }
+  renderRecent();
+}
+
+function renderRecent(): void {
+  const select = $<HTMLSelectElement>("recent");
+  const list = recentFiles();
+  select.replaceChildren(new Option(t("toolbar.recent"), ""));
+  for (const path of list) {
+    const option = new Option(path.split(/[\\/]/).pop() ?? path, path);
+    option.title = path;
+    select.add(option);
+  }
+  select.value = "";
+  select.hidden = list.length === 0;
 }
 
 async function saveFile(): Promise<void> {
@@ -1081,6 +1209,7 @@ async function saveFile(): Promise<void> {
     await api.saveLabel(path, state.label);
     state.filePath = path;
     updateFileName();
+    rememberRecent(path);
     setMessage(t("file.saved", { path }));
   } catch (e) {
     setMessage(t("error.prefix", { error: errorText(e) }), true);
@@ -1223,6 +1352,12 @@ function bindUi(): void {
     renderAll();
   });
   $("btn-open").addEventListener("click", openFile);
+  $<HTMLSelectElement>("recent").addEventListener("change", (e) => {
+    const path = (e.target as HTMLSelectElement).value;
+    if (path) void openPath(path);
+  });
+  renderRecent();
+  $("btn-series").addEventListener("click", () => void showSeries());
   $("btn-save").addEventListener("click", saveFile);
   $("btn-undo").addEventListener("click", () => stepHistory(-1));
   $("btn-redo").addEventListener("click", () => stepHistory(1));
@@ -1277,6 +1412,7 @@ function bindUi(): void {
     fillTapeStyles();
     renderAll();
     renderCsv();
+    renderRecent();
     setPrinting(state.printing);
   });
   document.addEventListener("keydown", (e) => {

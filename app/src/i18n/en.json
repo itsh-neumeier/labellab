@@ -177,5 +177,14 @@
   "error.io": "File could not be read or written.",
   "error.unsupported": "Not supported on this system.",
   "error.printer_error": "The printer reports an error (e.g. no tape, cover open, end of tape, low battery).",
-  "error.no_records": "There are no records in the selected range."
+  "error.no_records": "There are no records in the selected range.",
+  "toolbar.recent": "Recent …",
+  "series.open": "View series …",
+  "series.openHint": "Preview of all labels in the series (CSV range or numbering)",
+  "series.title": "All labels in the series",
+  "series.close": "Close",
+  "series.loading": "Drawing … {done}/{total}",
+  "series.count": "{total} labels",
+  "series.limited": "{total} labels – showing the first {shown}.",
+  "series.label": "No. {n}"
 }

@@ -10,6 +10,7 @@
     <header class="toolbar">
       <button id="btn-new" data-i18n="toolbar.new"></button>
       <button id="btn-open" data-i18n="toolbar.open"></button>
+      <select id="recent" aria-label="Zuletzt verwendet"></select>
       <button id="btn-save" data-i18n="toolbar.save"></button>
       <span class="sep"></span>
       <button id="btn-undo" data-i18n="toolbar.undo" data-i18n-title="toolbar.undoHint"></button>
@@ -132,6 +133,7 @@
               <option value="1" data-i18n="preview.raster"></option>
             </select>
           </label>
+          <button id="btn-series" data-i18n="series.open" data-i18n-title="series.openHint" hidden></button>
           <span class="spacer"></span>
           <span class="muted" data-i18n="preview.hint"></span>
         </div>
@@ -170,6 +172,17 @@
         <div class="row end">
           <button id="pair-rescan" type="button" data-i18n="pair.rescan"></button>
           <button value="close" data-i18n="pair.close"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="series-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="series.title"></h2>
+        <p id="series-msg" class="muted hint"></p>
+        <div id="series-list" class="series-list"></div>
+        <div class="row end">
+          <button value="close" data-i18n="series.close"></button>
         </div>
       </form>
     </dialog>

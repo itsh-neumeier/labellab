@@ -107,8 +107,8 @@
 4a. **GUI unter Windows testen:** `LabelLab.exe` aus dem Artefakt „LabelLab-windows-x64-portable“ des
     Workflows „Windows build“ (oder der vom Agenten geschickten ZIP) starten, mit echtem
     Drucker „Status lesen“ und „Drucken“ ausprobieren. Workflow-Lauf auf GitHub prüfen.
-4b. GUI-Ausbau: zuletzt verwendete Labels, Vorschau aller Serien-Labels. (Erledigt:
-    übersetzte Fehlertexte über `CoreError::code()`, Warnung bei abgeschnittenem Text.)
+4b. GUI-Ausbau erledigt (übersetzte Fehlertexte, Überlauf-Warnung, „Zuletzt verwendet“,
+    „Serie ansehen …“). Weitere Wünsche nach Nutzer-Feedback.
 4c. M8 (Release v1.0.0): Versionsnummern, Release-Workflow per Tag `v*` existiert (portable
     `.exe`), Screenshots/Doku für Endnutzer, ggf. Code-Signierung.
 5. **Hardware-Test USB:** Drucker per USB anschließen, `labellab devices` → erscheint er?
@@ -223,6 +223,16 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, GUI: zuletzt verwendete Labels, Serienübersicht
+- PR itsh-neumeier/labellab#3 (M4 + Fehlertexte/Überlauf) nach CI-Grün per Squash gemergt.
+- Werkzeugleiste: Auswahl „Zuletzt verwendet …“ (bis 8 Pfade, `localStorage`
+  `labellab.recent`, beim Öffnen und Speichern aktualisiert; nur sichtbar, wenn nicht leer).
+- „Serie ansehen …“ (nur bei CSV oder Nummerierung): Dialog mit allen Labels der Serie (max.
+  100) in Bandfarbe, gerendert über `render_preview` (gleicher Renderpfad), ⚠ bei Überlauf.
+- Geprüft: Frontend-Build; unter Xvfb Nummernfolge `Nr {{n:03}}` × 5 → Nr 001…005, mit 60 pt
+  orange markierte Box + Hinweis und ⚠ je Label. Nicht automatisiert geprüft: Liste
+  „Zuletzt verwendet“ (nativer Dateidialog unter Xvfb nicht bedienbar).
+
 ### 2026-10-01 – Claude Code, GUI: übersetzte Fehlertexte, Warnung bei abgeschnittenem Text
 - PR itsh-neumeier/labellab#2 (M7) nach CI-Grün per Squash nach `main` gemergt.
 - `ll-core`: `CoreError::code()` liefert stabile Fehlercodes (`timeout`, `no_device`,
