@@ -93,12 +93,12 @@ impl StatusBlock {
         self.raw[19]
     }
 
-    /// Tape color code (offset 24). Not yet mapped to a named color.
+    /// Tape color code (offset 24), see [`crate::media::TAPE_COLORS`].
     pub fn tape_color(&self) -> u8 {
         self.raw[24]
     }
 
-    /// Text/print color code (offset 25). Not yet mapped to a named color.
+    /// Text/print color code (offset 25), see [`crate::media::TEXT_COLORS`].
     pub fn text_color(&self) -> u8 {
         self.raw[25]
     }

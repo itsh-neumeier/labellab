@@ -6,6 +6,7 @@
 
 pub mod command;
 mod error;
+pub mod media;
 pub mod model;
 pub mod packbits;
 pub mod status;

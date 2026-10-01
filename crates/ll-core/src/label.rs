@@ -63,6 +63,19 @@ pub struct Label {
     /// Draw a border around the whole label.
     #[serde(default)]
     pub frame: bool,
+    /// Number of tape strips stacked on top of each other (multi-tape
+    /// label): the design is `strips` x the printable height tall and is
+    /// printed as one strip per slice, top first.
+    #[serde(default = "one_strip", skip_serializing_if = "is_one_strip")]
+    pub strips: u8,
+}
+
+fn one_strip() -> u8 {
+    1
+}
+
+fn is_one_strip(n: &u8) -> bool {
+    *n <= 1
 }
 
 impl Default for Label {
@@ -74,6 +87,7 @@ impl Default for Label {
             padding_mm: 0.0,
             min_length_mm: None,
             frame: false,
+            strips: 1,
         }
     }
 }
@@ -256,19 +270,77 @@ impl FontCache {
     }
 }
 
+/// The surface a label is composed on. For a normal print it is the real
+/// print head with the tape's pin range. Multi-tape labels ([`Label::strips`])
+/// and the high-resolution preview use a virtual head that is exactly the
+/// (stacked, scaled) printable area, offset 0.
+#[derive(Debug, Clone, Copy)]
+struct Canvas {
+    head_pins: u16,
+    offset: u16,
+    pins: u16,
+    /// Resolution multiplier relative to the printer's 180 dpi.
+    scale: u32,
+}
+
+impl Canvas {
+    fn new(label: &Label, model: &ModelInfo, geometry: &TapeGeometry, scale: u32) -> Self {
+        let scale = scale.max(1);
+        let strips = label.strips.max(1) as u32;
+        if strips == 1 && scale == 1 {
+            return Self {
+                head_pins: model.head_pins,
+                offset: geometry.left_offset_pins,
+                pins: geometry.printable_pins,
+                scale,
+            };
+        }
+        let pins = (geometry.printable_pins as u32 * strips * scale).min(u16::MAX as u32) as u16;
+        Self {
+            head_pins: pins,
+            offset: 0,
+            pins,
+            scale,
+        }
+    }
+
+    /// Millimeters to dots at this canvas' resolution.
+    fn mm(&self, mm: f32) -> u32 {
+        mm_to_dots(mm * self.scale as f32)
+    }
+
+    fn signed_mm(&self, mm: f32) -> i32 {
+        let d = self.mm(mm.abs()) as i32;
+        if mm < 0.0 {
+            -d
+        } else {
+            d
+        }
+    }
+
+    fn pt(&self, pt: f32) -> f32 {
+        pt_to_dots(pt) * self.scale as f32
+    }
+
+    /// A box in dots: (x, y, w, h).
+    fn rect(&self, rect: &Rect) -> (i32, i32, u32, u16) {
+        (
+            self.signed_mm(rect.x_mm),
+            self.signed_mm(rect.y_mm),
+            self.mm(rect.w_mm),
+            self.mm(rect.h_mm).min(u16::MAX as u32) as u16,
+        )
+    }
+}
+
 /// Renders one element for the flow layout: full head width, filling the
 /// tape's printable height, natural length.
 fn render_flow_element(
     element: &Element,
-    model: &ModelInfo,
-    geometry: &TapeGeometry,
+    canvas: &Canvas,
     fonts: &mut FontCache,
 ) -> Result<Bitmap, CoreError> {
-    let (head, pins, offset) = (
-        model.head_pins,
-        geometry.printable_pins,
-        geometry.left_offset_pins,
-    );
+    let (head, pins, offset) = (canvas.head_pins, canvas.pins, canvas.offset);
     Ok(match element {
         Element::Text {
             text,
@@ -289,7 +361,7 @@ fn render_flow_element(
             italic,
         } => {
             let font = fonts.face(font, *bold, *italic)?;
-            let size_px = size_pt.map(pt_to_dots);
+            let size_px = size_pt.map(|pt| canvas.pt(pt));
             let width = boxed::text_natural_width(text, font, pins, size_px)?;
             let local = boxed::text_in_box(text, font, width, pins, size_px, *align)?;
             let mut out = Bitmap::new(head, width);
@@ -299,9 +371,14 @@ fn render_flow_element(
         Element::Qr { data } => {
             ll_render::render_qr(data, head, pins, offset, QrErrorCorrection::Medium)?
         }
-        Element::Barcode { symbology, data } => {
-            ll_render::render_barcode(*symbology, data, head, pins, offset)?
-        }
+        Element::Barcode { symbology, data } => ll_render::render_barcode_with_module(
+            *symbology,
+            data,
+            head,
+            pins,
+            offset,
+            ll_render::linear_barcode::MODULE_PX * canvas.scale,
+        )?,
         Element::Image { path, invert } => {
             ll_render::render_image(path, head, pins, offset, *invert)?
         }
@@ -313,6 +390,7 @@ fn render_boxed_element(
     element: &Element,
     w: u32,
     h: u16,
+    canvas: &Canvas,
     fonts: &mut FontCache,
 ) -> Result<Bitmap, CoreError> {
     Ok(match element {
@@ -328,7 +406,7 @@ fn render_boxed_element(
             fonts.face(font, *bold, *italic)?,
             w,
             h,
-            size_pt.map(pt_to_dots),
+            size_pt.map(|pt| canvas.pt(pt)),
             *align,
         )?,
         Element::Qr { data } => boxed::qr_in_box(data, w, h, QrErrorCorrection::Medium)?,
@@ -337,46 +415,24 @@ fn render_boxed_element(
     })
 }
 
-/// A box in print dots: (x, y, w, h).
-fn rect_dots(rect: &Rect) -> (i32, i32, u32, u16) {
-    let signed = |mm: f32| {
-        let d = mm_to_dots(mm.abs()) as i32;
-        if mm < 0.0 {
-            -d
-        } else {
-            d
-        }
-    };
-    (
-        signed(rect.x_mm),
-        signed(rect.y_mm),
-        mm_to_dots(rect.w_mm),
-        mm_to_dots(rect.h_mm).min(u16::MAX as u32) as u16,
-    )
-}
-
-/// The rendered label plus, per element, its resolved box in dots
+/// The rendered label plus, per element, its resolved box in canvas dots
 /// `(x, y, w, h)` (flow elements included).
 struct Composed {
     bitmap: Bitmap,
     boxes: Vec<(i32, i32, u32, u32)>,
 }
 
-fn compose(
-    label: &Label,
-    model: &ModelInfo,
-    geometry: &TapeGeometry,
-) -> Result<Composed, CoreError> {
+fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     let mut fonts = FontCache::default();
     if label.has_text() {
         fonts.default_bytes()?; // fail early with a clear "no font" error
     }
-    let pins = geometry.printable_pins;
-    let gap = mm_to_dots(label.gap_mm);
-    let padding = mm_to_dots(label.padding_mm);
+    let pins = canvas.pins;
+    let gap = canvas.mm(label.gap_mm);
+    let padding = canvas.mm(label.padding_mm);
 
     // Flow pass: elements without a box, one after another.
-    let mut bitmap = Bitmap::new(model.head_pins, 0);
+    let mut bitmap = Bitmap::new(canvas.head_pins, 0);
     let mut boxes: Vec<Option<(i32, i32, u32, u32)>> = vec![None; label.elements.len()];
     bitmap.extend_blank(padding);
     let mut first = true;
@@ -389,14 +445,9 @@ fn compose(
         }
         first = false;
         let start = bitmap.height_dots();
-        // Every flow element renders at `model.head_pins` wide, so this
+        // Every flow element renders at `canvas.head_pins` wide, so this
         // can't mismatch; checked anyway rather than dropping content.
-        if !bitmap.append(&render_flow_element(
-            &item.element,
-            model,
-            geometry,
-            &mut fonts,
-        )?) {
+        if !bitmap.append(&render_flow_element(&item.element, canvas, &mut fonts)?) {
             return Err(CoreError::Template("element width mismatch".into()));
         }
         boxes[i] = Some((start as i32, 0, bitmap.height_dots() - start, pins as u32));
@@ -404,7 +455,7 @@ fn compose(
     bitmap.extend_blank(padding);
 
     let has_boxes = label.elements.iter().any(|i| i.rect.is_some());
-    let min_len = label.min_length_mm.map(mm_to_dots).unwrap_or(0);
+    let min_len = label.min_length_mm.map(|mm| canvas.mm(mm)).unwrap_or(0);
     if !has_boxes {
         // Flow only: center the content in the minimum length.
         let missing = min_len.saturating_sub(bitmap.height_dots());
@@ -418,37 +469,28 @@ fn compose(
         let content_end = label
             .elements
             .iter()
-            .filter_map(|i| i.rect.as_ref().map(rect_dots))
+            .filter_map(|i| i.rect.as_ref().map(|r| canvas.rect(r)))
             .map(|(x, _, w, _)| (x + w as i32).max(0) as u32 + padding)
             .max()
             .unwrap_or(0);
         let length = content_end.max(min_len);
         bitmap.extend_blank(length.saturating_sub(bitmap.height_dots()));
 
-        let clip = geometry.left_offset_pins..geometry.left_offset_pins + pins;
+        let clip = canvas.offset..canvas.offset + pins;
         for (i, item) in label.elements.iter().enumerate() {
             let Some(rect) = &item.rect else { continue };
-            let (x, y, w, h) = rect_dots(rect);
+            let (x, y, w, h) = canvas.rect(rect);
             if w > 0 && h > 0 {
-                let local = render_boxed_element(&item.element, w, h, &mut fonts)?;
-                bitmap.blit(
-                    &local,
-                    geometry.left_offset_pins as i32 + y,
-                    x,
-                    clip.clone(),
-                );
+                let local = render_boxed_element(&item.element, w, h, canvas, &mut fonts)?;
+                bitmap.blit(&local, canvas.offset as i32 + y, x, clip.clone());
             }
             boxes[i] = Some((x, y, w, h as u32));
         }
     }
 
     if label.frame {
-        ll_render::draw_border(
-            &mut bitmap,
-            geometry.left_offset_pins,
-            pins,
-            BORDER_THICKNESS,
-        );
+        let thickness = (BORDER_THICKNESS as u32 * canvas.scale).min(u16::MAX as u32) as u16;
+        ll_render::draw_border(&mut bitmap, canvas.offset, pins, thickness);
     }
     Ok(Composed {
         bitmap,
@@ -456,14 +498,46 @@ fn compose(
     })
 }
 
-/// Renders `label` for `model` with the tape described by `geometry`: the
-/// single bitmap shared by preview and print.
+/// Renders `label` for `model` with the tape described by `geometry`. For
+/// a single-tape label this is exactly the bitmap that gets printed; for
+/// a multi-tape label it is the whole stacked design (see
+/// [`render_label_pages`] for what gets printed).
 pub fn render_label(
     label: &Label,
     model: &ModelInfo,
     geometry: &TapeGeometry,
 ) -> Result<Bitmap, CoreError> {
-    Ok(compose(label, model, geometry)?.bitmap)
+    Ok(compose(label, &Canvas::new(label, model, geometry, 1))?.bitmap)
+}
+
+/// The bitmaps to print for `label`, one per tape strip, top strip first.
+/// A multi-tape label is rendered as one tall design and cut into
+/// horizontal slices of the tape's printable height; each slice lands at
+/// the tape's pin offset on the real print head.
+pub fn render_label_pages(
+    label: &Label,
+    model: &ModelInfo,
+    geometry: &TapeGeometry,
+) -> Result<Vec<Bitmap>, CoreError> {
+    let design = render_label(label, model, geometry)?;
+    let strips = label.strips.max(1);
+    if strips == 1 {
+        return Ok(vec![design]);
+    }
+    let pins = geometry.printable_pins;
+    Ok((0..strips as u16)
+        .map(|k| {
+            let mut page = Bitmap::new(model.head_pins, design.height_dots());
+            for line in 0..design.height_dots() {
+                for p in 0..pins {
+                    if design.pixel(k * pins + p, line) {
+                        page.set_pixel(geometry.left_offset_pins + p, line, true);
+                    }
+                }
+            }
+            page
+        })
+        .collect())
 }
 
 /// Every element's box in mm as rendered — flow elements get the box the
@@ -474,7 +548,7 @@ pub fn resolved_rects(
     model: &ModelInfo,
     geometry: &TapeGeometry,
 ) -> Result<Vec<Rect>, CoreError> {
-    let composed = compose(label, model, geometry)?;
+    let composed = compose(label, &Canvas::new(label, model, geometry, 1))?;
     let mm = |d: i32| {
         let v = dots_to_mm(d.unsigned_abs());
         if d < 0 {
@@ -507,18 +581,35 @@ pub fn geometry_for(model: &ModelInfo, width_mm: u8) -> Result<&TapeGeometry, Co
 }
 
 /// Renders `label` for a `width_mm` tape and encodes the printable area
-/// as PNG (live preview in the GUI, `labellab render`).
+/// (all strips of a multi-tape label) as PNG (`labellab render`).
 pub fn render_label_png(
     label: &Label,
     model: &ModelInfo,
     width_mm: u8,
 ) -> Result<Vec<u8>, CoreError> {
     let geometry = geometry_for(model, width_mm)?;
-    let bitmap = render_label(label, model, geometry)?;
-    Ok(ll_render::png::to_png(
+    let canvas = Canvas::new(label, model, geometry, 1);
+    let bitmap = compose(label, &canvas)?.bitmap;
+    Ok(ll_render::png::to_png(&bitmap, canvas.offset, canvas.pins)?)
+}
+
+/// GUI preview: the printable area (all strips) as a transparent PNG mask
+/// (ink opaque, background clear) at `scale` x the print resolution.
+/// `scale = 1` is the exact print raster; higher values render the same
+/// layout through the same code at finer resolution for a smoother view.
+pub fn render_label_preview(
+    label: &Label,
+    model: &ModelInfo,
+    width_mm: u8,
+    scale: u32,
+) -> Result<Vec<u8>, CoreError> {
+    let geometry = geometry_for(model, width_mm)?;
+    let canvas = Canvas::new(label, model, geometry, scale);
+    let bitmap = compose(label, &canvas)?.bitmap;
+    Ok(ll_render::png::to_png_mask(
         &bitmap,
-        geometry.left_offset_pins,
-        geometry.printable_pins,
+        canvas.offset,
+        canvas.pins,
     )?)
 }
 
@@ -770,6 +861,73 @@ mod tests {
         });
         let bitmap = render_label(&label, model, geometry).unwrap();
         assert!(!ink_lines(&bitmap).is_empty());
+    }
+
+    #[test]
+    fn multi_tape_label_is_printed_as_slices() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let tape_mm = dots_to_mm(geometry.printable_pins as u32);
+        // A bar spanning both strips' full height.
+        let label = Label {
+            strips: 2,
+            elements: vec![Item {
+                element: Element::Barcode {
+                    symbology: Symbology::Code128,
+                    data: "A".into(),
+                },
+                rect: Some(Rect {
+                    x_mm: 0.0,
+                    y_mm: 0.0,
+                    w_mm: 10.0,
+                    h_mm: 2.0 * tape_mm,
+                }),
+            }],
+            ..Label::default()
+        };
+        let design = render_label(&label, model, geometry).unwrap();
+        assert_eq!(design.width_pins(), 2 * geometry.printable_pins);
+
+        let pages = render_label_pages(&label, model, geometry).unwrap();
+        assert_eq!(pages.len(), 2);
+        let line = ink_lines(&pages[0])[0];
+        for page in &pages {
+            assert_eq!(page.width_pins(), model.head_pins);
+            // Every printable pin inked, nothing outside the tape.
+            for pin in 0..model.head_pins {
+                let printable = (geometry.left_offset_pins
+                    ..geometry.left_offset_pins + geometry.printable_pins)
+                    .contains(&pin);
+                assert_eq!(page.pixel(pin, line), printable, "pin {pin}");
+            }
+        }
+        let png = render_label_png(&label, model, 12).unwrap();
+        let img = image::load_from_memory(&png).unwrap();
+        assert_eq!(img.height(), 2 * geometry.printable_pins as u32);
+    }
+
+    #[test]
+    fn hires_preview_scales_the_same_layout() {
+        let model = p710();
+        let label = Label {
+            elements: vec![Item {
+                element: Element::Qr { data: "A".into() },
+                rect: Some(Rect {
+                    x_mm: 2.0,
+                    y_mm: 0.0,
+                    w_mm: 9.0,
+                    h_mm: 9.0,
+                }),
+            }],
+            padding_mm: 1.0,
+            ..Label::default()
+        };
+        let normal =
+            image::load_from_memory(&render_label_preview(&label, model, 12, 1).unwrap()).unwrap();
+        let hires =
+            image::load_from_memory(&render_label_preview(&label, model, 12, 4).unwrap()).unwrap();
+        assert_eq!(hires.height(), 4 * normal.height());
+        assert!((hires.width() as i64 - 4 * normal.width() as i64).abs() <= 4);
     }
 
     #[test]

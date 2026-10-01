@@ -110,12 +110,13 @@ enum Command {
         /// Nur diese Datensätze drucken (1-basiert): `5`, `1-10`, `3-`.
         #[arg(long, requires = "csv")]
         rows: Option<String>,
-        /// Nach dem Druck abschneiden (Nachschnitt).
+        /// Abschneiden (ohne --chain nach jedem Label, mit --chain nur am Ende).
         #[arg(long)]
         cut: bool,
-        /// Vor dem Druck einmal abschneiden (Vorschnitt, entfernt den Vorlauf).
+        /// Fortlaufend drucken: alle Labels (Serie, Kopien, Mehrband-Streifen)
+        /// in einem Auftrag ohne Schnitt dazwischen.
         #[arg(long)]
-        pre_cut: bool,
+        chain: bool,
         #[arg(long, default_value_t = 1)]
         copies: u32,
         #[arg(long)]
@@ -213,7 +214,7 @@ async fn main() -> anyhow::Result<()> {
             csv,
             rows,
             cut,
-            pre_cut,
+            chain,
             copies,
             device,
             bt,
@@ -234,7 +235,7 @@ async fn main() -> anyhow::Result<()> {
                 ll_core::print::PrintOptions {
                     frame,
                     auto_cut: cut,
-                    pre_cut,
+                    chain,
                     margin_dots: margin,
                 },
                 copies,
@@ -510,7 +511,7 @@ fn series_args(csv: Option<String>, rows: Option<&str>) -> anyhow::Result<Option
 
 async fn print(
     content_args: ContentArgs,
-    mut options: ll_core::print::PrintOptions,
+    options: ll_core::print::PrintOptions,
     copies: u32,
     series: Option<Series>,
     connect: ConnectOpts,
@@ -532,22 +533,25 @@ async fn print(
             .collect(),
         None => vec![label],
     };
-    let total = labels.len() as u32 * copies;
-
     let mut transport = device::connect(&connect.into_connection()).await?;
-    let mut done = 0;
-    for label in &labels {
-        for _ in 0..copies {
-            done += 1;
-            if total > 1 {
-                eprintln!("Drucke Label {done}/{total} ...");
+    let mut printed = 0;
+    ll_core::print::print_labels(
+        transport.as_mut(),
+        model,
+        &labels,
+        copies,
+        &options,
+        &mut |done, total| {
+            printed = total;
+            if total > 1 && done > 0 {
+                eprintln!("Label {done}/{total} gesendet");
             }
-            ll_core::print::print_label(transport.as_mut(), model, label, &options).await?;
-            options.pre_cut = false; // only before the first label
-        }
-    }
+        },
+    )
+    .await?;
     transport.close().await?;
 
+    let total = printed;
     println!("Gedruckt: \"{description}\" ({total} Label)");
     Ok(())
 }

@@ -20,7 +20,7 @@ use ll_protocol::{
 use ll_render::{Bitmap, Symbology};
 use ll_transport::Transport;
 
-use crate::label::{geometry_for, render_label, Element, Label};
+use crate::label::{geometry_for, render_label_pages, Element, Label};
 use crate::CoreError;
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
@@ -39,13 +39,20 @@ const DEFAULT_MARGIN_DOTS: u16 = 28;
 pub struct PrintOptions {
     /// Draw a border around the whole label.
     pub frame: bool,
-    /// Cut after printing ("Nachschnitt").
+    /// Auto-cut ("Abschneiden"). Without [`Self::chain`] after every
+    /// label; with it only after the last one.
+    ///
+    /// Observed on a PT-P710BT (2026-10-01): with auto-cut on, the
+    /// printer also cuts off the leader at the start of a job by itself;
+    /// an extra blank "pre-cut" page produced a third cut and was
+    /// removed. TODO(verify): confirm exactly one leading cut.
     pub auto_cut: bool,
-    /// Cut once before printing ("Vorschnitt"), removing the tape leader
-    /// already past the cutter, see [`send_pre_cut`].
-    pub pre_cut: bool,
-    /// Blank feed in dots before the cut. `0` cuts right at the last
-    /// printed dot (see `DEFAULT_MARGIN_DOTS`).
+    /// Chain printing ("fortlaufend"): all labels of a job as pages of one
+    /// print job, no cut in between (`0C` between pages, `1A` after the
+    /// last). TODO(verify): multi-page jobs on real hardware.
+    pub chain: bool,
+    /// Blank feed in dots before the cut / between chained labels. `0`
+    /// cuts right at the last printed dot (see `DEFAULT_MARGIN_DOTS`).
     pub margin_dots: u16,
 }
 
@@ -54,7 +61,7 @@ impl Default for PrintOptions {
         Self {
             frame: false,
             auto_cut: false,
-            pre_cut: false,
+            chain: false,
             margin_dots: DEFAULT_MARGIN_DOTS,
         }
     }
@@ -71,43 +78,89 @@ pub async fn print_label(
     label: &Label,
     options: &PrintOptions,
 ) -> Result<(), CoreError> {
-    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
-    let framed;
-    let label = if options.frame && !label.frame {
-        framed = Label {
-            frame: true,
-            ..label.clone()
-        };
-        &framed
-    } else {
-        label
-    };
-    let bitmap = render_label(label, model, geometry)?;
-    if options.pre_cut {
-        send_pre_cut(transport, model, width_mm, options.margin_dots).await?;
-    }
-    send_bitmap(transport, &bitmap, width_mm, options).await
+    print_labels(
+        transport,
+        model,
+        std::slice::from_ref(label),
+        1,
+        options,
+        &mut |_, _| {},
+    )
+    .await
 }
 
-/// Feeds and cuts once without printing: a one-line blank page with
-/// auto-cut on, sent as its own page before the label.
+/// Prints `labels` (each `copies` times, every strip of a multi-tape
+/// label as its own piece) and reports `progress(done, total)` pages.
 ///
-/// TODO(verify): whether the PT-P710BT accepts two complete pages (each
-/// ending in `1A`) back to back in one session, and whether the blank
-/// page cuts off exactly the leader (hardware test in `docs/PROGRESS.md`).
-async fn send_pre_cut(
+/// Without [`PrintOptions::chain`] every page is its own print job
+/// (invalidate, status check, one page) — the hardware-verified path.
+/// With it, the status is read once and all pages go out as one job, cut
+/// (if enabled) only after the last page.
+pub async fn print_labels(
     transport: &mut dyn Transport,
     model: &ModelInfo,
-    width_mm: u8,
-    margin_dots: u16,
+    labels: &[Label],
+    copies: u32,
+    options: &PrintOptions,
+    progress: &mut (dyn FnMut(u32, u32) + Send),
 ) -> Result<(), CoreError> {
-    let blank = Bitmap::new(model.head_pins, 1);
-    let options = PrintOptions {
-        auto_cut: true,
-        margin_dots,
-        ..PrintOptions::default()
-    };
-    send_bitmap(transport, &blank, width_mm, &options).await
+    let (width_mm, geometry) = read_status_and_geometry(transport, model).await?;
+    let mut pages = Vec::new();
+    for label in labels {
+        let framed;
+        let label = if options.frame && !label.frame {
+            framed = Label {
+                frame: true,
+                ..label.clone()
+            };
+            &framed
+        } else {
+            label
+        };
+        let rendered = render_label_pages(label, model, geometry)?;
+        for _ in 0..copies.max(1) {
+            pages.extend(rendered.iter().cloned());
+        }
+    }
+
+    let total = pages.len() as u32;
+    progress(0, total);
+    for (i, page) in pages.iter().enumerate() {
+        let last = i + 1 == pages.len();
+        if options.chain {
+            let cut = options.auto_cut && last;
+            send_page(
+                transport,
+                page,
+                width_mm,
+                cut,
+                options.margin_dots,
+                i == 0,
+                last,
+            )
+            .await?;
+        } else {
+            if i > 0 {
+                // Fresh job per page, same as a single print.
+                let (w, _) = read_status_and_geometry(transport, model).await?;
+                if w != width_mm {
+                    return Err(ll_protocol::ProtocolError::UnsupportedTapeWidth(w).into());
+                }
+            }
+            send_page(
+                transport,
+                page,
+                width_mm,
+                options.auto_cut,
+                options.margin_dots,
+                true,
+                true,
+            )
+            .await?;
+        }
+        progress(i as u32 + 1, total);
+    }
+    Ok(())
 }
 
 /// Prints a single line of `text`, see [`print_label`].
@@ -192,13 +245,17 @@ async fn read_status_and_geometry<'m>(
     Ok((width_mm, geometry_for(model, width_mm)?))
 }
 
-/// Raster-Modus/Various-Mode/Rand/PrintInformation/Kompression, then the
-/// raster lines (PackBits, blank rows as `Z`), then print-with-feed.
-async fn send_bitmap(
+/// One page: control codes (raster mode, various mode, margin, print
+/// information, compression), the raster lines (PackBits, blank rows as
+/// `Z`), then `1A` (last page) or `0C` (more pages follow in this job).
+async fn send_page(
     transport: &mut dyn Transport,
     bitmap: &Bitmap,
     width_mm: u8,
-    options: &PrintOptions,
+    auto_cut: bool,
+    margin_dots: u16,
+    first: bool,
+    last: bool,
 ) -> Result<(), CoreError> {
     let raster_lines = bitmap.height_dots();
 
@@ -206,17 +263,15 @@ async fn send_bitmap(
         .write_all(&command::switch_to_raster_mode())
         .await?;
     transport
-        .write_all(&command::various_mode(options.auto_cut))
+        .write_all(&command::various_mode(auto_cut))
         .await?;
-    transport
-        .write_all(&command::margin(options.margin_dots))
-        .await?;
+    transport.write_all(&command::margin(margin_dots)).await?;
     transport
         .write_all(
             &PrintInformation {
                 media_width_mm: width_mm,
                 raster_lines,
-                is_first_page: true,
+                is_first_page: first,
             }
             .to_bytes(),
         )
@@ -237,6 +292,10 @@ async fn send_bitmap(
         }
     }
 
+    if !last {
+        transport.write_all(&command::print_page()).await?;
+        return Ok(());
+    }
     transport.write_all(&command::print_with_feed()).await?;
     Ok(())
 }
@@ -372,24 +431,74 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn pre_cut_sends_a_blank_cut_page_first() {
+    async fn chain_prints_one_job_and_cuts_only_after_the_last_page() {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
         let options = PrintOptions {
-            pre_cut: true,
+            chain: true,
+            auto_cut: true,
             ..PrintOptions::default()
         };
-        print_text(&mut transport, p710bt(), "HI", &options)
-            .await
-            .unwrap();
+        let labels = [
+            Label::single(Element::text("A")),
+            Label::single(Element::text("B")),
+        ];
+        let mut seen = Vec::new();
+        print_labels(
+            &mut transport,
+            p710bt(),
+            &labels,
+            2,
+            &options,
+            &mut |d, t| seen.push((d, t)),
+        )
+        .await
+        .unwrap();
 
         let written = transport.written();
-        let pages = written.iter().filter(|&&b| b == 0x1A).count();
-        assert!(pages >= 2, "blank pre-cut page + label");
-        // First page has auto-cut on, the label page (no Nachschnitt) off.
-        let cut_on = find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x40]).unwrap();
-        let cut_off = find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x00]).unwrap();
-        assert!(cut_on < cut_off);
+        // One status request for the whole job.
+        assert_eq!(count(written, &[0x1B, 0x69, 0x53]), 1);
+        // Four pages: auto-cut only on the last one.
+        assert_eq!(count(written, &[0x1B, 0x69, 0x4D, 0x00]), 3);
+        assert_eq!(count(written, &[0x1B, 0x69, 0x4D, 0x40]), 1);
+        assert_eq!(*written.last().unwrap(), 0x1A);
+        // Pages 2-4 are marked as "other page" (n9 = 1).
+        assert_eq!(seen.last(), Some(&(4, 4)));
+    }
+
+    #[tokio::test]
+    async fn without_chain_every_page_is_its_own_job() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+        transport.push_response(status_fixture_9mm_ok());
+        let options = PrintOptions {
+            auto_cut: true,
+            ..PrintOptions::default()
+        };
+        let labels = [
+            Label::single(Element::text("A")),
+            Label::single(Element::text("B")),
+        ];
+        print_labels(
+            &mut transport,
+            p710bt(),
+            &labels,
+            1,
+            &options,
+            &mut |_, _| {},
+        )
+        .await
+        .unwrap();
+        let written = transport.written();
+        assert_eq!(count(written, &[0x1B, 0x69, 0x53]), 2);
+        assert_eq!(count(written, &[0x1B, 0x69, 0x4D, 0x40]), 2);
+    }
+
+    fn count(haystack: &[u8], needle: &[u8]) -> usize {
+        haystack
+            .windows(needle.len())
+            .filter(|w| *w == needle)
+            .count()
     }
 
     #[tokio::test]

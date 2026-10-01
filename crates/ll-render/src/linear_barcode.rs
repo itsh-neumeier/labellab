@@ -15,7 +15,7 @@ use crate::{Bitmap, RenderError};
 
 /// Bar/space width in print dots. TODO(verify): a real scanner test would
 /// confirm whether this is wide enough to read reliably at 180 dpi.
-const MODULE_PX: u32 = 3;
+pub const MODULE_PX: u32 = 3;
 
 /// Which linear barcode symbology to encode with. Serialized in
 /// `.llabel` templates as `"code128"`, `"ean13"`, `"upc_a"`, …
@@ -48,12 +48,33 @@ pub fn render_barcode(
     printable_pins: u16,
     left_offset_pins: u16,
 ) -> Result<Bitmap, RenderError> {
+    render_barcode_with_module(
+        symbology,
+        data,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+        MODULE_PX,
+    )
+}
+
+/// [`render_barcode`] with an explicit bar/space width in dots (the
+/// high-resolution preview scales [`MODULE_PX`] with its resolution).
+pub fn render_barcode_with_module(
+    symbology: Symbology,
+    data: &str,
+    head_pins: u16,
+    printable_pins: u16,
+    left_offset_pins: u16,
+    module_px: u32,
+) -> Result<Bitmap, RenderError> {
     let modules = encode_modules(symbology, data)?;
     Ok(render_modules(
         &modules,
         head_pins,
         printable_pins,
         left_offset_pins,
+        module_px.max(1),
     ))
 }
 
@@ -106,16 +127,17 @@ fn render_modules(
     head_pins: u16,
     printable_pins: u16,
     left_offset_pins: u16,
+    module_px: u32,
 ) -> Bitmap {
-    let total_lines = modules.len() as u32 * MODULE_PX;
+    let total_lines = modules.len() as u32 * module_px;
     let mut bitmap = Bitmap::new(head_pins, total_lines);
 
     for (i, &module) in modules.iter().enumerate() {
         if module == 0 {
             continue;
         }
-        for s in 0..MODULE_PX {
-            let line = i as u32 * MODULE_PX + s;
+        for s in 0..module_px {
+            let line = i as u32 * module_px + s;
             for p in 0..printable_pins {
                 bitmap.set_pixel(left_offset_pins + p, line, true);
             }

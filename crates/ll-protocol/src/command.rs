@@ -53,13 +53,20 @@ impl PrintInformation {
 }
 
 /// `ESC i M n`: Various Mode. Bit 6 = auto-cut (verified position, see
-/// `docs/PROTOCOL.md`); other bits not yet used.
+/// `docs/PROTOCOL.md`); other bits not yet used. Sent per page, so a
+/// multi-page job can cut after selected pages only.
 pub fn various_mode(auto_cut: bool) -> Vec<u8> {
     let mut flags = 0u8;
     if auto_cut {
         flags |= 1 << 6;
     }
     vec![0x1B, 0x69, 0x4D, flags]
+}
+
+/// `0C`: end of a page that is not the last one in the job (no feed).
+/// Source: Raster Command Reference, "Print command" (documented).
+pub fn print_page() -> Vec<u8> {
+    vec![0x0C]
 }
 
 /// `ESC i d n1 n2`: margin/feed amount in print dots (LE16).

@@ -24,6 +24,6 @@ pub use boxed::TextAlign;
 pub use error::RenderError;
 pub use fonts::Face;
 pub use frame::draw_border;
-pub use linear_barcode::{render_barcode, render_code128, Symbology};
+pub use linear_barcode::{render_barcode, render_barcode_with_module, render_code128, Symbology};
 pub use picture::render_image;
 pub use text::{render_text, render_text_with_font};
