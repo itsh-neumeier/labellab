@@ -1074,6 +1074,49 @@ async function saveFile(): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------- Bluetooth pairing
+
+async function scanPairable(): Promise<void> {
+  const list = $("pair-list");
+  const msg = $("pair-msg");
+  list.replaceChildren();
+  msg.textContent = t("pair.searching");
+  try {
+    const found = await api.discoverBluetooth();
+    msg.textContent = found.length ? "" : t("pair.none");
+    for (const d of found) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = d.model ? `${d.name} – ${d.model}` : d.name;
+      const button = makeButton(t("pair.pair"), "", async () => {
+        button.disabled = true;
+        msg.textContent = t("pair.pairing", { name: d.name });
+        try {
+          await api.pairBluetooth(d.id);
+          msg.textContent = t("pair.done", { name: d.name });
+          await refreshDevices();
+        } catch (e) {
+          msg.textContent = t("error.prefix", { error: String(e) });
+          button.disabled = false;
+        }
+      });
+      li.append(label, button);
+      list.append(li);
+    }
+  } catch (e) {
+    msg.textContent = t("error.prefix", { error: String(e) });
+  }
+}
+
+function bindPairing(): void {
+  const dialog = $<HTMLDialogElement>("pair-dialog");
+  $("btn-pair").addEventListener("click", () => {
+    dialog.showModal();
+    void scanPairable();
+  });
+  $("pair-rescan").addEventListener("click", () => void scanPairable());
+}
+
 // ---------------------------------------------------------------- wizard (M7 layouts)
 
 const num = (id: string) => Number($<HTMLInputElement>(id).value) || 0;
@@ -1178,6 +1221,7 @@ function bindUi(): void {
     b.addEventListener("click", () => insertPlaceholder(b.dataset.token!)),
   );
   bindWizard();
+  bindPairing();
   $("btn-csv-clear").addEventListener("click", clearCsvFile);
   $("preview-row").addEventListener("input", schedulePreview);
   for (const id of ["row-from", "row-to"]) $(id).addEventListener("input", updateCsvSummary);

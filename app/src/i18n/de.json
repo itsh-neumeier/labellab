@@ -147,5 +147,15 @@
   "wizard.create": "Erzeugen",
   "wizard.wrapInfo": "Wickelbereich: {wrap} mm (π × Durchmesser).",
   "wizard.panelInfo": "Labellänge: {length} mm.",
-  "data.summaryNumbered": "{count} Labels der Nummernfolge werden gedruckt."
+  "data.summaryNumbered": "{count} Labels der Nummernfolge werden gedruckt.",
+  "pair.open": "Koppeln …",
+  "pair.title": "Bluetooth-Drucker koppeln",
+  "pair.hint": "Drucker einschalten. Gefundene Geräte (Drucker zuerst):",
+  "pair.rescan": "Erneut suchen",
+  "pair.close": "Schließen",
+  "pair.searching": "Suche Geräte …",
+  "pair.none": "Keine koppelbaren Geräte gefunden.",
+  "pair.pair": "Koppeln",
+  "pair.pairing": "Kopple {name} …",
+  "pair.done": "{name} gekoppelt."
 }

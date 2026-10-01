@@ -147,5 +147,15 @@
   "wizard.create": "Create",
   "wizard.wrapInfo": "Wrap section: {wrap} mm (π × diameter).",
   "wizard.panelInfo": "Label length: {length} mm.",
-  "data.summaryNumbered": "{count} labels of the numbered series will be printed."
+  "data.summaryNumbered": "{count} labels of the numbered series will be printed.",
+  "pair.open": "Pair …",
+  "pair.title": "Pair Bluetooth printer",
+  "pair.hint": "Switch the printer on. Devices found (printers first):",
+  "pair.rescan": "Search again",
+  "pair.close": "Close",
+  "pair.searching": "Searching for devices …",
+  "pair.none": "No pairable devices found.",
+  "pair.pair": "Pair",
+  "pair.pairing": "Pairing {name} …",
+  "pair.done": "{name} paired."
 }

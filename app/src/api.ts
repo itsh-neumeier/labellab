@@ -168,3 +168,12 @@ export interface Csv {
 export const loadCsv = (path: string) => invoke<Csv>("load_csv", { path });
 export const clearCsv = () => invoke<void>("clear_csv");
 export const fontFamilies = () => invoke<string[]>("font_families");
+
+export interface Pairable {
+  id: string;
+  name: string;
+  model: string | null;
+}
+
+export const discoverBluetooth = () => invoke<Pairable[]>("discover_bluetooth");
+export const pairBluetooth = (id: string) => invoke<void>("pair_bluetooth", { id });

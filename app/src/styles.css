@@ -179,3 +179,12 @@ dialog#wizard::backdrop { background: rgba(0, 0, 0, 0.35); }
 .wz-group { display: flex; flex-direction: column; gap: 8px; }
 .wz-group[hidden] { display: none; }
 .row.end { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---- pairing dialog ---- */
+dialog#pair-dialog {
+  border: 1px solid var(--border); border-radius: 10px; padding: 0;
+  background: var(--panel); color: var(--text); width: min(460px, 92vw);
+}
+dialog#pair-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.pair-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto; }
+.pair-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

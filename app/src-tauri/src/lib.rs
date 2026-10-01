@@ -155,8 +155,8 @@ async fn list_devices() -> DeviceListDto {
         Err(e) => warnings.push(format!("USB: {e}")),
     }
 
-    #[cfg(windows)]
-    match device::list_bluetooth_devices() {
+    #[cfg(any(windows, target_os = "linux"))]
+    match device::list_bluetooth_devices().await {
         Ok(bt) => devices.extend(bt.into_iter().map(|d| DeviceDto {
             model: device::model_for_device_name(&d.name).map(|m| m.name),
             name: format!("{} (Bluetooth)", d.name),
@@ -331,6 +331,49 @@ async fn font_families() -> Vec<String> {
         .unwrap_or_default()
 }
 
+#[derive(Serialize)]
+struct PairableDto {
+    id: String,
+    name: String,
+    model: Option<&'static str>,
+}
+
+/// Bluetooth devices nearby that can be paired, recognized printers first.
+#[tauri::command]
+async fn discover_bluetooth() -> Result<Vec<PairableDto>, String> {
+    #[cfg(any(windows, target_os = "linux"))]
+    {
+        let mut found: Vec<PairableDto> = device::discover_bluetooth_devices()
+            .await
+            .map_err(err)?
+            .into_iter()
+            .map(|d| PairableDto {
+                model: device::model_for_device_name(&d.name).map(|m| m.name),
+                id: d.id,
+                name: d.name,
+            })
+            .collect();
+        found.sort_by_key(|d| d.model.is_none());
+        Ok(found)
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    Err("Bluetooth pairing is only supported on Windows and Linux".into())
+}
+
+/// Pairs a device found by `discover_bluetooth`.
+#[tauri::command]
+async fn pair_bluetooth(id: String) -> Result<(), String> {
+    #[cfg(any(windows, target_os = "linux"))]
+    {
+        device::pair_bluetooth(&id).await.map_err(err)
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    {
+        let _ = id;
+        Err("Bluetooth pairing is only supported on Windows and Linux".into())
+    }
+}
+
 /// Bundled symbol names for the symbol element.
 #[tauri::command]
 fn symbols() -> Vec<&'static str> {
@@ -381,6 +424,8 @@ pub fn run() {
             font_families,
             symbols,
             generate_layout,
+            discover_bluetooth,
+            pair_bluetooth,
             default_margin_dots,
             load_label,
             save_label,
