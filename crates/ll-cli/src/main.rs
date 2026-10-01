@@ -27,6 +27,100 @@ enum BarcodeType {
     Itf,
 }
 
+/// `clap`-friendly mirror of `ll_render::BorderStyle`.
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum BorderStyleArg {
+    Solid,
+    Dashed,
+    Dotted,
+    Double,
+    Striped,
+}
+
+impl From<BorderStyleArg> for ll_render::BorderStyle {
+    fn from(value: BorderStyleArg) -> Self {
+        match value {
+            BorderStyleArg::Solid => ll_render::BorderStyle::Solid,
+            BorderStyleArg::Dashed => ll_render::BorderStyle::Dashed,
+            BorderStyleArg::Dotted => ll_render::BorderStyle::Dotted,
+            BorderStyleArg::Double => ll_render::BorderStyle::Double,
+            BorderStyleArg::Striped => ll_render::BorderStyle::Striped,
+        }
+    }
+}
+
+/// Styled border options shared by `print` and `render`.
+#[derive(Debug, Clone, clap::Args)]
+struct BorderArgs {
+    /// Rahmen mit Muster: solid, dashed, dotted, double, striped.
+    #[arg(long, value_enum)]
+    border: Option<BorderStyleArg>,
+    /// Rahmenseiten als Buchstaben: o = oben, u = unten, l = links, r = rechts
+    /// (z. B. `o` oder `ou`). Standard: alle.
+    #[arg(long)]
+    border_sides: Option<String>,
+    /// Linienstärke des Rahmens in mm.
+    #[arg(long)]
+    border_width: Option<f32>,
+    /// Strich- bzw. Streifenlänge in mm (dashed/striped).
+    #[arg(long)]
+    border_pattern: Option<f32>,
+    /// Abstand des Rahmens vom Labelrand in mm.
+    #[arg(long)]
+    border_inset: Option<f32>,
+}
+
+impl BorderArgs {
+    /// The border these options describe, `None` if none was given.
+    fn to_border(&self) -> anyhow::Result<Option<ll_core::label::LabelBorder>> {
+        if self.border.is_none()
+            && self.border_sides.is_none()
+            && self.border_width.is_none()
+            && self.border_pattern.is_none()
+            && self.border_inset.is_none()
+        {
+            return Ok(None);
+        }
+        let mut border = ll_core::label::LabelBorder::default();
+        if let Some(style) = self.border {
+            border.style = style.into();
+        }
+        if let Some(sides) = &self.border_sides {
+            border.sides = parse_sides(sides)?;
+        }
+        if let Some(w) = self.border_width {
+            border.width_mm = w;
+        }
+        if let Some(p) = self.border_pattern {
+            border.pattern_mm = p;
+        }
+        if let Some(i) = self.border_inset {
+            border.inset_mm = i;
+        }
+        Ok(Some(border))
+    }
+}
+
+/// Parses `--border-sides` letters (o/u/l/r, also English t/b).
+fn parse_sides(text: &str) -> anyhow::Result<ll_render::BorderSides> {
+    let mut sides = ll_render::BorderSides {
+        top: false,
+        bottom: false,
+        left: false,
+        right: false,
+    };
+    for c in text.chars().filter(|c| !matches!(c, ',' | ' ')) {
+        match c.to_ascii_lowercase() {
+            'o' | 't' => sides.top = true,
+            'u' | 'b' => sides.bottom = true,
+            'l' => sides.left = true,
+            'r' => sides.right = true,
+            other => anyhow::bail!("unbekannte Rahmenseite {other:?} (erlaubt: o, u, l, r)"),
+        }
+    }
+    Ok(sides)
+}
+
 impl From<BarcodeType> for ll_render::Symbology {
     fn from(value: BarcodeType) -> Self {
         match value {
@@ -101,6 +195,8 @@ enum Command {
         /// Rahmen um das ganze Label zeichnen.
         #[arg(long)]
         frame: bool,
+        #[command(flatten)]
+        border_args: BorderArgs,
         /// Leervorschub vor dem Schnitt, in Druckpunkten (180 dpi). `0`
         /// schneidet direkt am letzten bedruckten Punkt.
         #[arg(long, default_value_t = ll_core::print::PrintOptions::default().margin_dots)]
@@ -176,6 +272,8 @@ enum Command {
         /// Rahmen um das ganze Label zeichnen.
         #[arg(long)]
         frame: bool,
+        #[command(flatten)]
+        border_args: BorderArgs,
         /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
         template: Option<String>,
@@ -309,6 +407,7 @@ async fn main() -> anyhow::Result<()> {
             symbol,
             invert,
             frame,
+            border_args,
             margin,
             template,
             csv,
@@ -335,6 +434,7 @@ async fn main() -> anyhow::Result<()> {
                     symbol,
                     invert,
                     template,
+                    border: border_args.to_border()?,
                 },
                 ll_core::print::PrintOptions {
                     frame,
@@ -363,6 +463,7 @@ async fn main() -> anyhow::Result<()> {
             symbol,
             invert,
             frame,
+            border_args,
             template,
             csv,
             row,
@@ -381,6 +482,7 @@ async fn main() -> anyhow::Result<()> {
                 symbol,
                 invert,
                 template,
+                border: border_args.to_border()?,
             },
             frame,
             series_args(
@@ -564,12 +666,24 @@ struct ContentArgs {
     symbol: Option<String>,
     invert: bool,
     template: Option<String>,
+    /// Overrides the template's border if set.
+    border: Option<ll_core::label::LabelBorder>,
 }
 
 impl ContentArgs {
     /// Builds the label to render plus a short description for messages.
     /// `None` if no content was given.
     fn into_label(self) -> anyhow::Result<Option<(Label, String)>> {
+        let border = self.border;
+        Ok(self.into_plain_label()?.map(|(mut label, desc)| {
+            if border.is_some() {
+                label.border = border;
+            }
+            (label, desc)
+        }))
+    }
+
+    fn into_plain_label(self) -> anyhow::Result<Option<(Label, String)>> {
         let single = |element, desc: &str| Some((Label::single(element), desc.to_owned()));
         Ok(
             match (

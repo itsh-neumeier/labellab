@@ -601,13 +601,8 @@ function contentFields(item: Item): HTMLElement[] {
       row.className = "row";
       row.append(field("elements.size", size), field("elements.align", align));
 
-      const font = document.createElement("select");
-      font.add(new Option(t("elements.defaultFont"), ""));
-      const families = item.font && !state.fonts.includes(item.font) ? [item.font, ...state.fonts] : state.fonts;
-      for (const f of families) font.add(new Option(f, f, false, f === item.font));
-      font.value = item.font ?? "";
-      font.addEventListener("change", () => {
-        item.font = font.value || null;
+      const font = fontPicker(item.font ?? null, (family) => {
+        item.font = family;
         changed(true);
       });
       const toggle = (label: string, title: string, key: "bold" | "italic") => {
@@ -772,7 +767,7 @@ function renderLayout(): void {
   const l = state.label;
   $<HTMLInputElement>("padding").value = String(l.padding_mm);
   $<HTMLInputElement>("min-length").value = l.min_length_mm ? String(l.min_length_mm) : "";
-  $<HTMLInputElement>("frame").checked = l.frame;
+  renderBorder();
   $<HTMLSelectElement>("strips").value = String(strips());
   updateStripsHint();
 }
@@ -796,10 +791,227 @@ function bindLayout(): void {
   };
   num("padding", (v) => (state.label.padding_mm = v ?? 0));
   num("min-length", (v) => (state.label.min_length_mm = v && v > 0 ? v : null));
-  $<HTMLInputElement>("frame").addEventListener("change", (e) => {
-    state.label.frame = (e.target as HTMLInputElement).checked;
-    changed(true);
+  bindBorder();
+}
+
+// ---------------------------------------------------------------- border
+
+/** Minimum gap between border and content, mm (`BORDER_CLEARANCE_MM` in `ll-core`). */
+const BORDER_CLEARANCE_MM = 0.3;
+
+/** Default border (matches `ll_core::label::LabelBorder::default`). */
+function defaultBorder(): api.Border {
+  return {
+    style: "solid",
+    width_mm: Math.round((2 / DOTS_PER_MM) * 100) / 100,
+    sides: { top: true, bottom: true, left: true, right: true },
+    pattern_mm: 1.5,
+    inset_mm: 0,
+  };
+}
+
+/** The border in effect: `border`, or the default one for the older `frame` flag. */
+function currentBorder(): api.Border | null {
+  return state.label.border ?? (state.label.frame ? defaultBorder() : null);
+}
+
+function renderBorder(): void {
+  const b = currentBorder();
+  $<HTMLSelectElement>("border-style").value = b?.style ?? "";
+  const d = b ?? defaultBorder();
+  $<HTMLInputElement>("border-width").value = String(d.width_mm);
+  $<HTMLInputElement>("border-pattern").value = String(d.pattern_mm);
+  $<HTMLInputElement>("border-inset").value = String(d.inset_mm);
+  document.querySelectorAll<HTMLInputElement>("[data-side]").forEach((c) => {
+    c.checked = d.sides[c.dataset.side as keyof api.Border["sides"]];
   });
+  document.querySelectorAll<HTMLElement>(".border-opt").forEach((el) => (el.hidden = !b));
+  const patterned = b?.style === "dashed" || b?.style === "striped";
+  document.querySelectorAll<HTMLElement>(".border-pattern").forEach((el) => (el.hidden = !patterned));
+}
+
+/** Space the border takes from each edge, in mm (matches `border_reserve` in `ll-core`). */
+function borderReserveMm(b: api.Border): number {
+  const width = Math.max(0, b.width_mm);
+  return Math.max(0, b.inset_mm) + width + Math.max(width, BORDER_CLEARANCE_MM);
+}
+
+/**
+ * Moves/shrinks boxes so they don't overlap the border on the top, bottom
+ * and left edges (the label end grows by itself). Returns whether a box
+ * changed.
+ */
+function fitBoxesInsideBorder(b: api.Border): boolean {
+  const r = borderReserveMm(b);
+  const top = b.sides.top ? r : 0;
+  const bottom = labelHeightMm() - (b.sides.bottom ? r : 0);
+  const left = b.sides.left ? r : 0;
+  let moved = false;
+  for (const item of state.label.elements) {
+    const rect = item.rect;
+    if (!rect) continue;
+    const y = Math.max(rect.y_mm, top);
+    const end = Math.min(rect.y_mm + rect.h_mm, bottom);
+    const x = Math.max(rect.x_mm, left);
+    if (end - y < 1) continue; // box lies (almost) entirely in the border area: leave it
+    const round = (v: number) => Math.round(v * 100) / 100;
+    const next = { x_mm: round(x), y_mm: round(y), w_mm: rect.w_mm, h_mm: round(end - y) };
+    if (next.x_mm !== rect.x_mm || next.y_mm !== rect.y_mm || next.h_mm !== rect.h_mm) {
+      item.rect = next;
+      moved = true;
+    }
+  }
+  return moved;
+}
+
+function bindBorder(): void {
+  /** Applies `edit` to a copy of the current border and stores it. */
+  const update = (edit: (b: api.Border) => void, rerender = false) => {
+    const b = { ...(currentBorder() ?? defaultBorder()) };
+    b.sides = { ...b.sides };
+    edit(b);
+    state.label.border = b;
+    state.label.frame = false;
+    const moved = fitBoxesInsideBorder(b);
+    if (rerender) renderBorder();
+    changed(rerender || moved);
+  };
+  $<HTMLSelectElement>("border-style").addEventListener("change", (e) => {
+    const style = (e.target as HTMLSelectElement).value as api.BorderStyle | "";
+    if (!style) {
+      state.label.border = null;
+      state.label.frame = false;
+      renderBorder();
+      changed(true);
+      return;
+    }
+    update((b) => (b.style = style), true);
+  });
+  const num = (id: string, min: number, apply: (b: api.Border, v: number) => void) => {
+    $<HTMLInputElement>(id).addEventListener("input", (e) => {
+      const v = Number((e.target as HTMLInputElement).value);
+      if (Number.isFinite(v) && v >= min) update((b) => apply(b, v));
+    });
+  };
+  num("border-width", 0.05, (b, v) => (b.width_mm = v));
+  num("border-pattern", 0.1, (b, v) => (b.pattern_mm = v));
+  num("border-inset", 0, (b, v) => (b.inset_mm = v));
+  document.querySelectorAll<HTMLInputElement>("[data-side]").forEach((c) => {
+    c.addEventListener("change", () =>
+      update((b) => (b.sides[c.dataset.side as keyof api.Border["sides"]] = c.checked), true),
+    );
+  });
+}
+
+// ---------------------------------------------------------------- font picker
+
+/** CSS `font-family` value for a system font family name. */
+function cssFont(family: string): string {
+  return `"${family.replace(/["\\]/g, "")}", system-ui, sans-serif`;
+}
+
+/**
+ * Font dropdown that shows every family in its own font (a native
+ * `<select>` can't style its options reliably in the webviews), with a
+ * search field and keyboard navigation.
+ */
+function fontPicker(current: string | null, onPick: (family: string | null) => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "fontpick-btn";
+  button.textContent = current ?? t("elements.defaultFont");
+  if (current) button.style.fontFamily = cssFont(current);
+  button.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openFontPopup(button, current, onPick);
+  });
+  return button;
+}
+
+function openFontPopup(anchor: HTMLElement, current: string | null, onPick: (family: string | null) => void): void {
+  document.querySelector(".fontpick-pop")?.remove();
+  const pop = document.createElement("div");
+  pop.className = "fontpick-pop";
+  const search = document.createElement("input");
+  search.type = "search";
+  search.placeholder = t("font.search");
+  const list = document.createElement("div");
+  list.className = "fontpick-list";
+  pop.append(search, list);
+
+  const families = current && !state.fonts.includes(current) ? [current, ...state.fonts] : state.fonts;
+  let shown: (string | null)[] = [];
+  let active = 0;
+
+  const close = () => {
+    pop.remove();
+    document.removeEventListener("pointerdown", outside, true);
+  };
+  const pick = (family: string | null) => {
+    close();
+    if (family !== current) onPick(family);
+  };
+  const outside = (e: Event) => {
+    if (!pop.contains(e.target as Node) && e.target !== anchor) close();
+  };
+  const highlight = () => {
+    list.querySelectorAll(".fontpick-item").forEach((el, i) => el.classList.toggle("active", i === active));
+    list.children[active]?.scrollIntoView({ block: "nearest" });
+  };
+  const render = () => {
+    const q = search.value.trim().toLowerCase();
+    shown = [...(q ? [] : [null]), ...families.filter((f) => f.toLowerCase().includes(q))];
+    list.replaceChildren();
+    for (const family of shown) {
+      const item = document.createElement("div");
+      item.className = `fontpick-item${family === current ? " current" : ""}`;
+      if (family) {
+        item.style.fontFamily = cssFont(family);
+        item.textContent = family;
+      } else {
+        item.textContent = t("elements.defaultFont");
+      }
+      item.title = family ?? t("elements.defaultFont");
+      item.addEventListener("click", () => pick(family));
+      list.append(item);
+    }
+    if (!shown.length) {
+      const none = document.createElement("div");
+      none.className = "muted hint";
+      none.textContent = t("font.none");
+      list.append(none);
+    }
+    active = Math.max(0, shown.indexOf(current));
+    if (q) active = 0;
+    highlight();
+  };
+  search.addEventListener("input", render);
+  search.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      active = Math.min(Math.max(0, active + (e.key === "ArrowDown" ? 1 : -1)), shown.length - 1);
+      highlight();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (shown.length) pick(shown[active]);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    }
+  });
+
+  const r = anchor.getBoundingClientRect();
+  const width = Math.max(r.width, 280);
+  pop.style.left = `${Math.min(r.left, window.innerWidth - width - 8)}px`;
+  pop.style.width = `${width}px`;
+  const below = window.innerHeight - r.bottom;
+  if (below < 300 && r.top > below) pop.style.bottom = `${window.innerHeight - r.top + 4}px`;
+  else pop.style.top = `${r.bottom + 4}px`;
+  document.body.append(pop);
+  document.addEventListener("pointerdown", outside, true);
+  render();
+  search.focus();
 }
 
 function renderAll(): void {

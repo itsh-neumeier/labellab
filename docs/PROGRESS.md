@@ -124,6 +124,8 @@
 ## Hardware-Tests offen
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
 
+- [ ] Rahmenstile auf Band: `labellab print "TEST" --border striped --border-sides ou
+  --border-width 1 --bt` (und dashed/dotted/double) — Muster sauber, Streifen nicht verwaschen?
 - [ ] M4: Kopplung unter Windows: Drucker in den Windows-Einstellungen entfernen, dann
   `labellab pair` (bzw. GUI „Koppeln …“) — klappt Custom Pairing mit PIN `0000` oder ohne PIN?
 - [ ] M4: Linux/BlueZ: `labellab pair`, `labellab devices`, `labellab status --bt --device <MAC>`
@@ -223,6 +225,19 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-01 – Claude Code, Rahmenstile und Schriftauswahl (ADR-022)
+- `ll-render`: `draw_border_styled` mit `BorderStyle` (durchgezogen, gestrichelt, gepunktet,
+  doppelt, gestreift), Stärke, Muster, Abstand, frei wählbaren Seiten. `ll-core`:
+  `Label::border` (`LabelBorder`, mm), `effective_border()` (altes `frame` = Standardrahmen),
+  Fluss-Inhalt und Labelende halten Abstand zum Rahmen. CLI `--border*`.
+- App: Bereich „Rahmen“ (ersetzt Checkbox), Boxen werden beim Einstellen nach innen gerückt;
+  Schriftauswahl zeigt jede Schrift in sich selbst, mit Suche und Tastatur.
+- Geprüft: 126 Tests, fmt/clippy (Linux, Windows-Cross-Check, App), Frontend-Build; CLI-PNGs
+  aller Stile, „nur oben“, „oben+unten gestreift“; GUI unter Xvfb (Warnband oben/unten,
+  Schriftsuche „serif“ → FreeSerif in Liste und Vorschau). Seitenleiste: WebKitGTK zeigte
+  einen waagerechten Scrollbalken (Chromium nicht) → `overflow-x: hidden`.
+- Hardware offen: Rahmenmuster auf echtem Band.
+
 ### 2026-10-01 – Claude Code, GUI: zuletzt verwendete Labels, Serienübersicht
 - PR itsh-neumeier/labellab#3 (M4 + Fehlertexte/Überlauf) nach CI-Grün per Squash gemergt.
 - Werkzeugleiste: Auswahl „Zuletzt verwendet …“ (bis 8 Pfade, `localStorage`

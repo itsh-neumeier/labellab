@@ -80,6 +80,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   und Warnung, wenn Text nicht in seine Box passt und abgeschnitten wird
 - Oberfläche: Liste „Zuletzt verwendet“ für Label-Dateien und Übersicht „Serie ansehen …“ mit
   allen Labels einer CSV-/Nummern-Serie
+- Rahmen in mehreren Stilen (durchgezogen, gestrichelt, gepunktet, doppelt, gestreift wie
+  Warnband) mit einstellbarer Linienstärke, Abstand und frei wählbaren Seiten (z. B. nur oben
+  oder oben und unten) — in der Oberfläche und per `labellab … --border …`
+- Schriftauswahl zeigt jede Schrift in ihrem eigenen Schriftbild, mit Suchfeld
 
 ### Behoben
 - `labellab` brach nach dem Zusammenführen mit der Symbolbibliothek beim Start ab
