@@ -4,7 +4,8 @@ use std::ops::RangeInclusive;
 use std::path::Path;
 
 use ll_core::label::{Element, Label};
-use ll_core::series::{self, DataSet};
+use ll_core::layouts::{self, CableFlag, CableWrap, Layout, PatchPanel};
+use ll_core::series::{self, DataSet, Numbering};
 use ll_protocol::status::{StatusBlock, StatusType};
 
 /// Default baud rate for serial/COM-port connections. Virtual Bluetooth-SPP
@@ -113,6 +114,16 @@ enum Command {
         /// Nur diese Datensätze drucken (1-basiert): `5`, `1-10`, `3-`.
         #[arg(long, requires = "csv")]
         rows: Option<String>,
+        /// Nummernfolge ohne CSV: so viele Labels drucken; `{{n}}`, `{{n:03}}`,
+        /// `{{A}}`/`{{a}}` in der Vorlage zählen hoch.
+        #[arg(long, requires = "template", conflicts_with = "csv")]
+        count: Option<usize>,
+        /// Startwert für `{{n}}` (auch mit CSV).
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+        start: i64,
+        /// Schrittweite für `{{n}}`.
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+        step: i64,
         /// Abschneiden (ohne --chain nach jedem Label, mit --chain nur am Ende).
         #[arg(long)]
         cut: bool,
@@ -169,9 +180,15 @@ enum Command {
         /// CSV-Datei: Platzhalter mit Datensatz `--row` füllen.
         #[arg(long, requires = "template")]
         csv: Option<String>,
-        /// Datensatz für die Vorschau (1-basiert).
-        #[arg(long, default_value_t = 1, requires = "csv")]
+        /// Datensatz bzw. Label der Nummernfolge für die Vorschau (1-basiert).
+        #[arg(long, default_value_t = 1)]
         row: usize,
+        /// Startwert für `{{n}}`.
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+        start: i64,
+        /// Schrittweite für `{{n}}`.
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+        step: i64,
         #[arg(short, long)]
         output: String,
         /// Bandbreite in mm (kein Drucker verbunden, daher nicht automatisch
@@ -183,6 +200,72 @@ enum Command {
     },
     /// Mitgelieferte Symbole auflisten (für `print --symbol`/`render --symbol`).
     Symbols,
+    /// Vorlage für Kabel/Netzwerk erzeugen (als `.llabel`, danach mit
+    /// `print --template` drucken oder in der Oberfläche öffnen).
+    Generate {
+        #[command(subcommand)]
+        kind: GenerateKind,
+        /// Zieldatei (`.llabel`).
+        #[arg(short, long, global = true, default_value = "label.llabel")]
+        output: String,
+        /// Bandbreite in mm (bestimmt die Höhe der Felder).
+        #[arg(long, global = true, default_value_t = 12)]
+        width: u8,
+        #[arg(long, global = true, default_value = DEFAULT_MODEL)]
+        model: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum GenerateKind {
+    /// Kabelfahne: Text zweimal, dazwischen der Wickelbereich (π × Durchmesser).
+    CableFlag {
+        text: String,
+        /// Kabeldurchmesser in mm.
+        #[arg(long)]
+        diameter: f32,
+        /// Länge jedes Fahnenendes in mm.
+        #[arg(long, default_value_t = 25.0)]
+        flag: f32,
+    },
+    /// Kabelwickel: Text wiederholt über den ganzen Umfang.
+    CableWrap {
+        text: String,
+        /// Kabeldurchmesser in mm.
+        #[arg(long)]
+        diameter: f32,
+        /// Anzahl Wiederholungen (Standard: etwa alle 15 mm).
+        #[arg(long)]
+        repeats: Option<u32>,
+        /// Text quer zum Band (entlang des Kabels) drehen.
+        #[arg(long)]
+        vertical: bool,
+    },
+    /// Patchpanel/Port-Label: n Felder im festen Raster, nummeriert.
+    PatchPanel {
+        /// Anzahl Ports.
+        #[arg(long, default_value_t = 24)]
+        count: u32,
+        /// Portabstand in mm.
+        #[arg(long)]
+        pitch: f32,
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+        start: i64,
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+        step: i64,
+        /// Text vor jeder Nummer (z. B. "P").
+        #[arg(long, default_value = "")]
+        prefix: String,
+        /// Mit Nullen auf so viele Stellen auffüllen.
+        #[arg(long, default_value_t = 0)]
+        digits: usize,
+        /// Trennstriche zwischen den Feldern.
+        #[arg(long)]
+        separators: bool,
+        /// Rand vor dem ersten und nach dem letzten Feld in mm.
+        #[arg(long, default_value_t = 0.0)]
+        margin: f32,
+    },
 }
 
 #[tokio::main]
@@ -222,6 +305,9 @@ async fn main() -> anyhow::Result<()> {
             template,
             csv,
             rows,
+            count,
+            start,
+            step,
             cut,
             chain,
             copies,
@@ -249,7 +335,7 @@ async fn main() -> anyhow::Result<()> {
                     margin_dots: margin,
                 },
                 copies,
-                series_args(csv, rows.as_deref())?,
+                series_args(csv, rows.as_deref(), count, Numbering { start, step })?,
                 ConnectOpts {
                     device,
                     bt,
@@ -272,6 +358,8 @@ async fn main() -> anyhow::Result<()> {
             template,
             csv,
             row,
+            start,
+            step,
             output,
             width,
             model,
@@ -287,11 +375,26 @@ async fn main() -> anyhow::Result<()> {
                 template,
             },
             frame,
-            series_args(csv, Some(&row.to_string()))?,
+            series_args(
+                csv,
+                Some(&row.to_string()),
+                Some(row),
+                Numbering { start, step },
+            )?
+            .map(|mut s| {
+                s.rows = row..=row;
+                s
+            }),
             output,
             width,
             model,
         ),
+        Command::Generate {
+            kind,
+            output,
+            width,
+            model,
+        } => generate(kind, &output, width, &model),
         Command::Symbols => {
             println!("Mitgelieferte Symbole:");
             for name in ll_render::SYMBOL_NAMES {
@@ -514,8 +617,9 @@ fn find_model(model_name: &str) -> &'static ll_protocol::model::ModelInfo {
 
 /// `--csv`/`--rows`: the data set and the selected record numbers.
 struct Series {
-    data: DataSet,
+    data: Option<DataSet>,
     rows: RangeInclusive<usize>,
+    numbering: Numbering,
 }
 
 /// Parses `5`, `1-10` or `3-` (1-based, inclusive).
@@ -532,8 +636,21 @@ fn parse_rows(spec: &str) -> anyhow::Result<RangeInclusive<usize>> {
     })
 }
 
-fn series_args(csv: Option<String>, rows: Option<&str>) -> anyhow::Result<Option<Series>> {
-    let Some(path) = csv else { return Ok(None) };
+/// `--csv`/`--rows` or `--count` (numbering only) into a [`Series`];
+/// `None` without either.
+fn series_args(
+    csv: Option<String>,
+    rows: Option<&str>,
+    count: Option<usize>,
+    numbering: Numbering,
+) -> anyhow::Result<Option<Series>> {
+    let Some(path) = csv else {
+        return Ok(count.map(|n| Series {
+            data: None,
+            rows: 1..=n.max(1),
+            numbering,
+        }));
+    };
     let data = DataSet::load(Path::new(&path))?;
     let rows = data.select(rows.map(parse_rows).transpose()?);
     if rows.is_empty() {
@@ -542,7 +659,11 @@ fn series_args(csv: Option<String>, rows: Option<&str>) -> anyhow::Result<Option
             data.rows.len()
         );
     }
-    Ok(Some(Series { data, rows }))
+    Ok(Some(Series {
+        data: Some(data),
+        rows,
+        numbering,
+    }))
 }
 
 async fn print(
@@ -565,7 +686,7 @@ async fn print(
         Some(s) => s
             .rows
             .clone()
-            .map(|n| series::apply(&label, &s.data, n))
+            .map(|n| series::apply(&label, s.data.as_ref(), n, s.numbering))
             .collect(),
         None => vec![label],
     };
@@ -621,7 +742,7 @@ fn render(
     }
 
     if let Some(s) = &series {
-        label = series::apply(&label, &s.data, *s.rows.start());
+        label = series::apply(&label, s.data.as_ref(), *s.rows.start(), s.numbering);
     }
     label.frame |= frame;
     let png = ll_core::label::render_label_png(&label, model, width_mm)?;
@@ -654,6 +775,66 @@ fn status_to_json(status: &StatusBlock) -> String {
         "text_color": status.text_color(),
     });
     serde_json::to_string_pretty(&value).unwrap_or_default()
+}
+
+fn generate(
+    kind: GenerateKind,
+    output: &str,
+    width_mm: u8,
+    model_name: &str,
+) -> anyhow::Result<()> {
+    let model = find_model(model_name);
+    let geometry = ll_core::label::geometry_for(model, width_mm)?;
+    let tape_mm = ll_protocol::model::dots_to_mm(geometry.printable_pins as u32);
+    let layout = match kind {
+        GenerateKind::CableFlag {
+            text,
+            diameter,
+            flag,
+        } => Layout::CableFlag(CableFlag {
+            text,
+            diameter_mm: diameter,
+            flag_mm: flag,
+        }),
+        GenerateKind::CableWrap {
+            text,
+            diameter,
+            repeats,
+            vertical,
+        } => Layout::CableWrap(CableWrap {
+            text,
+            diameter_mm: diameter,
+            repeats,
+            vertical,
+        }),
+        GenerateKind::PatchPanel {
+            count,
+            pitch,
+            start,
+            step,
+            prefix,
+            digits,
+            separators,
+            margin,
+        } => Layout::PatchPanel(PatchPanel {
+            count,
+            pitch_mm: pitch,
+            start,
+            step,
+            prefix,
+            digits,
+            separators,
+            margin_mm: margin,
+        }),
+    };
+    let label = layouts::generate(&layout, tape_mm);
+    label.save(Path::new(output))?;
+    println!(
+        "Geschrieben: {output} ({:.1} mm lang, {} Elemente)",
+        label.min_length_mm.unwrap_or_default(),
+        label.elements.len()
+    );
+    Ok(())
 }
 
 #[cfg(test)]

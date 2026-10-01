@@ -99,6 +99,64 @@ impl Bitmap {
         }
     }
 
+    /// Rotates by `quarter_turns` x 90° clockwise as seen in the preview
+    /// (pins = rows top to bottom, lines = columns left to right).
+    pub fn rotated(&self, quarter_turns: u8) -> Bitmap {
+        // Preview coordinates: column c = line, row r = pin.
+        let (w, h) = (self.height_dots, self.width_pins as u32);
+        match quarter_turns % 4 {
+            0 => self.clone(),
+            2 => {
+                let mut out = Bitmap::new(self.width_pins, self.height_dots);
+                for line in 0..w {
+                    for pin in 0..self.width_pins {
+                        if self.pixel(pin, line) {
+                            out.set_pixel(self.width_pins - 1 - pin, w - 1 - line, true);
+                        }
+                    }
+                }
+                out
+            }
+            q => {
+                // 90° cw: (c, r) -> (h-1-r, c); 270° cw: (c, r) -> (r, w-1-c).
+                let mut out = Bitmap::new(w.min(u16::MAX as u32) as u16, h);
+                for line in 0..w {
+                    for pin in 0..self.width_pins {
+                        if !self.pixel(pin, line) {
+                            continue;
+                        }
+                        let (c, r) = (line, pin as u32);
+                        let (nc, nr) = if q == 1 {
+                            (h - 1 - r, c)
+                        } else {
+                            (r, w - 1 - c)
+                        };
+                        out.set_pixel(nr as u16, nc, true);
+                    }
+                }
+                out
+            }
+        }
+    }
+
+    /// Sets every pixel (a filled box).
+    pub fn fill(&mut self) {
+        let full = 0xFFu8;
+        for row in &mut self.rows {
+            row.iter_mut().for_each(|b| *b = full);
+        }
+        // Clear padding bits beyond width_pins in the last byte.
+        let rem = self.width_pins % 8;
+        if rem != 0 {
+            let mask = 0xFFu8 << (8 - rem);
+            for row in &mut self.rows {
+                if let Some(last) = row.last_mut() {
+                    *last &= mask;
+                }
+            }
+        }
+    }
+
     /// Appends `other`'s raster lines after this bitmap's. Both must have
     /// the same `width_pins` (one print head); returns `false` and leaves
     /// `self` unchanged otherwise.
@@ -146,6 +204,29 @@ mod tests {
         assert!(a.pixel(5, 5));
         assert!(!a.pixel(5, 4));
         assert!(!a.append(&Bitmap::new(8, 1)));
+    }
+
+    #[test]
+    fn rotation_maps_corners() {
+        // 3 lines (columns) x 2 pins (rows); ink at column 0, row 0.
+        let mut b = Bitmap::new(2, 3);
+        b.set_pixel(0, 0, true);
+        let r90 = b.rotated(1);
+        assert_eq!((r90.width_pins(), r90.height_dots()), (3, 2));
+        assert!(r90.pixel(0, 1), "top-left goes to top-right");
+        let r180 = b.rotated(2);
+        assert!(r180.pixel(1, 2), "top-left goes to bottom-right");
+        let r270 = b.rotated(3);
+        assert!(r270.pixel(2, 0), "top-left goes to bottom-left");
+        assert_eq!(b.rotated(4), b);
+    }
+
+    #[test]
+    fn fill_sets_only_real_pins() {
+        let mut b = Bitmap::new(10, 2);
+        b.fill();
+        assert!(b.pixel(9, 1));
+        assert_eq!(b.row(0), &[0xFF, 0xC0]);
     }
 
     #[test]

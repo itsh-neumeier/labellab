@@ -1,7 +1,9 @@
 //! Series printing from CSV data (M7, ADR-017).
 //!
 //! A template refers to CSV columns with `{{Column}}` placeholders in text,
-//! QR/barcode data and image paths; `{{#}}` is the 1-based record number.
+//! QR/barcode data and image paths; `{{#}}` is the 1-based record number,
+//! `{{n}}`/`{{n:03}}`/`{{a}}`/`{{A}}` a running number or letter sequence
+//! (start/step from [`Numbering`]), also usable without CSV.
 //! [`apply`] fills them in for one record, producing a plain [`Label`] that
 //! goes through the normal render/print path (preview and print stay on
 //! the same path).
@@ -119,10 +121,96 @@ fn detect_delimiter(header: &str) -> u8 {
         .map_or(b';', |(d, _)| *d)
 }
 
-/// Replaces `{{Name}}` (column name, case-insensitive, surrounding spaces
-/// ignored) and `{{#}}` (record number) in `text`. Unknown placeholders
-/// stay as written so they're visible on the preview.
-pub fn fill(text: &str, headers: &[String], row: &[String], number: usize) -> String {
+/// Running number for `{{n}}` / `{{a}}` / `{{A}}`: label `k` (1-based)
+/// gets `start + (k - 1) * step`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Numbering {
+    pub start: i64,
+    pub step: i64,
+}
+
+impl Default for Numbering {
+    fn default() -> Self {
+        Self { start: 1, step: 1 }
+    }
+}
+
+impl Numbering {
+    /// The number for label `k` (1-based).
+    pub fn value(&self, k: usize) -> i64 {
+        self.start + (k as i64 - 1) * self.step
+    }
+}
+
+/// Everything a placeholder can refer to for one label.
+#[derive(Debug, Clone, Copy)]
+pub struct Record<'a> {
+    pub headers: &'a [String],
+    pub row: &'a [String],
+    /// 1-based position of the label in the series.
+    pub number: usize,
+    pub numbering: Numbering,
+}
+
+/// `1 -> a`, `26 -> z`, `27 -> aa` (spreadsheet-column style); `None`
+/// below 1.
+fn letters(mut n: i64, upper: bool) -> Option<String> {
+    if n < 1 {
+        return None;
+    }
+    let base = if upper { b'A' } else { b'a' };
+    let mut out = Vec::new();
+    while n > 0 {
+        n -= 1;
+        out.push(base + (n % 26) as u8);
+        n /= 26;
+    }
+    out.reverse();
+    String::from_utf8(out).ok()
+}
+
+/// Value of one placeholder `name` (already trimmed), or `None` if
+/// unknown. CSV columns win over the built-in `n`/`a`/`A` names.
+fn resolve(name: &str, rec: &Record<'_>) -> Option<String> {
+    if name == ROW_NUMBER_PLACEHOLDER {
+        return Some(rec.number.to_string());
+    }
+    if let Some(i) = rec
+        .headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case(name))
+    {
+        return Some(rec.row.get(i).cloned().unwrap_or_default());
+    }
+    let value = rec.numbering.value(rec.number);
+    let (key, format) = match name.split_once(':') {
+        Some((k, f)) => (k.trim(), Some(f.trim())),
+        None => (name, None),
+    };
+    match key {
+        "n" => {
+            let width = format
+                .and_then(|f| f.strip_prefix('0').or(Some(f)))
+                .and_then(|w| w.parse::<usize>().ok())
+                .unwrap_or(0);
+            Some(if value < 0 {
+                format!("-{:0width$}", -value, width = width)
+            } else {
+                format!("{value:0width$}")
+            })
+        }
+        "a" => letters(value, false),
+        "A" => letters(value, true),
+        _ => None,
+    }
+}
+
+/// Replaces placeholders in `text`: `{{Column}}` (CSV, case-insensitive,
+/// spaces ignored), `{{#}}` (position in the series), `{{n}}` / `{{n:03}}`
+/// (running number, optionally zero-padded), `{{a}}` / `{{A}}` (letter
+/// sequence a..z, aa..). Unknown placeholders stay as written so they're
+/// visible on the preview.
+pub fn fill(text: &str, rec: &Record<'_>) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(start) = rest.find("{{") {
@@ -131,15 +219,7 @@ pub fn fill(text: &str, headers: &[String], row: &[String], number: usize) -> St
         };
         out.push_str(&rest[..start]);
         let name = rest[start + 2..start + 2 + len].trim();
-        let value = if name == ROW_NUMBER_PLACEHOLDER {
-            Some(number.to_string())
-        } else {
-            headers
-                .iter()
-                .position(|h| h.eq_ignore_ascii_case(name))
-                .map(|i| row.get(i).cloned().unwrap_or_default())
-        };
-        match value {
+        match resolve(name, rec) {
             Some(v) => out.push_str(&v),
             None => out.push_str(&rest[start..start + 2 + len + 2]),
         }
@@ -149,12 +229,28 @@ pub fn fill(text: &str, headers: &[String], row: &[String], number: usize) -> St
     out
 }
 
-/// `label` with every placeholder filled from record `number` (1-based)
-/// of `data`.
-pub fn apply(label: &Label, data: &DataSet, number: usize) -> Label {
-    let empty = Vec::new();
-    let row = data.rows.get(number.wrapping_sub(1)).unwrap_or(&empty);
-    let f = |s: &str| fill(s, &data.headers, row, number);
+/// `label` with every placeholder filled for label `number` (1-based) of
+/// a series: from that CSV record if `data` is given, and the running
+/// number from `numbering`.
+pub fn apply(label: &Label, data: Option<&DataSet>, number: usize, numbering: Numbering) -> Label {
+    let empty: Vec<String> = Vec::new();
+    let (headers, row) = match data {
+        Some(d) => (
+            d.headers.as_slice(),
+            d.rows
+                .get(number.wrapping_sub(1))
+                .unwrap_or(&empty)
+                .as_slice(),
+        ),
+        None => (empty.as_slice(), empty.as_slice()),
+    };
+    let rec = Record {
+        headers,
+        row,
+        number,
+        numbering,
+    };
+    let f = |s: &str| fill(s, &rec);
     let mut out = label.clone();
     for item in &mut out.elements {
         match &mut item.element {
@@ -167,6 +263,7 @@ pub fn apply(label: &Label, data: &DataSet, number: usize) -> Label {
                 }
             }
             Element::Symbol { name, .. } => *name = f(name),
+            Element::Fill => {}
         }
     }
     out
@@ -195,6 +292,7 @@ pub fn placeholders(label: &Label) -> Vec<String> {
             Element::Qr { data } | Element::Barcode { data, .. } => scan(data),
             Element::Image { path, .. } => scan(&path.to_string_lossy()),
             Element::Symbol { name, .. } => scan(name),
+            Element::Fill => {}
         }
     }
     names
@@ -233,16 +331,46 @@ mod tests {
         assert_eq!(d.rows, [["Büro €"]]);
     }
 
+    fn rec<'a>(d: &'a DataSet, k: usize, numbering: Numbering) -> Record<'a> {
+        Record {
+            headers: &d.headers,
+            row: &d.rows[k - 1],
+            number: k,
+            numbering,
+        }
+    }
+
     #[test]
     fn fills_placeholders() {
         let d = data();
         let s = fill(
             "{{name}} / {{ Raum }} #{{#}} {{fehlt}}",
-            &d.headers,
-            &d.rows[1],
-            2,
+            &rec(&d, 2, Numbering::default()),
         );
         assert_eq!(s, "Switch / Keller #2 {{fehlt}}");
+    }
+
+    #[test]
+    fn running_numbers_and_letters() {
+        let d = data();
+        let numbering = Numbering { start: 9, step: 2 };
+        let s = fill("SW-{{n:03}} {{n}} {{A}}{{a}}", &rec(&d, 2, numbering));
+        assert_eq!(s, "SW-011 11 Kk");
+        assert_eq!(letters(26, true).as_deref(), Some("Z"));
+        assert_eq!(letters(27, true).as_deref(), Some("AA"));
+        assert_eq!(letters(0, true), None);
+        let neg = fill("{{n:02}}", &rec(&d, 1, Numbering { start: -3, step: 1 }));
+        assert_eq!(neg, "-03");
+    }
+
+    #[test]
+    fn numbering_without_csv() {
+        let label = Label {
+            elements: vec![Element::text("Port {{n:02}}").into()],
+            ..Label::default()
+        };
+        let out = apply(&label, None, 3, Numbering { start: 1, step: 1 });
+        assert_eq!(out.elements[0].element, Element::text("Port 03"));
     }
 
     #[test]
@@ -257,7 +385,7 @@ mod tests {
             ],
             ..Label::default()
         };
-        let out = apply(&label, &data(), 1);
+        let out = apply(&label, Some(&data()), 1, Numbering::default());
         assert_eq!(out.elements[0].element, Element::text("Server 1"));
         assert_eq!(
             out.elements[1].element,

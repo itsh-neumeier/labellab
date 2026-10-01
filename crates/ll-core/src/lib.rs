@@ -8,6 +8,7 @@
 pub mod device;
 mod error;
 pub mod label;
+pub mod layouts;
 pub mod print;
 pub mod series;
 
