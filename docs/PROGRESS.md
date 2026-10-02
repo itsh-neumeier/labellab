@@ -319,6 +319,10 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Knopf „Code“
+- Nutzerwunsch: Code-Assistent als normaler Hinzufügen-Knopf wie Text/Bild → Beschriftung
+  „Code“ (Tooltip erklärt den Assistenten). Geprüft: Build, GUI unter Xvfb.
+
 ### 2026-10-02 – Claude Code, Code-Assistent, Verteiler-Felder verbinden, Vorlagen-Ziel (ADR-033)
 - „Code-Assistent …“ statt der Knöpfe QR-Code/Barcode: Dialog mit Code-Typ, für QR Inhaltsarten
   (Text, Link, WLAN, vCard, E-Mail, Telefon; `app/src/codes.ts` baut/erkennt den Inhalt),
