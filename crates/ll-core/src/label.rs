@@ -99,10 +99,15 @@ pub struct Label {
     /// Flow layout: blank space between two elements without a box, in mm.
     #[serde(default = "default_gap_mm")]
     pub gap_mm: f32,
-    /// Blank space before the first flow element and after the content's
-    /// end, in mm.
+    /// Blank space after the content's end (right margin), in mm; also
+    /// the start margin unless `padding_start_mm` is set.
     #[serde(default)]
     pub padding_mm: f32,
+    /// Blank space before the content (left margin), in mm; `None` = same
+    /// as `padding_mm`. Boxes keep their positions (the editor shows the
+    /// margin and aligns/snaps to it); flow content starts after it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub padding_start_mm: Option<f32>,
     /// Minimum label length in mm. Flow-only labels are centered in it;
     /// with boxes it's a fixed minimum (boxes keep their positions).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -140,6 +145,7 @@ impl Default for Label {
             elements: Vec::new(),
             gap_mm: default_gap_mm(),
             padding_mm: 0.0,
+            padding_start_mm: None,
             min_length_mm: None,
             frame: false,
             fixed_length: false,
@@ -724,6 +730,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     let pins = canvas.pins;
     let gap = canvas.mm(label.gap_mm);
     let padding = canvas.mm(label.padding_mm);
+    let padding_start = canvas.mm(label.padding_start_mm.unwrap_or(label.padding_mm));
     // Flow content keeps clear of the border on the sides that have one.
     let reserve = label
         .effective_border()
@@ -739,7 +746,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     let mut bitmap = Bitmap::new(canvas.head_pins, 0);
     let mut boxes: Vec<Option<(i32, i32, u32, u32)>> = vec![None; label.elements.len()];
     let mut overflow = vec![false; label.elements.len()];
-    bitmap.extend_blank(padding + reserve.left);
+    bitmap.extend_blank(padding_start + reserve.left);
     let mut first = true;
     for (i, item) in label.elements.iter().enumerate() {
         if item.rect.is_some() {
@@ -1399,6 +1406,28 @@ mod tests {
         label.fixed_length = true;
         let fixed = render_label(&label, model, geometry).unwrap();
         assert_eq!(fixed.height_dots(), mm_to_dots(20.0));
+    }
+
+    #[test]
+    fn start_and_end_margins_frame_flow_content() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let ink = |label: &Label| {
+            let b = render_label(label, model, geometry).unwrap();
+            let lines = ink_lines(&b);
+            (lines[0], b.height_dots() - 1 - lines[lines.len() - 1])
+        };
+        let mut label = Label {
+            elements: vec![Element::Qr { data: "x".into() }.into()],
+            padding_mm: 2.0,
+            ..Label::default()
+        };
+        // The QR code's quiet zone adds the same blank on both runs.
+        let (start2, end2) = ink(&label);
+        label.padding_start_mm = Some(6.0);
+        let (start6, end6) = ink(&label);
+        assert!((start6 - start2).abs_diff(mm_to_dots(4.0)) <= 1);
+        assert_eq!(end6, end2);
     }
 
     #[test]

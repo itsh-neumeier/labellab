@@ -95,6 +95,8 @@
     Text; schnellere Vorschau bei viel Inhalt (Nutzerwunsch 2026-10-02, ADR-028)
   - [x] Einzelne Textteile fett/kursiv (`**fett**`, `__kursiv__`; F/K bzw. Strg+B/I auf die
     Markierung) (Nutzerwunsch 2026-10-02, ADR-029)
+  - [x] Rand links/rechts getrennt einstellbar, in der Vorschau als Zonen, Ausrichten/
+    Einrasten daran, Hinweis bei Elementen im Rand (Nutzerwunsch 2026-10-02)
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
@@ -272,6 +274,16 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Rand links/rechts
+- `Label::padding_start_mm` (fehlt = `padding_mm`); Fluss-Inhalt beginnt nach dem linken
+  Rand, `padding_mm` bleibt rechter Rand. Boxen behalten ihre Position (Format unverändert).
+- App: Felder „Rand links“/„Rand rechts“; schraffierte Zonen an beiden Label-Enden (Ende =
+  gerenderte Länge); Ausrichten links/rechts und Einrasten an den Rändern (rechts nur bei
+  fester Länge); Hinweis „Im Rand: Element …“; Ändern des linken Rands verschiebt alle
+  Boxen mit.
+- Geprüft: Tests (1 neuer), fmt/clippy, Frontend-Build; GUI unter Xvfb (4/3 mm, feste
+  Länge 5 → Hinweis, 50 → kein Hinweis).
+
 ### 2026-10-02 – Claude Code, Wach halten (Keep-alive)
 - Knopf „Wach halten“ in der Geräteleiste (Umschalter, beim Start immer aus): fragt alle
   2 min still den Status ab (`api.queryStatus`), nicht während eines Drucks; Fehler in der
