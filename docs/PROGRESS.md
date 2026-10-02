@@ -104,7 +104,7 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
-| – | – | – | – |
+| M9 Paket 2a: Vorlagen-Galerie + neue Generatoren (Einzelfähnchen, Klemmblock zweireihig, Sicherungskasten) | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
@@ -248,6 +248,12 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Nutzer-Test Windows (Stand `main` nach PR itsh-neumeier/labellab#7)
+- Nutzer meldet: „alle Funktionen funktionieren perfekt“ (Icon-Sets/Symbolauswahl, Formen,
+  Ausrichten/Sperren, `{{datum}}`/`{{zeit}}`, feste Länge, Bildregler, Lineal).
+- Arbeitsweise ab jetzt (Nutzerwunsch): kleine Schritte, nach jedem Schritt Commit + Push und
+  `PROGRESS.md` aktualisieren, damit eine spätere (kostenlose) Session nahtlos weitermacht.
+
 ### 2026-10-02 – Claude Code, M9 Paket 1 – Editor-Grundlagen (ADR-024)
 - Anlass: Nutzer schickte Screenshots des Hersteller-Editors (ODT, nicht im Repo; enthält
   persönliche Daten). Daraus Roadmap M9 (3 Pakete) in „Meilensteine“.
