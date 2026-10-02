@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Vorschau mit dem Mausrad zoomen (um den Mauszeiger, Umschalt+Rad scrollt); Zoom in
+  feineren Stufen (0,5–12)
 - „A4-Druck …“: Blätter der Arbeitsmappe auswählen (mit Anzahl) und auf A4 mit einem
   normalen Drucker drucken – Kopfzeile mit LabelLab-Logo, Graustufen, Farben wie Band /
   eigene Hintergrund- und Schriftfarbe / Schwarz auf Weiß, Schnittlinien, Abstand. Testseite

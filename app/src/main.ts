@@ -427,8 +427,42 @@ function repositionBoxes(): void {
   });
 }
 
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 12;
+const ZOOM_WHEEL_FACTOR = 1.15;
+
+/** Mouse wheel over the preview zooms around the pointer; Shift+wheel scrolls. */
+function bindWheelZoom(): void {
+  const wrap = $("tape-wrap");
+  wrap.addEventListener(
+    "wheel",
+    (e) => {
+      if (e.shiftKey || e.deltaY === 0) return;
+      e.preventDefault();
+      const input = $<HTMLInputElement>("zoom");
+      const before = zoom();
+      const raw = e.deltaY < 0 ? before * ZOOM_WHEEL_FACTOR : before / ZOOM_WHEEL_FACTOR;
+      const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(raw * 4) / 4 || ZOOM_MIN));
+      const step = next === before ? (e.deltaY < 0 ? 0.25 : -0.25) : 0;
+      const target = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next + step));
+      if (target === before) return;
+      // Keep the point under the pointer where it is.
+      const r = wrap.getBoundingClientRect();
+      const px = e.clientX - r.left;
+      const py = e.clientY - r.top;
+      const cx = (wrap.scrollLeft + px) / before;
+      const cy = (wrap.scrollTop + py) / before;
+      input.value = String(target);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      wrap.scrollLeft = cx * target - px;
+      wrap.scrollTop = cy * target - py;
+    },
+    { passive: false },
+  );
+}
+
 function fitZoom(): void {
-  const z = Math.min(10, Math.max(1, Math.round(FIT_TAPE_PX / (labelHeightMm() * DOTS_PER_MM))));
+  const z = Math.min(ZOOM_MAX, Math.max(1, Math.round(FIT_TAPE_PX / (labelHeightMm() * DOTS_PER_MM))));
   $<HTMLInputElement>("zoom").value = String(z);
 }
 
@@ -4131,6 +4165,7 @@ function bindUi(): void {
     tapeChanged();
   });
   $("zoom").addEventListener("input", layoutStage);
+  bindWheelZoom();
   $("tape-style").addEventListener("change", applyTapeStyle);
   $("quality").addEventListener("change", schedulePreview);
   $("strips").addEventListener("change", () => {

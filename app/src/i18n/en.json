@@ -51,7 +51,7 @@
   "file.saved": "Saved: {path}",
   "file.filter": "LabelLab template",
   "file.imageFilter": "Images",
-  "preview.hint": "Drag to move, sides and corners to resize · Alt: no snapping · Arrow keys: 0.5 mm (Shift: 5 mm) · Corner with Shift: keep aspect ratio · Grey: non-printable tape edge",
+  "preview.hint": "Drag to move, sides and corners to resize · Alt: no snapping · Arrow keys: 0.5 mm (Shift: 5 mm) · Corner with Shift: keep aspect ratio · Grey: non-printable tape edge · Mouse wheel: zoom (Shift+wheel: scroll)",
   "elements.duplicate": "Duplicate (Ctrl+D)",
   "elements.lineSpacing": "Line spacing",
   "elements.lineSpacingHint": "Distance between lines as a multiple (1.0 = normal, 0.5–3)",
