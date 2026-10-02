@@ -2,7 +2,10 @@
   "format": "llabel-iconset",
   "version": 1,
   "id": "iec60417",
-  "name": { "de": "IEC 60417 Gerätesymbole", "en": "IEC 60417 equipment symbols" },
+  "name": {
+    "de": "IEC 60417 Gerätesymbole",
+    "en": "IEC 60417 equipment symbols"
+  },
   "description": {
     "de": "Grafische Symbole für Geräte nach IEC 60417 (Strom, Erde, Ein/Aus, Audio/Video, Daten …). Grafiken aus der Wikimedia-Commons-Kategorie „IEC 60417 symbols“, dort als gemeinfrei/CC0 gekennzeichnet; Quelle und Urheber je Symbol in den Icon-Daten. Kategorien automatisch nach Stichworten der Beschreibung.",
     "en": "Graphical symbols for use on equipment per IEC 60417 (power, earth, on/off, audio/video, data …). Artwork from the Wikimedia Commons category \"IEC 60417 symbols\", marked public domain/CC0 there; source and author per symbol in the icon data. Categories assigned automatically from description keywords."
@@ -11,16 +14,83 @@
   "source": "https://commons.wikimedia.org/wiki/Category:IEC_60417_symbols",
   "halftone": "threshold",
   "categories": [
-    { "id": "safety", "name": { "de": "Warnung & Sicherheit", "en": "Warning & safety" } },
-    { "id": "medical", "name": { "de": "Medizin", "en": "Medical" } },
-    { "id": "power", "name": { "de": "Ein/Aus & Bereitschaft", "en": "On/off & standby" } },
-    { "id": "electrical", "name": { "de": "Elektrik & Energie", "en": "Electrical & power supply" } },
-    { "id": "audio_video", "name": { "de": "Audio & Video", "en": "Audio & video" } },
-    { "id": "data", "name": { "de": "Daten & Kommunikation", "en": "Data & communication" } },
-    { "id": "temperature", "name": { "de": "Temperatur, Luft & Wasser", "en": "Temperature, air & water" } },
-    { "id": "light", "name": { "de": "Licht", "en": "Light" } },
-    { "id": "controls", "name": { "de": "Bedienung & Einstellung", "en": "Controls & settings" } },
-    { "id": "other", "name": { "de": "Sonstige", "en": "Other" } }
+    {
+      "id": "safety",
+      "name": {
+        "de": "Warnung & Sicherheit",
+        "en": "Warning & safety"
+      }
+    },
+    {
+      "id": "medical",
+      "name": {
+        "de": "Medizin",
+        "en": "Medical"
+      }
+    },
+    {
+      "id": "power",
+      "name": {
+        "de": "Ein/Aus & Bereitschaft",
+        "en": "On/off & standby"
+      }
+    },
+    {
+      "id": "electrical",
+      "name": {
+        "de": "Elektrik & Energie",
+        "en": "Electrical & power supply"
+      }
+    },
+    {
+      "id": "audio_video",
+      "name": {
+        "de": "Audio & Video",
+        "en": "Audio & video"
+      }
+    },
+    {
+      "id": "data",
+      "name": {
+        "de": "Daten & Kommunikation",
+        "en": "Data & communication"
+      }
+    },
+    {
+      "id": "household",
+      "name": {
+        "de": "Haushalt & Reinigung",
+        "en": "Household & cleaning"
+      }
+    },
+    {
+      "id": "temperature",
+      "name": {
+        "de": "Temperatur, Luft & Wasser",
+        "en": "Temperature, air & water"
+      }
+    },
+    {
+      "id": "light",
+      "name": {
+        "de": "Licht",
+        "en": "Light"
+      }
+    },
+    {
+      "id": "controls",
+      "name": {
+        "de": "Bedienung & Einstellung",
+        "en": "Controls & settings"
+      }
+    },
+    {
+      "id": "other",
+      "name": {
+        "de": "Sonstige",
+        "en": "Other"
+      }
+    }
   ],
   "icons": []
 }
