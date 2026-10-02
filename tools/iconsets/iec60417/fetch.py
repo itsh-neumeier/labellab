@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fetches all SVGs of the Wikimedia Commons category "IEC 60417 symbols"
-(all pages) and writes a manifest for
+(all pages), plus files named "IEC 60417 - Ref-No …" that are missing from
+the category (e.g. 5007 "On"), and writes a manifest for
 `cargo run -p ll-render --example build_iconset`.
 
 Only files that Commons marks as public domain (or CC0) are taken; the
@@ -22,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import commons  # noqa: E402
 
 CATEGORY = "IEC 60417 symbols"
+FILE_PREFIX = "IEC 60417 - Ref-No"
 
 # Topic -> keywords, matched as whole words in the lower-case description
 # (`word*` = prefix). First topic that matches wins: specific before general.
@@ -125,9 +127,10 @@ def title(meta: dict, code: str) -> str:
 
 def main() -> None:
     work, mirror = commons.parse_args(sys.argv[1:])
-    files = commons.cached(work / "files.json", lambda: commons.category_files(CATEGORY))
+    files = commons.cached(work / "files.json", lambda: sorted(
+        set(commons.category_files(CATEGORY)) | set(commons.prefix_files(FILE_PREFIX))))
     files = [f for f in files if f.lower().endswith(".svg")]
-    print(f"{len(files)} SVG files in category", file=sys.stderr)
+    print(f"{len(files)} SVG files in category or with prefix", file=sys.stderr)
     info = commons.cached(work / "commons.json", lambda: commons.file_info(files))
     mirrored = commons.mirror_index(mirror)
 

@@ -5,7 +5,8 @@ ADR-023).
 
 - Quelle: alle SVG-Dateien der Wikimedia-Commons-Kategorie
   [IEC 60417 symbols](https://commons.wikimedia.org/wiki/Category:IEC_60417_symbols) (alle
-  Seiten der Kategorie, über die Commons-API).
+  Seiten der Kategorie, über die Commons-API) und zusätzlich alle Dateien „IEC 60417 - Ref-No …“,
+  die in der Kategorie fehlen (z. B. 5007 „Ein“).
 - Lizenz: nur Dateien, die Commons als gemeinfrei oder CC0 kennzeichnet; Lizenz, Urheber und
   Commons-Seite je Symbol im Icon-Set. Die ISO/IEC-Datenbank (OBP) wird **nicht** als Quelle
   genutzt: deren Inhalte sind urheberrechtlich geschützt und nicht frei lizenziert.

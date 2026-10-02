@@ -60,6 +60,19 @@ def category_files(category: str) -> list[str]:
         time.sleep(2)
 
 
+def prefix_files(prefix: str) -> list[str]:
+    """All file names on Commons starting with `prefix` (any category)."""
+    files, cont = [], {}
+    while True:
+        data = api({"action": "query", "list": "allimages", "aiprefix": prefix.replace(" ", "_"),
+                    "ailimit": "500", **cont})
+        files += [i["name"].replace("_", " ") for i in data["query"]["allimages"]]
+        if "continue" not in data:
+            return files
+        cont = {"aicontinue": data["continue"]["aicontinue"]}
+        time.sleep(2)
+
+
 def file_info(files: list[str]) -> dict:
     """File name -> {url, sha1, page, license, artist, description}."""
     info = {}
