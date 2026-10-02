@@ -228,6 +228,9 @@ pub struct Item {
     /// `None` = middle.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub valign: Option<VAlign>,
+    /// Hidden in the editor's layer list: not rendered or printed.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
 }
 
 fn is_zero(v: &u16) -> bool {
@@ -243,6 +246,7 @@ impl From<Element> for Item {
             locked: false,
             halign: None,
             valign: None,
+            hidden: false,
         }
     }
 }
@@ -813,7 +817,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     bitmap.extend_blank(padding_start + reserve.left);
     let mut first = true;
     for (i, item) in label.elements.iter().enumerate() {
-        if item.rect.is_some() {
+        if item.rect.is_some() || item.hidden {
             continue;
         }
         if !first {
@@ -865,6 +869,10 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
         let clip = canvas.offset..canvas.offset + pins;
         for (i, item) in label.elements.iter().enumerate() {
             let Some(rect) = &item.rect else { continue };
+            if item.hidden {
+                boxes[i] = Some(canvas.rect(rect)).map(|(x, y, w, h)| (x, y, w, h as u32));
+                continue;
+            }
             let (x, y, w, h) = canvas.rect(rect);
             if w > 0 && h > 0 {
                 let turns = ((item.rotation / 90) % 4) as u8;
@@ -1119,6 +1127,7 @@ mod tests {
                     locked: false,
                     halign: None,
                     valign: None,
+                    hidden: false,
                 },
                 Element::Qr {
                     data: "https://example.org".into(),
@@ -1246,6 +1255,7 @@ mod tests {
                 locked: false,
                 halign: None,
                 valign: None,
+                hidden: false,
             }],
             ..Label::default()
         };
@@ -1286,6 +1296,7 @@ mod tests {
                 locked: false,
                 halign: None,
                 valign: None,
+                hidden: false,
             }],
             ..Label::default()
         };
@@ -1373,6 +1384,7 @@ mod tests {
                 locked: false,
                 halign: None,
                 valign: None,
+                hidden: false,
             }],
             ..Label::default()
         };
@@ -1413,6 +1425,7 @@ mod tests {
                 locked: false,
                 halign: None,
                 valign: None,
+                hidden: false,
             }],
             padding_mm: 1.0,
             ..Label::default()
@@ -1499,6 +1512,7 @@ mod tests {
             locked: false,
             halign: None,
             valign: None,
+            hidden: false,
         };
         let mut label = Label {
             elements: vec![bar(0.0), bar(40.0)],
@@ -1565,6 +1579,26 @@ mod tests {
     }
 
     #[test]
+    fn hidden_elements_are_not_rendered() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let mut bar: Item = Element::Fill.into();
+        bar.rect = Some(Rect {
+            x_mm: 1.0,
+            y_mm: 0.0,
+            w_mm: 10.0,
+            h_mm: 5.0,
+        });
+        let mut label = Label {
+            elements: vec![bar],
+            ..Label::default()
+        };
+        assert!(!ink_lines(&render_label(&label, model, geometry).unwrap()).is_empty());
+        label.elements[0].hidden = true;
+        assert!(ink_lines(&render_label(&label, model, geometry).unwrap()).is_empty());
+    }
+
+    #[test]
     fn shapes_render_in_boxes_and_flow() {
         let model = p710();
         let geometry = geometry_for(model, 12).unwrap();
@@ -1605,6 +1639,7 @@ mod tests {
             locked: false,
             halign: None,
             valign: None,
+            hidden: false,
         };
         let label = Label {
             elements: vec![boxed(None), boxed(Some(30.0))],
@@ -1633,6 +1668,7 @@ mod tests {
             locked: false,
             halign: None,
             valign: None,
+            hidden: false,
         };
         for rotation in [0, 90, 180, 270] {
             let label = Label {
@@ -1686,6 +1722,7 @@ mod tests {
                 locked: false,
                 halign: None,
                 valign: None,
+                hidden: false,
             }],
             ..Label::default()
         };

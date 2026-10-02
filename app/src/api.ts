@@ -60,6 +60,8 @@ export type Item = Element & {
   locked?: boolean;
   halign?: TextAlign | null;
   valign?: VAlign | null;
+  /** Not rendered or printed (layer list eye). */
+  hidden?: boolean;
 };
 
 /** Running number for `{{n}}`/`{{a}}`/`{{A}}`. */

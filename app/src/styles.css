@@ -54,6 +54,22 @@ main { flex: 1; display: flex; min-height: 0; }
   width: 340px; overflow-y: auto; overflow-x: hidden; padding: 12px;
   background: var(--panel); border-right: 1px solid var(--border);
 }
+/* Right panel: properties of the selected element. */
+.props { width: 320px; border-right: 0; border-left: 1px solid var(--border); flex: none; }
+.props .element { border: 0; padding: 0; }
+/* Left: layer list. */
+.layer {
+  display: flex; align-items: center; gap: 3px; padding: 4px 6px; border: 1px solid var(--border);
+  border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.layer.selected { border-color: var(--accent); background: rgba(31, 111, 235, 0.08); }
+.layer.is-hidden .layer-name { opacity: 0.45; }
+.layer-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.layer-name small { color: var(--muted); font-size: 11px; }
+.layer-caption { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.layer button { padding: 0 6px; flex: none; }
+.layer button.on { background: rgba(31, 111, 235, 0.15); }
+.box.is-hidden { opacity: 0.35; outline-style: dotted; }
 .panel h2 { font-size: 13px; text-transform: uppercase; color: var(--muted); margin: 8px 0; }
 /* Collapsible sidebar sections (title click). */
 .side-section > h2 { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; }
@@ -61,7 +77,7 @@ main { flex: 1; display: flex; min-height: 0; }
 .side-section.collapsed > h2::before { content: "▸"; }
 .side-section.collapsed > .side-body { display: none; }
 .side-section { border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-.elements { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 8px; }
+.elements { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 4px; }
 .element { border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .element header { display: flex; align-items: center; gap: 4px; }
 .element header strong { flex: 1; }
@@ -437,3 +453,4 @@ dialog#image-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 #paste-catcher { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .align-row button.on { background: rgba(31, 111, 235, 0.15); border-color: var(--accent); }
 .toolbar button, .devicebar button { white-space: nowrap; }
+.props .element.selected { border: 0; outline: none; box-shadow: none; background: none; }

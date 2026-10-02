@@ -136,6 +136,7 @@ fn text_item(text: &str, rect: Rect, rotation: u16) -> Item {
         locked: false,
         halign: None,
         valign: None,
+        hidden: false,
     }
 }
 
@@ -224,6 +225,7 @@ fn fill_item(rect: Rect) -> Item {
         locked: false,
         halign: None,
         valign: None,
+        hidden: false,
     }
 }
 
