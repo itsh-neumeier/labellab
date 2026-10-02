@@ -112,9 +112,11 @@
   - [x] USB unter Windows: Fehler „incompatible driver is installed“ (Nutzer 2026-10-02) —
     neuer Transport `ll_transport::usbprint` über die Geräteschnittstelle des
     Windows-Druckertreibers, `nusb` nur noch Rückfall (Hardware-Test offen)
-  - [ ] Schnittoptionen wie im Hersteller-Editor (Auto-Schnitt, Halbschnitt, Kettendruck,
-    Schnitt am Ende, spezielles Band) – Nutzerwunsch 2026-10-02; Halbschnitt am PT-P710BT
-    unverifiziert
+  - [ ] Schnittoptionen wie im Hersteller-Editor (Nutzerwunsch 2026-10-02, Hilfe-Seite
+    „Schnittoptionen“ gelesen): Auswahl statt Häkchen – jedes Etikett schneiden / Schnitt am
+    Ende / Kettendruck (kein Vorschub nach dem letzten) / kein Schnitt (Spezialband) /
+    Schnittmarken drucken / alle N Etiketten schneiden (per Seiten-Schnittflag im Kettenauftrag,
+    TODO(verify)) / Spiegeldruck. Halbschnitt am PT-P710BT unverifiziert → erst Hardware-Test.
   - [ ] Daten (CSV): Beispieldatei erzeugen und speichern lassen (Nutzerwunsch 2026-10-02)
   - [x] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
     an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
