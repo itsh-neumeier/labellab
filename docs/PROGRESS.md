@@ -248,6 +248,16 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, M9 Paket 2a (Teil 1) – neue Generatoren
+- `ll_core::layouts`: `SingleFlag` (Einzelfähnchen: Wickelbereich + ein Fähnchen),
+  `TerminalBlock` (Klemmblock/LSA, 1–2 Reihen, zweireihig unten 2i, oben 2i+1 wie im Vorbild),
+  `FuseBox` (Sicherungskasten/Verteiler: Modulfelder, Text senkrecht 270° = von unten nach oben,
+  optional Hauptschalter-Feld links/rechts). CLI `generate single-flag|terminal-block|fuse-box`.
+- Geprüft: Tests (je ein Test pro Generator), CLI-Renders (Klemmblock 6×2 auf 24 mm, Verteiler
+  mit HAUPT + F1–F6 auf 12 mm).
+- Nächster Schritt (2a Teil 2): GUI – „Assistent …“ zur Vorlagen-Galerie mit Kategorien und
+  Live-Vorschau ausbauen, neue Generatoren dort anbieten.
+
 ### 2026-10-02 – Nutzer-Test Windows (Stand `main` nach PR itsh-neumeier/labellab#7)
 - Nutzer meldet: „alle Funktionen funktionieren perfekt“ (Icon-Sets/Symbolauswahl, Formen,
   Ausrichten/Sperren, `{{datum}}`/`{{zeit}}`, feste Länge, Bildregler, Lineal).
