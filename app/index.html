@@ -238,6 +238,7 @@
       </label>
       <span id="message" class="message"></span>
       <span class="spacer"></span>
+      <button id="btn-a4" data-i18n="a4.open" data-i18n-title="a4.openHint"></button>
       <button id="btn-feed-cut" data-i18n="print.feedCut" data-i18n-title="print.feedCutHint"></button>
       <button id="btn-print" class="primary" data-i18n="print.print"></button>
     </footer>
@@ -514,6 +515,54 @@
         </div>
       </form>
     </dialog>
+
+    <dialog id="a4-dialog">
+      <form method="dialog" class="wizard a4-dialog">
+        <h2 data-i18n="a4.title"></h2>
+        <div class="a4-cols">
+          <div class="a4-settings">
+            <h3 data-i18n="a4.sheets"></h3>
+            <div id="a4-sheets" class="a4-sheets"></div>
+            <h3 data-i18n="a4.look"></h3>
+            <label class="check"><input id="a4-header" type="checkbox" checked /> <span data-i18n="a4.header"></span></label>
+            <label class="check"><input id="a4-gray" type="checkbox" /> <span data-i18n="a4.gray"></span></label>
+            <label class="check"><input id="a4-outline" type="checkbox" checked /> <span data-i18n="a4.outline"></span></label>
+            <label><span data-i18n="a4.colors"></span>
+              <select id="a4-colors">
+                <option value="tape" data-i18n="a4.colorsTape"></option>
+                <option value="custom" data-i18n="a4.colorsCustom"></option>
+                <option value="plain" data-i18n="a4.colorsPlain"></option>
+              </select>
+            </label>
+            <div id="a4-custom" class="row" hidden>
+              <label class="inline"><span data-i18n="a4.background"></span><input id="a4-bg" type="color" value="#fff200" /></label>
+              <label class="inline"><span data-i18n="a4.ink"></span><input id="a4-ink" type="color" value="#000000" /></label>
+            </div>
+            <label><span data-i18n="a4.gap"></span><input id="a4-gap" type="number" min="0" step="0.5" value="3" /></label>
+            <h3 data-i18n="a4.calibration"></h3>
+            <p class="muted hint" data-i18n="a4.calibrationHint"></p>
+            <label><span data-i18n="a4.scaleX"></span><input id="a4-sx" type="number" min="50" max="150" step="0.1" value="100" /></label>
+            <label><span data-i18n="a4.scaleY"></span><input id="a4-sy" type="number" min="50" max="150" step="0.1" value="100" /></label>
+            <label><span data-i18n="a4.measuredX"></span><input id="a4-mx" type="number" min="50" max="150" step="0.5" data-i18n-placeholder="a4.measuredPlaceholder" /></label>
+            <label><span data-i18n="a4.measuredY"></span><input id="a4-my" type="number" min="50" max="150" step="0.5" data-i18n-placeholder="a4.measuredPlaceholder" /></label>
+            <div class="row">
+              <button type="button" id="a4-test" data-i18n="a4.test"></button>
+              <button type="button" id="a4-apply-measure" data-i18n="a4.applyMeasure"></button>
+            </div>
+          </div>
+          <div class="a4-preview-wrap">
+            <div id="a4-preview" class="a4-preview"></div>
+            <p id="a4-info" class="muted hint"></p>
+          </div>
+        </div>
+        <div class="row end">
+          <button value="cancel" data-i18n="wizard.cancel"></button>
+          <button id="a4-print-btn" value="print" class="primary" data-i18n="a4.print"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="a4-print"></div>
 
     <dialog id="wizard">
       <form method="dialog" class="wizard">

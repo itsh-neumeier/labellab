@@ -59,6 +59,9 @@ Editor
   Rechts: Eigenschaften des gewaehlten Elements.
 - Speichern: "Speichern" (Strg+S) schreibt in die offene Datei, "Speichern unter ..."
   waehlt eine neue. "Auto-Speichern" speichert danach jede Aenderung automatisch.
+- "A4-Druck ..." (unten neben "Schnitt"): Blaetter waehlen und auf normalem Drucker auf A4
+  drucken. Zuerst "Testseite drucken", die 100-mm-Linien nachmessen, Werte eintragen und
+  "Messwerte uebernehmen". Im Druckdialog "Tatsaechliche Groesse"/100 % waehlen.
 - Einstellungen: liegen verschluesselt in "LabelLab.settings" neben LabelLab.exe, eigene
   Rahmen, Icon-Sets, Verlauf usw. im Ordner "llappdata" daneben. Zum Umziehen auf einen
   anderen PC einfach den ganzen Ordner kopieren. Wird die Datei veraendert, startet

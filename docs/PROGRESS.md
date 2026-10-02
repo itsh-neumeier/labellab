@@ -206,6 +206,9 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- **A4-Druck unter Windows (2026-10-02):** „A4-Druck …“ → „Testseite drucken“ auf einem
+  normalen Drucker mit „Tatsächliche Größe“: Sind die Lineale 100 mm? (Unter Linux/WebKitGTK
+  94 %.) Danach Labels auf A4 drucken und nachmessen.
 - **Knopf „✂ Schnitt“ (2026-10-02):** nach „Kein Schnitt“ drücken → Band wird vorgeschoben
   und genau einmal geschnitten? Wie viel leeres Band kommt heraus?
 - **Kein Schnitt (2026-10-02):** Schnitt „Kein Schnitt“ und „Kettendruck ohne Schnitt“
@@ -339,9 +342,11 @@
   gemerkt: Drucker, Modell, Band, Mehrband, Kopien, Nachlauf, Schnittmarken, Spiegeln, Zoom,
   Qualität. Geprüft: Tests, fmt/clippy, Build; GUI unter Xvfb (Neustart behält Werte, Datei
   binär).
-- Als Nächstes (Nutzerwunsch, in Arbeit): A4-Druck ausgewählter Blätter auf normalem
-  Drucker mit Testseite/Korrekturwert, Kopf mit Logo, Farben; danach Mittelstrich
-  Kabelfahne, Patchfeld als Element.
+- A4-Druck (ADR-037): `app/src/a4print.ts`, Dialog „A4-Druck …“ (Blätter + Anzahl, Kopf mit
+  Logo, Graustufen, Farben, Schnittlinie, Abstand, Korrektur X/Y, Testseite, Messwerte →
+  Korrektur). Geprüft unter Xvfb: Vorschau, „In Datei drucken“ (PDF: A4, 1 bzw. 3 Seiten,
+  Lineale 94 % unter WebKitGTK → Korrektur nötig). Hardware-Test Windows offen.
+- Danach: Mittelstrich Kabelfahne, Patchfeld als Element.
 
 ### 2026-10-02 – Claude Code, Verteilerbeschriftung: mehrzeilig, Ausrichtung; Reihenklemmen, LSA-Leiste
 - Nutzerwünsche: Feldtexte mehrzeilig mit fett/kursiv für Teile, Zeilenabstand, Ausrichtung

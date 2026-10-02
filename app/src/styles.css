@@ -538,3 +538,42 @@ dialog#frame-editor { width: min(980px, 94vw); max-width: 94vw; }
 #fe-canvas { display: block; cursor: crosshair; image-rendering: pixelated; box-shadow: 0 0 0 1px var(--border); touch-action: none; }
 #fe-svg { font-family: ui-monospace, monospace; font-size: 11px; -webkit-user-select: text; user-select: text; width: 100%; }
 .wizard label.wz-target select { max-width: 12em; min-width: 0; }
+
+/* ---- A4 printing ---- */
+dialog#a4-dialog { width: min(1000px, 96vw); max-width: 96vw; border: 1px solid var(--border); border-radius: 10px; padding: 0; background: var(--panel); color: var(--text); }
+dialog#a4-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.a4-dialog { box-sizing: border-box; width: 100%; }
+.a4-cols { display: grid; grid-template-columns: 330px 1fr; gap: 14px; min-height: 0; }
+.a4-settings { display: flex; flex-direction: column; gap: 6px; max-height: 68vh; overflow-y: auto; padding-right: 4px; }
+.a4-settings h3 { margin: 6px 0 0; font-size: 12px; text-transform: uppercase; color: var(--muted); }
+.a4-settings label { grid-template-columns: 1fr 11em; }
+.a4-settings label.inline { display: inline-flex; gap: 4px; align-items: center; }
+#a4-custom[hidden] { display: none; }
+.a4-sheets { display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow-y: auto; }
+.wizard label.a4-sheet { display: grid; grid-template-columns: auto 1fr 5.5em; gap: 6px; align-items: center; }
+.a4-preview-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.a4-preview { display: flex; flex-wrap: wrap; gap: 12px; max-height: 64vh; overflow: auto; background: #dfe3e8; padding: 12px; border-radius: 6px; align-content: flex-start; }
+.a4-thumb { zoom: 0.38; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); background: #fff; }
+.a4-page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #fff; color: #000; }
+.a4-page.gray { filter: grayscale(1); }
+.a4-inner { position: absolute; inset: 0; transform-origin: 0 0; }
+.a4-header { position: absolute; left: 10mm; right: 10mm; top: 8mm; height: 10mm; display: flex; align-items: center; gap: 3mm; border-bottom: 0.3mm solid #555; font: 4mm/1 system-ui, sans-serif; }
+.a4-header img { height: 8mm; width: 8mm; }
+.a4-header strong { font-size: 5mm; }
+.a4-header span { margin-left: auto; font-size: 3.2mm; color: #333; }
+.a4-body { position: absolute; left: 10mm; right: 10mm; bottom: 10mm; }
+.a4-label { position: absolute; display: block; image-rendering: auto; }
+.a4-label.outline { outline: 0.15mm dashed #777; }
+.a4-hint { position: absolute; left: 0; right: 0; top: 245mm; font: 3.5mm/1.4 system-ui, sans-serif; margin: 0; }
+#a4-print { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 0; }
+  body.printing-a4 > *:not(#a4-print) { display: none !important; }
+  body.printing-a4 #a4-print { display: block; }
+  html:has(body.printing-a4), body.printing-a4 { display: block !important; background: #fff; margin: 0; padding: 0; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  /* A hair below A4 so rounding never spills onto an extra blank page. */
+  #a4-print .a4-page { height: 287mm; overflow: visible; }
+  #a4-print .a4-page { page-break-after: always; break-after: page; }
+  #a4-print .a4-page:last-child { page-break-after: auto; break-after: auto; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

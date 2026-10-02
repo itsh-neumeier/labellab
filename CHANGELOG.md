@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- „A4-Druck …“: Blätter der Arbeitsmappe auswählen (mit Anzahl) und auf A4 mit einem
+  normalen Drucker drucken – Kopfzeile mit LabelLab-Logo, Graustufen, Farben wie Band /
+  eigene Hintergrund- und Schriftfarbe / Schwarz auf Weiß, Schnittlinien, Abstand. Testseite
+  mit 100-mm-Linealen; gemessene Werte ergeben einen gespeicherten Korrekturwert (waagerecht
+  und senkrecht)
 - Einstellungen und eigene Daten liegen bei der Programmdatei: `LabelLab.settings`
   (verschlüsselt, Änderungen von außen werden erkannt und verworfen) und der Ordner
   `llappdata` (Rahmen, Icon-Sets, Druckverlauf, eingefügte Bilder). Vorhandene Daten aus
