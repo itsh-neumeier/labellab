@@ -20,6 +20,9 @@ use serde::{Deserialize, Serialize};
 use crate::label::{Element, Label};
 use crate::CoreError;
 
+/// Widest zero padding of `{{n:000}}` (guards against huge allocations).
+const MAX_NUMBER_WIDTH: usize = 32;
+
 /// Placeholder for the record number (1-based).
 pub const ROW_NUMBER_PLACEHOLDER: &str = "#";
 
@@ -192,7 +195,8 @@ fn resolve(name: &str, rec: &Record<'_>) -> Option<String> {
             let width = format
                 .and_then(|f| f.strip_prefix('0').or(Some(f)))
                 .and_then(|w| w.parse::<usize>().ok())
-                .unwrap_or(0);
+                .unwrap_or(0)
+                .min(MAX_NUMBER_WIDTH);
             Some(if value < 0 {
                 format!("-{:0width$}", -value, width = width)
             } else {

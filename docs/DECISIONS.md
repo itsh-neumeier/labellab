@@ -686,3 +686,30 @@ Vorlage:
   ca. 94 % (eigene Seitenränder, gemessen per „In Datei drucken“), WebView2 (Windows) sollte
   100 % liefern – unverifiziert, daher Testseite und Korrekturwert. Seitenhöhe im Druck 287 mm,
   damit kein leeres Zusatzblatt entsteht. Serien/CSV werden auf A4 noch nicht ausgegeben.
+
+## ADR-038: `.lbx`-Import mit `zip` und `quick-xml`
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzer wollen vorhandene Labels aus dem Hersteller-Editor weiterverwenden. `.lbx` ist
+  ein ZIP-Archiv mit `label.xml` und eingebetteten Bildern (Analyse: `docs/IMPORT-LBX.md`).
+- Entscheidung: `ll_core::lbx` liest das Archiv mit `zip` (MIT, Feature `deflate`; das kleinere
+  `deflate-flate2` allein kompiliert in zip 2.4 nicht, weil es kein flate2-Backend aktiviert –
+  `deflate` zieht zusätzlich `zopfli`, Apache-2.0) und das XML mit `quick-xml` (MIT) in einen
+  kleinen eigenen Knotenbaum. `image` ist in `ll-core` jetzt normale Abhängigkeit (BMP → PNG
+  der eingebetteten Bilder). Ergebnis: `Document` plus Hinweisliste (`LbxWarning{kind, detail}`,
+  `kind` als stabiler i18n-Schlüssel `lbx.warn.<kind>`). Texte mit „Verkleinern“ (`shrink`)
+  werden nach dem Import mit dem echten Renderer schrittweise verkleinert, bis sie passen.
+- Konsequenzen: Kein Export nach `.lbx` (nur Import). Nicht Übertragbares (Zierrahmen,
+  Cliparts aus Hersteller-Schriften, Aztec, senkrechter Text, Bildzuschnitt) wird angenähert und
+  gemeldet. Das Format ist aus Beispieldateien abgeleitet, nicht aus einer Spezifikation.
+
+## ADR-039: Weitere UI-Sprachen, Flaggen als SVG
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: die wichtigsten Sprachen, Auswahl mit Flaggen.
+- Entscheidung: Acht Sprachen (de, en, fr, es, it, nl, pl, cs) als JSON-Wörterbücher, alle
+  statisch eingebunden (klein, keine Ladezeit). Fehlende Texte: Sprache → Englisch → Deutsch.
+  Auswahl als eigene Aufklappliste (`app/src/langs.ts`), weil ein `<select>` keine Bilder
+  zeigt; Flaggen als kleine Inline-SVGs, da Windows keine Flaggen-Emojis darstellt (Englisch =
+  britische Flagge). `app/scripts/check-i18n.mjs` prüft bei `npm run build` Schlüssel und
+  Platzhalter gegen `de.json`.
+- Konsequenzen: Übersetzungen fr/es/it/nl/pl/cs sind maschinell erstellt und sollten von
+  Muttersprachlern gegengelesen werden. Die CLI bleibt deutsch.

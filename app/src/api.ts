@@ -218,7 +218,17 @@ export interface Status {
 export const models = () => invoke<Model[]>("models");
 export const defaultMarginDots = () => invoke<number>("default_margin_dots");
 export const listDevices = () => invoke<{ devices: Device[]; warnings: string[] }>("list_devices");
-export const queryStatus = (connection: Connection) => invoke<Status>("query_status", { connection });
+// Device access one at a time: each call opens its own connection and
+// serial ports are exclusive (a keep-alive ping must not block a print).
+let deviceQueue: Promise<unknown> = Promise.resolve();
+function exclusive<T>(run: () => Promise<T>): Promise<T> {
+  const next = deviceQueue.then(run, run);
+  deviceQueue = next.catch(() => {});
+  return next;
+}
+
+export const queryStatus = (connection: Connection) =>
+  exclusive(() => invoke<Status>("query_status", { connection }));
 /** One sheet of a `.llabel` document (`ll_core::document::Sheet`). */
 export interface Sheet {
   name: string;
@@ -232,6 +242,16 @@ export interface LabelDocument {
 }
 
 export const loadDocument = (path: string) => invoke<LabelDocument>("load_document", { path });
+
+/** Something an `.lbx` import could only approximate (`ll_core::lbx::LbxWarning`). */
+export interface LbxWarning {
+  kind: string;
+  detail: string;
+}
+
+/** Imports an `.lbx` file of the manufacturer editor. */
+export const importLbx = (path: string) =>
+  invoke<{ document: LabelDocument; warnings: LbxWarning[] }>("import_lbx", { path });
 export const saveDocument = (path: string, document: LabelDocument) =>
   invoke<void>("save_document", { path, document });
 
@@ -299,14 +319,15 @@ export interface PrintJob {
 }
 
 export const printLabel = (args: { label: Label; connection: Connection; model: string; job: PrintJob }) =>
-  invoke<void>("print_label", args);
+  exclusive(() => invoke<void>("print_label", args));
 
 /** Saved app settings (encrypted file next to the program). */
 export const loadSettings = () => invoke<Record<string, unknown>>("load_settings");
 export const saveSettings = (settings: Record<string, unknown>) => invoke<void>("save_settings", { settings });
 
 /** Feeds and cuts the tape without printing. */
-export const feedCut = (args: { connection: Connection; model: string }) => invoke<void>("feed_cut", args);
+export const feedCut = (args: { connection: Connection; model: string }) =>
+  exclusive(() => invoke<void>("feed_cut", args));
 
 export interface Progress {
   done: number;
@@ -392,7 +413,8 @@ export interface PrinterInfo {
   raw: number[];
 }
 
-export const printerInfo = (connection: Connection) => invoke<PrinterInfo>("printer_info", { connection });
+export const printerInfo = (connection: Connection) =>
+  exclusive(() => invoke<PrinterInfo>("printer_info", { connection }));
 
 /** A decorative segment frame (`ll_render::decor::FrameDef`); SVG strings. */
 export interface FrameDef {

@@ -1,13 +1,21 @@
 // Minimal i18n: flat key -> string dictionaries, `{name}` placeholders.
-// German is the default (`AGENTS.md`), English the second language.
+// German is the default (`AGENTS.md`); missing texts in other languages
+// fall back to English, then German.
+import cs from "./i18n/cs.json";
 import de from "./i18n/de.json";
 import en from "./i18n/en.json";
+import es from "./i18n/es.json";
+import fr from "./i18n/fr.json";
+import it from "./i18n/it.json";
+import nl from "./i18n/nl.json";
+import pl from "./i18n/pl.json";
+import { isLang, type Lang } from "./langs";
 import { getSetting, setSetting } from "./settings";
 
-export type Lang = "de" | "en";
+export type { Lang } from "./langs";
 type Dict = Record<string, string>;
 
-const dicts: Record<Lang, Dict> = { de, en };
+const dicts: Record<Lang, Dict> = { de, en, fr, es, it, nl, pl, cs };
 const STORAGE_KEY = "labellab.lang";
 
 // German is the project default; the webview's `navigator.language`
@@ -17,7 +25,7 @@ let lang: Lang = "de";
 /** Takes the saved language (call after the settings are loaded). */
 export function loadLang(): void {
   const stored = getSetting(STORAGE_KEY);
-  if (stored === "de" || stored === "en") lang = stored;
+  if (isLang(stored)) lang = stored;
 }
 
 export function currentLang(): Lang {
@@ -37,9 +45,14 @@ export function applyLang(next: Lang): void {
   applyStatic();
 }
 
-/** Looks up `key` (falls back to German, then to the key itself). */
+/** Text for `key` in the current language, else English, else German. */
+function lookup(key: string): string | undefined {
+  return dicts[lang][key] ?? dicts.en[key] ?? dicts.de[key];
+}
+
+/** Looks up `key` (falls back to English, German, then the key itself). */
 export function t(key: string, vars: Record<string, string | number> = {}): string {
-  const text = dicts[lang][key] ?? dicts.de[key] ?? key;
+  const text = lookup(key) ?? key;
   return text.replace(/\{(\w+)\}/g, (_, name: string) => String(vars[name] ?? `{${name}}`));
 }
 
@@ -65,7 +78,7 @@ export function errorText(e: unknown): string {
   if (e && typeof e === "object" && "code" in e) {
     const { code, detail } = e as { code: string; detail?: string };
     const key = `error.${code}`;
-    const text = dicts[lang][key] ?? dicts.de[key];
+    const text = lookup(key);
     if (text) return detail ? `${text} (${detail})` : text;
     return detail ?? code;
   }

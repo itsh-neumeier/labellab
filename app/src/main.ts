@@ -6,7 +6,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import appIcon from "../src-tauri/icons/128x128.png";
-import { ask, open, save } from "@tauri-apps/plugin-dialog";
+import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { bindImageEditor, openImageEditor } from "./imageEditor";
@@ -14,6 +14,7 @@ import { bindPaint, loadPaint, newPaint, segmentSvg } from "./framePaint";
 import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
 import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
+import { langInfo, langPicker } from "./langs";
 import { getSetting, initSettings, setSetting } from "./settings";
 import { buildPages, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
@@ -706,15 +707,17 @@ function newRect(type: Element["type"]): Rect {
 
 /** Gives every element without a box the box the flow layout uses. */
 async function ensureRects(): Promise<void> {
-  if (state.label.elements.every((i) => i.rect)) return;
+  // The label of this call: the user may switch sheets while it resolves.
+  const label = state.label;
+  if (label.elements.every((i) => i.rect)) return;
   try {
-    const rects = await api.resolveRects(state.label, selectedModel(), selectedWidth());
-    state.label.elements.forEach((item, i) => {
+    const rects = await api.resolveRects(label, selectedModel(), selectedWidth());
+    label.elements.forEach((item, i) => {
       if (!item.rect && rects[i]) item.rect = roundRect(rects[i]);
     });
   } catch {
     // e.g. no font or invalid content: fall back to simple placement
-    for (const item of state.label.elements) {
+    for (const item of label.elements) {
       if (!item.rect) item.rect = newRect(item.type);
     }
   }
@@ -1348,7 +1351,11 @@ function removeItem(index: number): void {
 
 function duplicateItem(index: number): void {
   const copy: Item = JSON.parse(JSON.stringify(state.label.elements[index]));
-  if (copy.rect) copy.rect.x_mm = roundRect({ ...copy.rect, x_mm: copy.rect.x_mm + copy.rect.w_mm }).x_mm;
+  // Next to the original along the label length (y in portrait).
+  if (copy.rect) {
+    const r = copy.rect;
+    copy.rect = roundRect(portrait() ? { ...r, y_mm: r.y_mm + r.h_mm } : { ...r, x_mm: r.x_mm + r.w_mm });
+  }
   state.label.elements.splice(index + 1, 0, copy);
   state.selected = index + 1;
   changed(true);
@@ -1551,13 +1558,14 @@ function bindLayout(): void {
   num("padding-start", (v) => {
     const before = startPad();
     state.label.padding_start_mm = v;
+    // Not clamped at 0: typing 1 → 3 → 1 must give the original positions back.
     const delta = startPad() - before;
     for (const item of state.label.elements) {
       if (!item.rect) continue;
       item.rect = roundRect(
         portrait()
-          ? { ...item.rect, y_mm: Math.max(0, item.rect.y_mm + delta) }
-          : { ...item.rect, x_mm: Math.max(0, item.rect.x_mm + delta) },
+          ? { ...item.rect, y_mm: item.rect.y_mm + delta }
+          : { ...item.rect, x_mm: item.rect.x_mm + delta },
       );
     }
     renderBoxes();
@@ -2358,7 +2366,7 @@ async function keepAlivePing(): Promise<void> {
   if (!connection || state.printing) return;
   try {
     await api.queryStatus(connection);
-    const time = new Date().toLocaleTimeString(currentLang(), { hour: "2-digit", minute: "2-digit" });
+    const time = new Date().toLocaleTimeString(langInfo(currentLang()).locale, { hour: "2-digit", minute: "2-digit" });
     $("btn-keepalive").title = `${t("device.keepAliveHint")}\n${t("device.keepAliveLast", { time })}`;
   } catch (e) {
     setStatus(t("device.keepAliveFailed", { error: errorText(e) }), "error");
@@ -2413,11 +2421,12 @@ async function print(): Promise<void> {
   }
   setPrinting(true);
   setMessage("");
-  const unlisten = await api.onPrintProgress(({ done, total }) => {
-    if (state.printing) setPrinting(true, t("print.printingProgress", { done: Math.min(done + 1, total), total }));
-    if (done === total) setMessage(t("print.doneCount", { total }));
-  });
+  let unlisten = () => {};
   try {
+    unlisten = await api.onPrintProgress(({ done, total }) => {
+      if (state.printing) setPrinting(true, t("print.printingProgress", { done: Math.min(done + 1, total), total }));
+      if (done === total) setMessage(t("print.doneCount", { total }));
+    });
     await api.printLabel({
       label: state.label,
       connection,
@@ -2625,7 +2634,7 @@ async function clearCsvFile(): Promise<void> {
 function textOf(text: api.I18nText | null | undefined): string {
   if (!text) return "";
   if (typeof text === "string") return text;
-  return text[currentLang()] ?? text.de ?? text.en ?? Object.values(text)[0] ?? "";
+  return text[currentLang()] ?? text.en ?? text.de ?? Object.values(text)[0] ?? "";
 }
 
 function svgUrl(svg: string): string {
@@ -2853,7 +2862,11 @@ function updateSeriesButton(): void {
   $("btn-series").hidden = seriesNumbers() === null;
 }
 
+/** Current series overview run (a reopened dialog stops the old one). */
+let seriesRun = 0;
+
 async function showSeries(): Promise<void> {
+  const run = ++seriesRun;
   const numbers = seriesNumbers();
   const model = selectedModel();
   const width = selectedWidth();
@@ -2869,7 +2882,7 @@ async function showSeries(): Promise<void> {
   const heightPx = 48;
   const pxPerDot = heightPx / (labelHeightMm() * DOTS_PER_MM);
   for (const [i, n] of shown.entries()) {
-    if (!dialog.open) return; // closed while drawing
+    if (!dialog.open || run !== seriesRun) return; // closed or reopened while drawing
     msg.textContent = t("series.loading", { done: i, total: shown.length });
     try {
       const preview = await api.renderPreview(state.label, model, width, n, numbering(), 1);
@@ -2888,8 +2901,9 @@ async function showSeries(): Promise<void> {
       const tape = document.createElement("div");
       tape.className = `tape${bg === null ? " clear-tape" : ""}`;
       tape.style.backgroundColor = bg ?? "";
+      // Same scale both ways (a portrait preview comes turned upright).
       tape.style.width = `${img.naturalWidth * pxPerDot}px`;
-      tape.style.height = `${heightPx}px`;
+      tape.style.height = `${img.naturalHeight * pxPerDot}px`;
       const ink = document.createElement("div");
       ink.className = "ink";
       ink.style.backgroundColor = INK_CSS[st.ink] ?? INK_CSS.black;
@@ -2906,10 +2920,11 @@ async function showSeries(): Promise<void> {
       }
       list.append(item);
     } catch (e) {
-      msg.textContent = t("preview.error", { error: errorText(e) });
+      if (run === seriesRun) msg.textContent = t("preview.error", { error: errorText(e) });
       return;
     }
   }
+  if (run !== seriesRun) return;
   msg.textContent =
     numbers.length > shown.length
       ? t("series.limited", { total: numbers.length, shown: shown.length })
@@ -2942,12 +2957,21 @@ function syncSheet(): void {
   sheet.width_mm = selectedWidth() || sheet.width_mm;
 }
 
-function isDirty(): boolean {
-  return state.sheets.length > 0 && JSON.stringify(currentDocument()) !== state.savedSnapshot;
+/**
+ * Comparable form of `doc` for the unsaved-changes check. In an untitled
+ * document the tape width (follows the inserted tape) is not a change.
+ */
+function snapshotOf(doc: api.LabelDocument, untitled = !state.filePath): string {
+  return JSON.stringify(untitled ? { ...doc, sheets: doc.sheets.map((s) => ({ ...s, width_mm: undefined })) } : doc);
 }
 
-function markSaved(): void {
-  state.savedSnapshot = JSON.stringify(currentDocument());
+function isDirty(): boolean {
+  return state.sheets.length > 0 && snapshotOf(currentDocument()) !== state.savedSnapshot;
+}
+
+/** Marks the document as saved; `snapshot` = the state that was written. */
+function markSaved(snapshot = snapshotOf(currentDocument())): void {
+  state.savedSnapshot = snapshot;
   updateFileName();
 }
 
@@ -2963,7 +2987,11 @@ async function confirmDiscard(): Promise<boolean> {
 }
 
 /** Replaces the whole document (open, new, history) and shows sheet `index`. */
+/** Suggested file name for the first save of an imported document. */
+let saveSuggestion: string | null = null;
+
 async function setDocument(doc: api.LabelDocument, path: string | null): Promise<void> {
+  saveSuggestion = null;
   state.sheets = doc.sheets.length ? doc.sheets : [{ name: t("sheet.default", { n: 1 }), label: newLabel() }];
   state.filePath = path;
   await showSheet(0, false);
@@ -3065,16 +3093,39 @@ async function removeSheet(index: number): Promise<void> {
 }
 
 const LLABEL_FILTER = () => [{ name: t("file.filter"), extensions: ["llabel"] }];
+const OPEN_FILTER = () => [
+  { name: t("file.openFilter"), extensions: ["llabel", "lbx"] },
+  ...LLABEL_FILTER(),
+  { name: t("lbx.filter"), extensions: ["lbx"] },
+];
 
 async function openFile(): Promise<void> {
   if (!(await confirmDiscard())) return;
-  const path = await open({ multiple: false, filters: LLABEL_FILTER() });
+  const path = await open({ multiple: false, filters: OPEN_FILTER() });
   if (typeof path !== "string") return;
   await openPath(path);
 }
 
+/** Imports an `.lbx` file as a new, unsaved document and lists what was approximated. */
+async function importLbx(path: string): Promise<void> {
+  const { document, warnings } = await api.importLbx(path);
+  await setDocument(document, null);
+  saveSuggestion = path.replace(/\.lbx$/i, ".llabel");
+  // Not saved yet: closing asks, saving asks for a `.llabel` name.
+  state.savedSnapshot = "";
+  updateFileName();
+  if (!warnings.length) return;
+  const lines = warnings.map((w) => `• ${t(`lbx.warn.${w.kind}`)}${w.detail ? ` – ${w.detail}` : ""}`);
+  await message(`${t("lbx.warnIntro")}\n\n${lines.join("\n")}`, { title: t("lbx.title"), kind: "info" });
+}
+
 async function openPath(path: string): Promise<void> {
   try {
+    if (/\.lbx$/i.test(path)) {
+      await importLbx(path);
+      setMessage(t("lbx.imported", { name: path.split(/[\\/]/).pop() ?? path }));
+      return;
+    }
     await setDocument(await api.loadDocument(path), path);
     rememberRecent(path);
     setMessage("");
@@ -3125,12 +3176,15 @@ async function saveFile(asNew = false): Promise<void> {
   const path =
     !asNew && state.filePath
       ? state.filePath
-      : await save({ defaultPath: state.filePath ?? "label.llabel", filters: LLABEL_FILTER() });
+      : await save({ defaultPath: state.filePath ?? saveSuggestion ?? "label.llabel", filters: LLABEL_FILTER() });
   if (!path) return;
   try {
-    await api.saveDocument(path, currentDocument());
+    // Snapshot what is written: edits made during the save stay unsaved.
+    const doc = currentDocument();
+    const snapshot = snapshotOf(doc, false);
+    await api.saveDocument(path, doc);
     state.filePath = path;
-    markSaved();
+    markSaved(snapshot);
     rememberRecent(path);
     setMessage(t("file.saved", { path }));
   } catch (e) {
@@ -3171,9 +3225,12 @@ async function autosave(): Promise<void> {
   const path = state.filePath;
   if (!path || !autosaveWanted() || !isDirty()) return;
   try {
-    await api.saveDocument(path, currentDocument());
-    markSaved();
-    const time = new Date().toLocaleTimeString(currentLang(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const doc = currentDocument();
+    const snapshot = snapshotOf(doc);
+    await api.saveDocument(path, doc);
+    markSaved(snapshot);
+    scheduleAutosave();
+    const time = new Date().toLocaleTimeString(langInfo(currentLang()).locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     $("file-name").title = t("file.autosaved", { time });
   } catch (e) {
     setMessage(t("error.prefix", { error: errorText(e) }), true);
@@ -3329,12 +3386,12 @@ function applyFieldDefaults(tile: string): void {
 
 function fieldSpec(): api.FieldSpec {
   return {
-    count: Math.max(1, Math.trunc(num("wz-count"))),
+    count: Math.min(500, Math.max(1, Math.trunc(num("wz-count")))),
     pitch_mm: Math.max(1, num("wz-pitch")),
     start: Math.trunc(num("wz-start")),
     step: Math.trunc(num("wz-step")),
     prefix: $<HTMLInputElement>("wz-prefix").value,
-    digits: Math.max(0, Math.trunc(num("wz-digits"))),
+    digits: Math.min(12, Math.max(0, Math.trunc(num("wz-digits")))),
     separators: $<HTMLInputElement>("wz-separators").checked,
     margin_mm: Math.max(0, num("wz-margin")),
   };
@@ -3794,7 +3851,7 @@ function a4Options(): A4Options {
   const ink = colors === "custom" ? $<HTMLInputElement>("a4-ink").value : colors === "tape" ? (INK_CSS[st.ink] ?? INK_CSS.black) : "#000";
   const percent = (id: string) => Math.min(150, Math.max(50, Number($<HTMLInputElement>(id).value) || 100)) / 100;
   const doc = state.filePath?.split(/[\\/]/).pop() ?? t("toolbar.untitled");
-  const date = new Date().toLocaleDateString(currentLang() === "de" ? "de-DE" : "en-GB");
+  const date = new Date().toLocaleDateString(langInfo(currentLang()).locale);
   return {
     title: doc,
     header: $<HTMLInputElement>("a4-header").checked,
@@ -3989,7 +4046,10 @@ function copiedItems(data: DataTransfer): Item[] | null {
 function insertItems(items: Item[]): void {
   for (const item of items) {
     const rect = newRect(item.type);
-    item.rect = item.rect ? roundRect({ ...item.rect, x_mm: rect.x_mm }) : rect;
+    // Keep the size, start where a new element would (along the length).
+    item.rect = item.rect
+      ? roundRect(portrait() ? { ...item.rect, y_mm: rect.y_mm } : { ...item.rect, x_mm: rect.x_mm })
+      : rect;
     state.label.elements.push(item);
   }
   state.selected = state.label.elements.length - 1;
@@ -4198,10 +4258,8 @@ function bindUi(): void {
       changed(true);
     }),
   );
-  const lang = $<HTMLSelectElement>("lang");
-  lang.value = currentLang();
-  lang.addEventListener("change", () => {
-    setLang(lang.value as Lang);
+  langPicker($("lang"), currentLang, (code: Lang) => {
+    setLang(code);
     fillTapeStyles();
     renderAll();
     renderCsv();
@@ -4209,6 +4267,8 @@ function bindUi(): void {
     setPrinting(state.printing);
   });
   document.addEventListener("keydown", (e) => {
+    // Shortcuts act on the label: not behind an open dialog, not in the language list.
+    if (document.querySelector("dialog[open]") || (e.target as HTMLElement | null)?.closest?.(".lang-picker")) return;
     if (e.ctrlKey || e.metaKey) {
       const key = e.key.toLowerCase();
       const actions: Record<string, () => void> = {
@@ -4264,12 +4324,14 @@ async function init(): Promise<void> {
   $<HTMLInputElement>("margin").value = String(await api.defaultMarginDots());
   fillTapeStyles();
 
+  // Restore remembered fields first: they change the label (e.g. strips),
+  // which must not count as an unsaved change.
+  bindPersistedFields();
   await setDocument({ version: 3, sheets: [{ name: t("sheet.default", { n: 1 }), label: state.label }] }, null);
   applyStatic();
   renderCsv();
   setPrinting(false);
   // Font scan can take a moment; fill the font pickers when it's done.
-  bindPersistedFields();
   bindA4();
   void loadIconsets();
   void loadFrameSets();

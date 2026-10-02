@@ -48,6 +48,10 @@ Ein Task gilt erst als fertig, wenn fmt, clippy und Tests grün sind.
 
 ## Code-Regeln
 - Bezeichner, Kommentare und Commit-Messages auf Englisch. UI-Texte und Doku auf Deutsch (UI über i18n-Schlüssel).
+- UI-Sprachen: `app/src/i18n/<code>.json` (de = Referenz, en, fr, es, it, nl, pl, cs; Liste mit
+  Flaggen in `app/src/langs.ts`). Neue Schlüssel immer in `de.json` und `en.json`, die übrigen
+  Sprachen möglichst mitübersetzen (fehlende fallen auf Englisch zurück). `npm run build` prüft
+  unbekannte Schlüssel und Platzhalter (`app/scripts/check-i18n.mjs`).
 - Bibliotheks-Crates (`ll-*`): kein `unwrap()`/`expect()` außer in Tests, Fehler mit `thiserror`.
   `anyhow` nur in Binaries.
 - Protokoll- und Geometriewerte nur in `ll-protocol` (Modelltabelle), keine Magic Numbers anderswo.

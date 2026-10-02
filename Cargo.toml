@@ -36,4 +36,7 @@ fontdb = "0.24"
 csv = "1"
 # Settings file encryption/tamper check (RustCrypto, Apache-2.0 OR MIT), ADR-036.
 chacha20poly1305 = "0.10"
+# .lbx import (ZIP + XML of the manufacturer editor), MIT, ADR-038.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+quick-xml = "0.37"
 nusb = { version = "0.2", features = ["tokio"] }

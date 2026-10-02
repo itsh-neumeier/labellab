@@ -134,7 +134,7 @@ impl FuseBox {
     /// Modules per field (see [`FuseBox::spans`]).
     pub fn field_spans(&self) -> Vec<u32> {
         if self.spans.is_empty() {
-            vec![1; self.count.max(1) as usize]
+            vec![1; self.count.clamp(1, MAX_FIELDS) as usize]
         } else {
             self.spans.iter().map(|s| (*s).max(1)).collect()
         }
@@ -243,8 +243,14 @@ pub fn cable_wrap(spec: &CableWrap, tape_mm: f32) -> Label {
     fixed_length(elements, length)
 }
 
+/// Most fields/ports a generated layout gets (guards against typos).
+const MAX_FIELDS: u32 = 500;
+/// Widest zero padding of generated numbers.
+const MAX_DIGITS: usize = 12;
+
 /// `prefix` + `number`, zero-padded to `digits`.
 fn numbered(prefix: &str, number: i64, digits: usize) -> String {
+    let digits = digits.min(MAX_DIGITS);
     if number < 0 {
         format!("{prefix}-{:0digits$}", -number)
     } else {
@@ -279,7 +285,7 @@ fn fill_item(rect: Rect) -> Item {
 /// numbered, separated by lines; editable afterwards like the
 /// distribution board label.
 pub fn patch_panel(spec: &PatchPanel, tape_mm: f32) -> Label {
-    let count = spec.count.max(1);
+    let count = spec.count.clamp(1, MAX_FIELDS);
     let pitch = spec.pitch_mm.max(1.0);
     let margin = spec.margin_mm.max(0.0);
     let fields = (0..count)
@@ -340,7 +346,7 @@ pub fn single_flag(spec: &SingleFlag, tape_mm: f32) -> Label {
 }
 
 pub fn terminal_block(spec: &TerminalBlock, tape_mm: f32) -> Label {
-    let count = spec.count.max(1);
+    let count = spec.count.clamp(1, MAX_FIELDS);
     let pitch = spec.pitch_mm.max(1.0);
     let margin = spec.margin_mm.max(0.0);
     let rows = spec.rows.clamp(1, 2) as u32;

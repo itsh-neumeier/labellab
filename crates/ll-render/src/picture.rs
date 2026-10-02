@@ -91,9 +91,52 @@ pub(crate) fn load_gray_edited(
     svg_height_px: u16,
     edit: &ImageEdit,
 ) -> Result<GrayImage, RenderError> {
+    // Decoding and editing a large photo takes far longer than the rest of
+    // a preview; the editor re-renders on every keystroke and drag step.
+    let modified = std::fs::metadata(path)
+        .ok()
+        .and_then(|m| Some((m.modified().ok()?, m.len())));
+    let key = |e: &CacheEntry| {
+        e.path == path
+            && e.modified == modified
+            && e.svg_height_px == svg_height_px
+            && e.edit == *edit
+    };
+    if let Ok(cache) = GRAY_CACHE.lock() {
+        if let Some(entry) = cache.iter().find(|e| key(e)) {
+            return Ok(entry.gray.clone());
+        }
+    }
     let rgba = image_edit::load_rgba(path, svg_height_px)?;
-    Ok(image_edit::to_gray_on_white(&image_edit::apply(rgba, edit)))
+    let gray = image_edit::to_gray_on_white(&image_edit::apply(rgba, edit));
+    if let Ok(mut cache) = GRAY_CACHE.lock() {
+        if cache.len() >= GRAY_CACHE_SIZE {
+            cache.remove(0);
+        }
+        cache.push(CacheEntry {
+            path: path.to_path_buf(),
+            modified,
+            svg_height_px,
+            edit: *edit,
+            gray: gray.clone(),
+        });
+    }
+    Ok(gray)
 }
+
+/// Edited images kept decoded (a few, they can be large).
+const GRAY_CACHE_SIZE: usize = 4;
+
+struct CacheEntry {
+    path: std::path::PathBuf,
+    /// Modification time and size: a changed file is decoded again.
+    modified: Option<(std::time::SystemTime, u64)>,
+    svg_height_px: u16,
+    edit: ImageEdit,
+    gray: GrayImage,
+}
+
+static GRAY_CACHE: std::sync::Mutex<Vec<CacheEntry>> = std::sync::Mutex::new(Vec::new());
 
 /// Renders raw SVG bytes (e.g. a bundled symbol, see [`crate::symbols`])
 /// the same way [`render_image`] renders an `.svg` file.

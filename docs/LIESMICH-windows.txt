@@ -95,6 +95,9 @@ Editor
 - Arbeitsblaetter: Reiter ueber der Vorschau, "+" fuer ein neues Blatt, Doppelklick zum
   Umbenennen. Alle Blaetter werden in derselben .llabel-Datei gespeichert.
 - Schriftauswahl zeigt jede Schrift in ihrem Schriftbild, mit Suchfeld.
+- "Oeffnen ..." nimmt auch .lbx-Dateien des Hersteller-Editors. Was sich nicht genau
+  uebernehmen laesst, wird als Liste angezeigt; danach als .llabel speichern.
+  Kommandozeile: .\labellab-cli.exe import-lbx datei.lbx -o datei.llabel
 - "Zuletzt verwendet" in der Werkzeugleiste, "Serie ansehen ..." zeigt alle Labels
   einer Serie.
 - Assistent: Kabelfahne, Kabelwickel und Patchpanel-Labels fertig erzeugen.

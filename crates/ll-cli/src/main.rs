@@ -318,6 +318,15 @@ enum Command {
         #[arg(long)]
         search: Option<String>,
     },
+    /// `.lbx`-Datei (P-touch Editor) in ein `.llabel`-Dokument umwandeln.
+    /// Nicht Übertragbares wird angenähert und als Hinweis gemeldet.
+    ImportLbx {
+        /// Die `.lbx`-Datei.
+        file: String,
+        /// Zieldatei (Standard: gleicher Name mit `.llabel`).
+        #[arg(short, long)]
+        output: Option<String>,
+    },
     /// Icon-Sets (`.llabel-iconset`) verwalten.
     Iconset {
         #[command(subcommand)]
@@ -620,7 +629,29 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Iconset { action } => iconset_command(action),
+        Command::ImportLbx { file, output } => import_lbx(&file, output),
     }
+}
+
+/// Converts an `.lbx` file of the manufacturer editor into an `.llabel`
+/// document and lists what could only be approximated.
+fn import_lbx(file: &str, output: Option<String>) -> anyhow::Result<()> {
+    let imported = ll_core::lbx::import(Path::new(file))?;
+    let output = output.unwrap_or_else(|| {
+        Path::new(file)
+            .with_extension("llabel")
+            .to_string_lossy()
+            .into_owned()
+    });
+    imported.document.save(Path::new(&output))?;
+    println!(
+        "Geschrieben: {output} ({} Blätter)",
+        imported.document.sheets.len()
+    );
+    for w in &imported.warnings {
+        println!("  Hinweis ({}): {}", w.kind, w.detail);
+    }
+    Ok(())
 }
 
 #[derive(Debug, Subcommand)]
@@ -1004,7 +1035,7 @@ fn parse_rows(spec: &str) -> anyhow::Result<RangeInclusive<usize>> {
 }
 
 /// `--csv`/`--rows` or `--count` (numbering only) into a [`Series`];
-/// `None` without either.
+/// without either one label, still numbered with `--start`/`--step`.
 fn series_args(
     csv: Option<String>,
     rows: Option<&str>,
@@ -1012,9 +1043,9 @@ fn series_args(
     numbering: Numbering,
 ) -> anyhow::Result<Option<Series>> {
     let Some(path) = csv else {
-        return Ok(count.map(|n| Series {
+        return Ok(Some(Series {
             data: None,
-            rows: 1..=n.max(1),
+            rows: 1..=count.unwrap_or(1).max(1),
             numbering,
         }));
     };

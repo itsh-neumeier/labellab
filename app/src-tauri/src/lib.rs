@@ -76,6 +76,16 @@ fn err(e: impl Into<AppError>) -> AppError {
     e.into()
 }
 
+/// Runs `f` on a blocking worker: a synchronous command runs on the main
+/// thread and freezes the window while it works.
+async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, AppError> + Send + 'static,
+) -> Result<T, AppError> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| AppError::new("internal", e.to_string()))?
+}
+
 fn find_model(name: &str) -> Result<&'static ModelInfo, AppError> {
     model::find_by_name(name)
         .ok_or_else(|| AppError::new("unknown_model", format!("unknown model {name:?}")))
@@ -155,10 +165,13 @@ struct PreviewDto {
 /// Every element's box in mm as rendered (flow elements get the box the
 /// flow layout gives them), so the editor can make them movable.
 #[tauri::command]
-fn resolve_rects(label: Label, model: String, width_mm: u8) -> Result<Vec<Rect>, AppError> {
+async fn resolve_rects(label: Label, model: String, width_mm: u8) -> Result<Vec<Rect>, AppError> {
     let model = find_model(&model)?;
-    let geometry = label::geometry_for(model, width_mm).map_err(err)?;
-    label::resolved_rects(&label, model, geometry).map_err(err)
+    blocking(move || {
+        let geometry = label::geometry_for(model, width_mm).map_err(err)?;
+        label::resolved_rects(&label, model, geometry).map_err(err)
+    })
+    .await
 }
 
 #[derive(Serialize)]
@@ -531,12 +544,19 @@ struct ImageEditorDto {
 }
 
 #[tauri::command]
-fn image_editor_source(
+async fn image_editor_source(
     path: PathBuf,
     edit: ll_render::ImageEdit,
 ) -> Result<ImageEditorDto, AppError> {
+    blocking(move || image_editor_source_blocking(&path, edit)).await
+}
+
+fn image_editor_source_blocking(
+    path: &std::path::Path,
+    edit: ll_render::ImageEdit,
+) -> Result<ImageEditorDto, AppError> {
     use ll_render::image_edit;
-    let source = image_edit::load_rgba(&path, IMAGE_EDITOR_PX as u16)
+    let source = image_edit::load_rgba(path, IMAGE_EDITOR_PX as u16)
         .map_err(|e| err(ll_core::CoreError::from(e)))?;
     let source = if source.width().max(source.height()) > IMAGE_EDITOR_PX {
         image::imageops::thumbnail(
@@ -579,31 +599,38 @@ struct HistoryDto {
 
 /// Print history, newest first.
 #[tauri::command]
-fn history() -> Result<Vec<HistoryDto>, AppError> {
-    Ok(ll_core::history::list()
-        .map_err(err)?
-        .into_iter()
-        .map(|entry| HistoryDto {
-            preview: ll_core::history::preview(&entry.id)
-                .map(|png| base64::engine::general_purpose::STANDARD.encode(png))
-                .unwrap_or_default(),
-            entry,
-        })
-        .collect())
+async fn history() -> Result<Vec<HistoryDto>, AppError> {
+    blocking(|| {
+        Ok(ll_core::history::list()
+            .map_err(err)?
+            .into_iter()
+            .map(|entry| HistoryDto {
+                preview: ll_core::history::preview(&entry.id)
+                    .map(|png| base64::engine::general_purpose::STANDARD.encode(png))
+                    .unwrap_or_default(),
+                entry,
+            })
+            .collect())
+    })
+    .await
 }
 
 /// Adds a printed label to the history.
 #[tauri::command]
-fn record_history(
+async fn record_history(
     label: Label,
     model: String,
     width_mm: u8,
     name: String,
     count: usize,
 ) -> Result<(), AppError> {
-    ll_core::history::record(&label, find_model(&model)?, width_mm, &name, count)
-        .map(|_| ())
-        .map_err(err)
+    let model = find_model(&model)?;
+    blocking(move || {
+        ll_core::history::record(&label, model, width_mm, &name, count)
+            .map(|_| ())
+            .map_err(err)
+    })
+    .await
 }
 
 /// The label stored with history entry `id`.
@@ -813,8 +840,15 @@ fn default_margin_dots() -> u16 {
 
 /// Opens a `.llabel` file (one or more sheets).
 #[tauri::command]
-fn load_document(path: PathBuf) -> Result<ll_core::document::Document, AppError> {
-    ll_core::document::Document::load(&path).map_err(err)
+async fn load_document(path: PathBuf) -> Result<ll_core::document::Document, AppError> {
+    blocking(move || ll_core::document::Document::load(&path).map_err(err)).await
+}
+
+/// Imports an `.lbx` file of the manufacturer editor: the document plus
+/// notes on what could only be approximated (images go to `llappdata`).
+#[tauri::command]
+async fn import_lbx(path: PathBuf) -> Result<ll_core::lbx::LbxImport, AppError> {
+    blocking(move || ll_core::lbx::import(&path).map_err(err)).await
 }
 
 /// Saves a document (a single sheet is written as a plain label).
@@ -865,6 +899,7 @@ pub fn run() {
             record_history,
             load_history,
             import_iconset,
+            import_lbx,
             remove_iconset,
             generate_layout,
             discover_bluetooth,
