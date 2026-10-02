@@ -108,6 +108,44 @@ function endPad(): number {
 }
 
 /** Elements (1-based) reaching into the left margin, or the right one of a fixed-length label. */
+/** Portrait editing: tape vertical, the label length runs downwards. */
+function portrait(): boolean {
+  return state.label.orientation === "portrait";
+}
+
+/** Start and size of a box along the label length. */
+function alongStart(r: Rect): number {
+  return portrait() ? r.y_mm : r.x_mm;
+}
+
+function alongSize(r: Rect): number {
+  return portrait() ? r.h_mm : r.w_mm;
+}
+
+/**
+ * Switches the editor orientation. Boxes are turned with the view (portrait
+ * = landscape turned 90° clockwise), so the printed label stays the same.
+ */
+async function setOrientation(next: api.Orientation): Promise<void> {
+  if ((state.label.orientation ?? "landscape") === next) return;
+  await ensureRects();
+  const tape = labelHeightMm();
+  for (const item of state.label.elements) {
+    const r = item.rect;
+    if (!r) continue;
+    if (next === "portrait") {
+      item.rect = roundRect({ x_mm: tape - r.y_mm - r.h_mm, y_mm: r.x_mm, w_mm: r.h_mm, h_mm: r.w_mm });
+      item.rotation = ((item.rotation ?? 0) + 90) % 360;
+    } else {
+      item.rect = roundRect({ x_mm: r.y_mm, y_mm: tape - r.x_mm - r.w_mm, w_mm: r.h_mm, h_mm: r.w_mm });
+      item.rotation = ((item.rotation ?? 0) + 270) % 360;
+    }
+    if (!item.rotation) delete item.rotation;
+  }
+  state.label.orientation = next === "portrait" ? "portrait" : undefined;
+  changed(true);
+}
+
 function marginViolations(): number[] {
   const l = state.label;
   const fixed = l.fixed_length && l.min_length_mm ? l.min_length_mm : null;
@@ -115,8 +153,8 @@ function marginViolations(): number[] {
   return l.elements.flatMap((item, i) => {
     const r = item.rect;
     if (!r || item.type === "fill") return [];
-    const left = r.x_mm < startPad() - eps;
-    const right = fixed !== null && r.x_mm + r.w_mm > fixed - endPad() + eps;
+    const left = alongStart(r) < startPad() - eps;
+    const right = fixed !== null && alongStart(r) + alongSize(r) > fixed - endPad() + eps;
     return left || right ? [i + 1] : [];
   });
 }
@@ -257,7 +295,7 @@ async function updatePreview(): Promise<void> {
       ink.style.setProperty("-webkit-mask-image", `url("${url}")`);
       ink.classList.remove("stale");
       layoutStage();
-      const lengthMm = (img.naturalWidth / scale / DOTS_PER_MM).toFixed(1);
+      const lengthMm = ((portrait() ? img.naturalHeight : img.naturalWidth) / scale / DOTS_PER_MM).toFixed(1);
       const height = strips() > 1 ? `${strips()}×${width}` : `${width}`;
       $("dims").textContent = t("preview.dims", { length: lengthMm, width: height });
     };
@@ -287,38 +325,51 @@ function layoutStage(): void {
   const img = $<HTMLImageElement>("preview");
   const ppm = pxPerMm();
   const scale = Number(img.dataset.scale) || 1;
-  const inkWidth = (img.naturalWidth / scale) * zoom();
-  const boxesEnd = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
-  const width = Math.max(inkWidth, boxesEnd * ppm);
-  const height = labelHeightMm() * ppm;
+  const upright = portrait();
+  // Rendered label length (fixed length cuts boxes beyond it); a portrait
+  // preview comes turned, the length is then its height.
+  const lengthPx = ((upright ? img.naturalHeight : img.naturalWidth) / scale) * zoom();
+  const boxesEnd = Math.max(0, ...state.label.elements.map((i) => (i.rect ? alongStart(i.rect) + alongSize(i.rect) : 0)));
+  const along = Math.max(lengthPx, boxesEnd * ppm);
+  const across = labelHeightMm() * ppm;
+  const [width, height] = upright ? [across, along] : [along, across];
   const ink = $("ink");
-  ink.style.width = `${inkWidth}px`;
-  ink.style.height = `${height}px`;
+  ink.style.width = `${upright ? across : lengthPx}px`;
+  ink.style.height = `${upright ? lengthPx : across}px`;
   const stage = $("stage");
   stage.style.width = `${width}px`;
   stage.style.height = `${height}px`;
-  // Left/right margins as marked zones at both label ends.
-  const zone = (id: string, left: number, w: number) => {
+  // Start/end margins as marked zones at both label ends.
+  const zone = (id: string, start: number, size: number) => {
     const z = $(id).style;
-    z.left = `${left}px`;
-    z.width = `${Math.max(0, w)}px`;
-    z.display = w > 0 ? "" : "none";
+    z.left = upright ? "0" : `${start}px`;
+    z.right = upright ? "0" : "";
+    z.top = upright ? `${start}px` : "0";
+    z.bottom = upright ? "" : "0";
+    z.width = upright ? "" : `${Math.max(0, size)}px`;
+    z.height = upright ? `${Math.max(0, size)}px` : "";
+    z.display = size > 0 ? "" : "none";
   };
-  const lengthPx = inkWidth; // rendered label length (fixed length cuts boxes beyond it)
   zone("margin-start", 0, startPad() * ppm);
   zone("margin-end", lengthPx - endPad() * ppm, endPad() * ppm);
+  $("stage-row").classList.toggle("portrait", upright);
   // Show the whole tape: grey bands for what the print head can't reach.
-  $("tape-frame").style.paddingBlock = `${tapeMarginMm() * ppm}px`;
+  const margin = `${tapeMarginMm() * ppm}px`;
+  const frame = $("tape-frame").style;
+  frame.paddingBlock = upright ? "0" : margin;
+  frame.paddingInline = upright ? margin : "0";
   const lines = $("strip-lines");
   lines.replaceChildren();
   for (let k = 1; k < strips(); k++) {
     const line = document.createElement("div");
-    line.className = "strip-line";
-    line.style.top = `${k * tapeMm() * ppm}px`;
+    line.className = upright ? "strip-line vertical" : "strip-line";
+    if (upright) line.style.left = `${k * tapeMm() * ppm}px`;
+    else line.style.top = `${k * tapeMm() * ppm}px`;
     lines.append(line);
   }
-  drawRuler(width, ppm);
-  drawVRuler(height + 2 * tapeMarginMm() * ppm, ppm);
+  const tapePx = across + 2 * tapeMarginMm() * ppm;
+  drawRuler(upright ? tapePx : width, ppm);
+  drawVRuler(upright ? height : tapePx, ppm);
   repositionBoxes();
 }
 
@@ -533,10 +584,19 @@ function startDrag(e: PointerEvent, index: number): void {
   const startY = e.clientY;
   const others = state.label.elements.filter((_, i) => i !== index && state.label.elements[i].rect).map((i) => i.rect!);
   const snapTargets = targets(others, labelHeightMm());
-  snapTargets.x.push(startPad());
   const fixedLength = state.label.fixed_length ? state.label.min_length_mm : null;
-  if (fixedLength) snapTargets.x.push(fixedLength - endPad());
-  for (let k = 1; k < strips(); k++) snapTargets.y.push(k * tapeMm());
+  if (portrait()) {
+    // Tape edges/centre are vertical lines, label margins horizontal ones.
+    const tape = labelHeightMm();
+    snapTargets.y = snapTargets.y.filter((v) => v !== tape && v !== tape / 2);
+    snapTargets.x.push(tape, tape / 2, ...Array.from({ length: strips() - 1 }, (_, k) => (k + 1) * tapeMm()));
+    snapTargets.y.push(startPad());
+    if (fixedLength) snapTargets.y.push(fixedLength - endPad());
+  } else {
+    snapTargets.x.push(startPad());
+    if (fixedLength) snapTargets.x.push(fixedLength - endPad());
+    for (let k = 1; k < strips(); k++) snapTargets.y.push(k * tapeMm());
+  }
   box.setPointerCapture(e.pointerId);
 
   const onMove = (ev: PointerEvent) => {
@@ -590,10 +650,15 @@ function select(index: number): void {
 /** Box for a new element: after the rightmost box, full tape height. */
 function newRect(type: Element["type"]): Rect {
   const h = labelHeightMm();
-  const end = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
-  const x = state.label.elements.length ? end + NEW_ITEM_GAP_MM : startPad();
+  const end = Math.max(0, ...state.label.elements.map((i) => (i.rect ? alongStart(i.rect) + alongSize(i.rect) : 0)));
+  const start = state.label.elements.length ? end + NEW_ITEM_GAP_MM : startPad();
+  if (portrait()) {
+    // Tape-wide boxes stacked down the label.
+    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h }[type];
+    return roundRect({ x_mm: 0, y_mm: start, w_mm: h, h_mm: len });
+  }
   const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5 }[type];
-  return roundRect({ x_mm: x, y_mm: 0, w_mm: w, h_mm: h });
+  return roundRect({ x_mm: start, y_mm: 0, w_mm: w, h_mm: h });
 }
 
 /** Gives every element without a box the box the flow layout uses. */
@@ -674,7 +739,7 @@ function syncBoxCaption(): void {
   document.querySelectorAll<HTMLElement>(".layer").forEach((row) => {
     const item = state.label.elements[Number(row.dataset.index)];
     const caption = row.querySelector(".layer-caption");
-    if (item && caption && item.type !== "fill" && item.type !== "shape") caption.textContent = boxCaption(item);
+    if (item && caption) caption.textContent = layerCaption(item);
   });
 }
 
@@ -918,6 +983,23 @@ function alignItem(index: number, how: "left" | "hcenter" | "right" | "top" | "v
   if (!item?.rect) return;
   const r = { ...item.rect };
   const height = labelHeightMm();
+  if (portrait()) {
+    // Across the tape = horizontal, along the label = vertical.
+    const length = labelLengthWithout(index, r.h_mm);
+    if (how === "left") r.x_mm = 0;
+    if (how === "hcenter") r.x_mm = (height - r.w_mm) / 2;
+    if (how === "right") r.x_mm = height - r.w_mm;
+    if (how === "top") r.y_mm = startPad();
+    if (how === "vcenter") r.y_mm = (length - r.h_mm) / 2;
+    if (how === "bottom") r.y_mm = Math.max(0, length - endPad() - r.h_mm);
+    if (how === "fill") {
+      r.x_mm = 0;
+      r.w_mm = height;
+    }
+    item.rect = roundRect(r);
+    changed(true);
+    return;
+  }
   const length = labelLengthWithout(index, r.w_mm);
   switch (how) {
     case "left":
@@ -956,7 +1038,7 @@ function labelLengthWithout(index: number, ownWidth: number): number {
   const l = state.label;
   const others = Math.max(
     0,
-    ...l.elements.filter((it, i) => i !== index && it.rect).map((it) => it.rect!.x_mm + it.rect!.w_mm),
+    ...l.elements.filter((it, i) => i !== index && it.rect).map((it) => alongStart(it.rect!) + alongSize(it.rect!)),
   );
   const min = l.min_length_mm ?? 0;
   if (l.fixed_length && min > 0) return min;
@@ -1056,12 +1138,28 @@ function elementCard(item: Item, index: number): HTMLLIElement {
       changed(true);
     }),
   );
-  li.append(header, ...contentFields(item));
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.value = item.name ?? "";
+  nameInput.placeholder = t("elements.namePlaceholder");
+  nameInput.addEventListener("input", () => {
+    item.name = nameInput.value.trim() || undefined;
+    syncBoxCaption();
+    commitSoon();
+    updateFileName();
+  });
+  li.append(header, field("elements.name", nameInput), ...contentFields(item));
   if (item.rect && !item.locked) li.append(alignRow(index));
   const contentRow = item.rect ? contentAlignRow(item) : null;
   if (contentRow) li.append(contentRow);
   if (item.rect) li.append(rectFields(item, index));
   return li;
+}
+
+/** Layer list text: the user's name, else the content. */
+function layerCaption(item: Item): string {
+  if (item.name) return item.name;
+  return item.type === "fill" || item.type === "shape" ? "" : boxCaption(item);
 }
 
 /** Layer list row: name plus show/hide, lock, duplicate, delete. */
@@ -1076,7 +1174,31 @@ function layerRow(item: Item, index: number): HTMLLIElement {
   kind.textContent = `${index + 1}. ${elementTitle(item)}`;
   const caption = document.createElement("span");
   caption.className = "layer-caption";
-  caption.textContent = item.type === "fill" || item.type === "shape" ? "" : boxCaption(item);
+  caption.textContent = layerCaption(item);
+  caption.title = t("elements.renameHint");
+  // Double-click: rename in place (Enter/leaving keeps, Esc cancels).
+  caption.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = item.name ?? "";
+    input.placeholder = boxCaption(item);
+    caption.replaceWith(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (keep: boolean) => {
+      if (done) return;
+      done = true;
+      if (keep) item.name = input.value.trim() || undefined;
+      changed(true);
+    };
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") finish(true);
+      if (ev.key === "Escape") finish(false);
+    });
+    input.addEventListener("blur", () => finish(true));
+  });
   name.append(kind, caption);
   const eye = makeButton(item.hidden ? "◌" : "👁", t(item.hidden ? "elements.show" : "elements.hide"), () => {
     item.hidden = !item.hidden || undefined;
@@ -1147,6 +1269,7 @@ function renderLayout(): void {
   $<HTMLInputElement>("padding-start").value = String(l.padding_start_mm ?? l.padding_mm);
   $<HTMLInputElement>("min-length").value = l.min_length_mm ? String(l.min_length_mm) : "";
   $<HTMLInputElement>("fixed-length").checked = !!l.fixed_length;
+  $<HTMLSelectElement>("orientation").value = l.orientation ?? "landscape";
   renderBorder();
   $<HTMLSelectElement>("strips").value = String(strips());
   updateStripsHint();
@@ -1171,12 +1294,20 @@ function bindLayout(): void {
   };
   // Changing the left margin moves the boxes along, so the content keeps
   // its distance to the margin instead of sliding into it.
+  $<HTMLSelectElement>("orientation").addEventListener("change", (e) => {
+    void setOrientation((e.target as HTMLSelectElement).value as api.Orientation);
+  });
   num("padding-start", (v) => {
     const before = startPad();
     state.label.padding_start_mm = v;
     const delta = startPad() - before;
     for (const item of state.label.elements) {
-      if (item.rect) item.rect = roundRect({ ...item.rect, x_mm: Math.max(0, item.rect.x_mm + delta) });
+      if (!item.rect) continue;
+      item.rect = roundRect(
+        portrait()
+          ? { ...item.rect, y_mm: Math.max(0, item.rect.y_mm + delta) }
+          : { ...item.rect, x_mm: Math.max(0, item.rect.x_mm + delta) },
+      );
     }
     renderBoxes();
     state.label.elements.forEach((_, i) => updateRectInputs(i));
@@ -1249,6 +1380,7 @@ function borderReserveMm(b: api.Border, side: BorderSide): number {
  * changed.
  */
 function fitBoxesInsideBorder(b: api.Border): boolean {
+  if (portrait()) return false; // border sides refer to the landscape tape
   const top = b.sides.top ? borderReserveMm(b, "top") : 0;
   const bottom = labelHeightMm() - (b.sides.bottom ? borderReserveMm(b, "bottom") : 0);
   // The border's left edge sits inside the label margin.

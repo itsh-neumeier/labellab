@@ -166,6 +166,72 @@ pub struct Label {
     /// printed as one strip per slice, top first.
     #[serde(default = "one_strip", skip_serializing_if = "is_one_strip")]
     pub strips: u8,
+    /// How the label is designed: `landscape` (tape horizontal, the
+    /// default) or `portrait` (tape vertical: boxes are in portrait
+    /// coordinates, x across the tape, y along it). Printing always uses
+    /// the landscape form ([`Label::to_landscape`]).
+    #[serde(default, skip_serializing_if = "Orientation::is_landscape")]
+    pub orientation: Orientation,
+}
+
+/// Editor orientation of a label, see [`Label::orientation`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Orientation {
+    #[default]
+    Landscape,
+    Portrait,
+}
+
+impl Orientation {
+    fn is_landscape(&self) -> bool {
+        *self == Orientation::Landscape
+    }
+}
+
+impl Rect {
+    /// A portrait box (tape `tape_mm` wide, viewed with the label start on
+    /// top) in landscape coordinates. The portrait view is the landscape
+    /// view turned 90° clockwise.
+    pub fn portrait_to_landscape(&self, tape_mm: f32) -> Rect {
+        Rect {
+            x_mm: self.y_mm,
+            y_mm: tape_mm - self.x_mm - self.w_mm,
+            w_mm: self.h_mm,
+            h_mm: self.w_mm,
+        }
+    }
+
+    /// Inverse of [`Self::portrait_to_landscape`].
+    pub fn landscape_to_portrait(&self, tape_mm: f32) -> Rect {
+        Rect {
+            x_mm: tape_mm - self.y_mm - self.h_mm,
+            y_mm: self.x_mm,
+            w_mm: self.h_mm,
+            h_mm: self.w_mm,
+        }
+    }
+}
+
+impl Label {
+    /// The same label in landscape form (what is printed). Portrait boxes
+    /// are mapped onto the tape and their content turned so it reads
+    /// upright with the tape held vertically. `tape_mm` is the design
+    /// height (printable width x strips).
+    pub fn to_landscape(&self, tape_mm: f32) -> Label {
+        if self.orientation == Orientation::Landscape {
+            return self.clone();
+        }
+        let mut out = self.clone();
+        out.orientation = Orientation::Landscape;
+        for item in &mut out.elements {
+            if let Some(r) = item.rect {
+                item.rect = Some(r.portrait_to_landscape(tape_mm));
+                item.rotation = (item.rotation + 270) % 360;
+            }
+        }
+        out
+    }
 }
 
 fn one_strip() -> u8 {
@@ -189,6 +255,7 @@ impl Default for Label {
             fixed_length: false,
             border: None,
             strips: 1,
+            orientation: Orientation::Landscape,
         }
     }
 }
@@ -231,6 +298,9 @@ pub struct Item {
     /// Hidden in the editor's layer list: not rendered or printed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hidden: bool,
+    /// User-given name in the layer list (no effect on rendering).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 fn is_zero(v: &u16) -> bool {
@@ -247,6 +317,7 @@ impl From<Element> for Item {
             halign: None,
             valign: None,
             hidden: false,
+            name: None,
         }
     }
 }
@@ -790,7 +861,15 @@ fn border_reserve(border: &LabelBorder, canvas: &Canvas) -> Reserve {
     }
 }
 
+/// Design height of `canvas` in mm (printable width x strips).
+fn design_height_mm(canvas: &Canvas) -> f32 {
+    dots_to_mm(canvas.pins as u32) / canvas.scale as f32
+}
+
 fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
+    if label.orientation == Orientation::Portrait {
+        return compose(&label.to_landscape(design_height_mm(canvas)), canvas);
+    }
     let mut fonts = FontCache::default();
     if label.has_text() {
         fonts.default_bytes()?; // fail early with a clear "no font" error
@@ -1007,7 +1086,9 @@ pub fn resolved_rects(
     model: &ModelInfo,
     geometry: &TapeGeometry,
 ) -> Result<Vec<Rect>, CoreError> {
-    let composed = compose(label, &Canvas::new(label, model, geometry, 1))?;
+    let canvas = Canvas::new(label, model, geometry, 1);
+    let composed = compose(label, &canvas)?;
+    let tape_mm = design_height_mm(&canvas);
     let mm = |d: i32| {
         let v = dots_to_mm(d.unsigned_abs());
         if d < 0 {
@@ -1019,11 +1100,17 @@ pub fn resolved_rects(
     Ok(composed
         .boxes
         .into_iter()
-        .map(|(x, y, w, h)| Rect {
-            x_mm: mm(x),
-            y_mm: mm(y),
-            w_mm: dots_to_mm(w),
-            h_mm: dots_to_mm(h),
+        .map(|(x, y, w, h)| {
+            let r = Rect {
+                x_mm: mm(x),
+                y_mm: mm(y),
+                w_mm: dots_to_mm(w),
+                h_mm: dots_to_mm(h),
+            };
+            match label.orientation {
+                Orientation::Landscape => r,
+                Orientation::Portrait => r.landscape_to_portrait(tape_mm),
+            }
         })
         .collect())
 }
@@ -1074,8 +1161,17 @@ pub fn render_label_preview(
     let geometry = geometry_for(model, width_mm)?;
     let canvas = Canvas::new(label, model, geometry, scale);
     let composed = compose(label, &canvas)?;
+    let png = if label.orientation == Orientation::Portrait {
+        // Display only: the printed bitmap stays landscape.
+        let mut area = Bitmap::new(canvas.pins, composed.bitmap.height_dots());
+        area.blit(&composed.bitmap, -(canvas.offset as i32), 0, 0..canvas.pins);
+        let turned = area.rotated(1);
+        ll_render::png::to_png_mask(&turned, 0, turned.width_pins())?
+    } else {
+        ll_render::png::to_png_mask(&composed.bitmap, canvas.offset, canvas.pins)?
+    };
     Ok(Preview {
-        png: ll_render::png::to_png_mask(&composed.bitmap, canvas.offset, canvas.pins)?,
+        png,
         overflowing: composed
             .overflow
             .iter()
@@ -1128,6 +1224,7 @@ mod tests {
                     halign: None,
                     valign: None,
                     hidden: false,
+                    name: None,
                 },
                 Element::Qr {
                     data: "https://example.org".into(),
@@ -1256,6 +1353,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
+                name: None,
             }],
             ..Label::default()
         };
@@ -1297,6 +1395,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
+                name: None,
             }],
             ..Label::default()
         };
@@ -1385,6 +1484,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
+                name: None,
             }],
             ..Label::default()
         };
@@ -1426,6 +1526,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
+                name: None,
             }],
             padding_mm: 1.0,
             ..Label::default()
@@ -1513,6 +1614,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
+            name: None,
         };
         let mut label = Label {
             elements: vec![bar(0.0), bar(40.0)],
@@ -1599,6 +1701,39 @@ mod tests {
     }
 
     #[test]
+    fn portrait_prints_like_its_landscape_form() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let tape = dots_to_mm(geometry.printable_pins as u32);
+        let bar = Item {
+            rect: Some(Rect {
+                x_mm: 1.0,
+                y_mm: 2.0,
+                w_mm: 4.0,
+                h_mm: 20.0,
+            }),
+            ..Element::Fill.into()
+        };
+        let portrait = Label {
+            elements: vec![bar.clone()],
+            orientation: Orientation::Portrait,
+            ..Label::default()
+        };
+        let mut landscape = portrait.to_landscape(tape);
+        assert_eq!(landscape.orientation, Orientation::Landscape);
+        let r = landscape.elements[0].rect.unwrap();
+        assert_eq!((r.x_mm, r.w_mm, r.h_mm), (2.0, 20.0, 4.0));
+        assert!((r.y_mm - (tape - 5.0)).abs() < 1e-4);
+        assert_eq!(
+            render_label(&portrait, model, geometry).unwrap(),
+            render_label(&landscape, model, geometry).unwrap()
+        );
+        // Round trip of the box mapping.
+        landscape.elements[0].rect = Some(r.landscape_to_portrait(tape));
+        assert_eq!(landscape.elements[0].rect, bar.rect);
+    }
+
+    #[test]
     fn shapes_render_in_boxes_and_flow() {
         let model = p710();
         let geometry = geometry_for(model, 12).unwrap();
@@ -1640,6 +1775,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
+            name: None,
         };
         let label = Label {
             elements: vec![boxed(None), boxed(Some(30.0))],
@@ -1669,6 +1805,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
+            name: None,
         };
         for rotation in [0, 90, 180, 270] {
             let label = Label {
@@ -1723,6 +1860,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
+                name: None,
             }],
             ..Label::default()
         };

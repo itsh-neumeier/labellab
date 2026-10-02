@@ -106,6 +106,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- Hochformat: Label mit senkrechtem Band bearbeiten („Ausrichtung“ unter Label)
+- Elemente können eigene Namen bekommen (Doppelklick in der Liste)
 - Editor-Aufbau wie Ebenen: links die Elementliste mit Ein-/Ausblenden, Sperren,
   Duplizieren und Löschen, rechts die Eigenschaften des gewählten Elements; ausgeblendete
   Elemente werden nicht gedruckt

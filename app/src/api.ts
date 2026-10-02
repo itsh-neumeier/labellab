@@ -62,6 +62,8 @@ export type Item = Element & {
   valign?: VAlign | null;
   /** Not rendered or printed (layer list eye). */
   hidden?: boolean;
+  /** User-given name in the layer list. */
+  name?: string | null;
 };
 
 /** Running number for `{{n}}`/`{{a}}`/`{{A}}`. */
@@ -118,9 +120,13 @@ export interface Border {
   insets_mm?: { top: number; bottom: number; left: number; right: number } | null;
 }
 
+export type Orientation = "landscape" | "portrait";
+
 export interface Label {
   version: number;
   elements: Item[];
+  /** Editor orientation; portrait boxes are in portrait coordinates (absent = landscape). */
+  orientation?: Orientation;
   /** With `min_length_mm`: exactly that long, content beyond is cut off. */
   fixed_length?: boolean;
   gap_mm: number;

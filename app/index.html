@@ -81,6 +81,11 @@
           <input id="min-length" type="number" min="0" step="1" data-i18n-placeholder="layout.auto" />
           <label for="fixed-length" data-i18n="layout.fixedLength" data-i18n-title="layout.fixedLengthHint"></label>
           <input id="fixed-length" type="checkbox" />
+          <label for="orientation" data-i18n="layout.orientation"></label>
+          <select id="orientation">
+            <option value="landscape" data-i18n="layout.landscape"></option>
+            <option value="portrait" data-i18n="layout.portrait"></option>
+          </select>
         </div>
 
         <h2 data-i18n="border.title"></h2>
@@ -183,7 +188,7 @@
         </div>
         <div class="tape-wrap" id="tape-wrap">
           <div id="ruler" class="ruler" aria-hidden="true"></div>
-          <div class="stage-row">
+          <div class="stage-row" id="stage-row">
             <div id="vruler" class="vruler" aria-hidden="true"></div>
             <div class="tape-frame" id="tape-frame">
               <div class="stage" id="stage">

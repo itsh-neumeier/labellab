@@ -106,8 +106,13 @@
     gemerkt) (Nutzerwunsch 2026-10-02)
   - [ ] Dekorative Rahmen wie im Hersteller-Editor: Rahmen aus Start-, Wiederhol- und
     Endsegment (SVG), mitgelieferte Bibliothek + Editor/Creator (Nutzerwunsch 2026-10-02)
-  - [ ] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
-    2026-10-02, = Hochformat aus Paket 3b)
+  - [x] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
+    2026-10-02, = Hochformat aus Paket 3b, ADR-031)
+  - [x] Eigene Namen für Elemente (Doppelklick in der Liste, Feld „Name“)
+  - [ ] USB unter Windows: Fehler „incompatible driver is installed“ (Nutzer 2026-10-02) —
+    `nusb` braucht WinUSB, am Drucker hängt der Windows-Druckertreiber (usbprint). Lösung:
+    Windows-Transport über die usbprint-Geräteschnittstelle (SetupAPI + CreateFile)
+  - [ ] Daten (CSV): Beispieldatei erzeugen und speichern lassen (Nutzerwunsch 2026-10-02)
   - [x] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
     an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
   - [x] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
@@ -303,6 +308,16 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Hochformat, Elementnamen (ADR-031)
+- `Label::orientation` (`landscape`/`portrait`); Hochformat-Boxen in Hochformat-Koordinaten,
+  `Label::to_landscape` (Box gedreht, Inhalt +270°) vor dem Rendern/Drucken; Vorschau-PNG im
+  Hochformat gedreht (nur Anzeige); `resolved_rects` liefert Hochformat-Boxen zurück.
+- App: „Ausrichtung“ unter Label; Umschalten dreht Boxen und Inhalt mit (Ausdruck bleibt
+  gleich); Editor, Lineale, Ränder, Einrasten, Ausrichten, neue Elemente für Hochformat.
+- `Item::name`: eigener Name in der Ebenenliste (Doppelklick) und Feld „Name“.
+- Geprüft: Tests (1 neuer: Hochformat druckt wie Querformat-Gegenstück), fmt/clippy, Build;
+  GUI unter Xvfb (Umschalten, Umbenennen).
+
 ### 2026-10-02 – Claude Code, Ebenen links, Eigenschaften rechts
 - Links nur noch die Elementliste (Ebenen): Typ, Inhalt, Ein-/Ausblenden, Sperren,
   Duplizieren, Löschen; rechts neue Leiste „Eigenschaften“ mit allen Einstellungen des
