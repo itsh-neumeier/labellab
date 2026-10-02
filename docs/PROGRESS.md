@@ -161,6 +161,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- Länge: Label mit fester Länge 100 mm (Rand links/rechts ≥ 4 mm) drucken → genau 100 mm?
+  (Vorschub `1B 69 64` wird jetzt von den leeren Label-Enden abgezogen, PROTOCOL.md)
 - „Wach halten“: einschalten, Drucker länger als seine Abschaltzeit liegen lassen — bleibt
   er an? (Bluetooth und USB; Statusabfrage als Keep-alive ist unverifiziert, PROTOCOL.md)
 - Windows: Bild (Screenshot, Bild aus dem Browser) und Text mit Strg+V einfügen,
@@ -275,6 +277,15 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Fix Labellänge (100 mm fest → 107 mm gedruckt)
+- Ursache (Messung Nutzer): Der Drucker-Rand `1B 69 64` (Nachlauf, Standard 28 Punkte
+  ≈ 3,95 mm) kommt vor *und* nach dem Label dazu: 100 + 2 × 3,95 ≈ 108 mm.
+- Fix `ll_core::print::trim_for_margin`: je Seite höchstens den Nachlauf von beiden leeren
+  Enden des gerenderten Labels abschneiden und genau diesen Wert als Rand senden; nie Tinte
+  abschneiden (Rand = kleineres leeres Ende). Gedruckte Länge = Vorschau-Länge; der Abstand
+  zum Schnitt kommt jetzt aus „Rand links/rechts“.
+- Geprüft: Tests (1 neuer, 2 angepasst). Hardware-Test eingetragen.
+
 ### 2026-10-02 – Claude Code, Größe an allen Seiten ändern
 - Acht Griffe je Box (n/s/e/w und Ecken); `snap.ts`: `handleEdges`, `resizeRect` (Gegenkante
   fest, Mindestgröße, Umschalt an Ecken = Seitenverhältnis, linke Kante nicht vor 0) und

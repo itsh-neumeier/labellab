@@ -51,8 +51,10 @@ pub struct PrintOptions {
     /// print job, no cut in between (`0C` between pages, `1A` after the
     /// last). TODO(verify): multi-page jobs on real hardware.
     pub chain: bool,
-    /// Blank feed in dots before the cut / between chained labels. `0`
-    /// cuts right at the last printed dot (see `DEFAULT_MARGIN_DOTS`).
+    /// Most blank feed in dots the printer adds before and after a page.
+    /// It is taken out of the label's own blank ends (its margins), so the
+    /// printed length equals the rendered one; less if those ends are
+    /// shorter (see `trim_for_margin`).
     pub margin_dots: u16,
 }
 
@@ -123,22 +125,22 @@ pub async fn print_labels(
         }
     }
 
+    // The printer feeds `margin` blank before *and* after the raster data
+    // (a fixed 100 mm label came out ~108 mm with 28 dots, 2026-10-02).
+    // Take that feed out of the label's own blank ends instead, so the
+    // printed length matches the preview.
+    let pages: Vec<(Bitmap, u16)> = pages
+        .iter()
+        .map(|p| trim_for_margin(p, options.margin_dots))
+        .collect();
+
     let total = pages.len() as u32;
     progress(0, total);
-    for (i, page) in pages.iter().enumerate() {
+    for (i, (page, margin)) in pages.iter().enumerate() {
         let last = i + 1 == pages.len();
         if options.chain {
             let cut = options.auto_cut && last;
-            send_page(
-                transport,
-                page,
-                width_mm,
-                cut,
-                options.margin_dots,
-                i == 0,
-                last,
-            )
-            .await?;
+            send_page(transport, page, width_mm, cut, *margin, i == 0, last).await?;
         } else {
             if i > 0 {
                 // Fresh job per page, same as a single print.
@@ -152,7 +154,7 @@ pub async fn print_labels(
                 page,
                 width_mm,
                 options.auto_cut,
-                options.margin_dots,
+                *margin,
                 true,
                 true,
             )
@@ -264,6 +266,26 @@ async fn read_status_and_geometry<'m>(
     Ok((width_mm, geometry_for(model, width_mm)?))
 }
 
+/// Removes up to `max_margin` blank raster lines from each end of `page`
+/// and returns it with the feed margin to send instead: the printer adds
+/// that margin before and after the page (TODO(verify): symmetric feed
+/// derived from one length measurement, see `docs/PROTOCOL.md`), so the
+/// total length stays the rendered one. Ink is never trimmed: the margin
+/// shrinks to the smaller blank end (0 if content touches an end).
+fn trim_for_margin(page: &Bitmap, max_margin: u16) -> (Bitmap, u16) {
+    let len = page.height_dots();
+    let blank = |line: u32| page.row(line).iter().all(|&b| b == 0);
+    let lead = (0..len).take_while(|&l| blank(l)).count() as u32;
+    let trail = (0..len).rev().take_while(|&l| blank(l)).count() as u32;
+    let trim = (max_margin as u32).min(lead).min(trail).min(len / 2);
+    if trim == 0 {
+        return (page.clone(), 0);
+    }
+    let mut out = Bitmap::new(page.width_pins(), len - 2 * trim);
+    out.blit(page, 0, -(trim as i32), 0..page.width_pins());
+    (out, trim as u16)
+}
+
 /// One page: control codes (raster mode, various mode, margin, print
 /// information, compression), the raster lines (PackBits, blank rows as
 /// `Z`), then `1A` (last page) or `0C` (more pages follow in this job).
@@ -368,10 +390,10 @@ mod tests {
             find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x00]).is_some(),
             "various_mode (no auto-cut) missing"
         );
-        let margin_le = DEFAULT_MARGIN_DOTS.to_le_bytes();
+        // Text without padding touches both ends: no feed margin left.
         assert!(
-            find_subsequence(written, &[0x1B, 0x69, 0x64, margin_le[0], margin_le[1]]).is_some(),
-            "margin(DEFAULT_MARGIN_DOTS) missing"
+            find_subsequence(written, &[0x1B, 0x69, 0x64, 0, 0]).is_some(),
+            "margin command missing"
         );
         assert!(
             find_subsequence(written, &[0x1B, 0x69, 0x7A]).is_some(),
@@ -621,11 +643,16 @@ mod tests {
     async fn custom_margin_is_sent() {
         let mut transport = MockTransport::new();
         transport.push_response(status_fixture_9mm_ok());
-
-        print_text(
+        // 20 mm blank on both ends leaves room for a 100-dot feed margin.
+        let label = Label {
+            elements: vec![Element::Qr { data: "x".into() }.into()],
+            padding_mm: 20.0,
+            ..Label::default()
+        };
+        print_label(
             &mut transport,
             p710bt(),
-            "HI",
+            &label,
             &PrintOptions {
                 margin_dots: 100,
                 ..Default::default()
@@ -639,6 +666,24 @@ mod tests {
             find_subsequence(written, &[0x1B, 0x69, 0x64, 100, 0]).is_some(),
             "margin(100) missing"
         );
+    }
+
+    #[test]
+    fn margin_comes_out_of_the_blank_ends() {
+        let mut page = Bitmap::new(128, 200);
+        for line in 50..170 {
+            page.set_pixel(60, line, true);
+        }
+        // Blank ends 50 and 30: the feed takes 30 from each, no ink lost.
+        let (out, margin) = trim_for_margin(&page, 40);
+        assert_eq!(margin, 30);
+        assert_eq!(out.height_dots(), 140);
+        assert_eq!(out.height_dots() + 2 * margin as u32, page.height_dots());
+        assert!(out.pixel(60, 20) && out.pixel(60, 139) && !out.pixel(60, 19));
+        // Ink at an end: no margin, unchanged page.
+        page.set_pixel(0, 0, true);
+        let (out, margin) = trim_for_margin(&page, 40);
+        assert_eq!((margin, out.height_dots()), (0, 200));
     }
 
     #[tokio::test]
