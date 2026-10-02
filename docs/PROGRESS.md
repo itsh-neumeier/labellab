@@ -110,9 +110,11 @@
     2026-10-02, = Hochformat aus Paket 3b)
   - [x] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
     an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
-  - [ ] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
+  - [x] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
     Ein-/Ausblenden, Duplizieren, Löschen), rechts Eigenschaften-Leiste für das gewählte
     Element (Nutzerwunsch 2026-10-02; Ausblenden braucht Feld `hidden` am Item)
+  - [ ] Import von Dateien des Hersteller-Editors (`.lbx`, ZIP mit `label.xml`) in `.llabel`
+    (Nutzerwunsch 2026-10-02; Beispieldatei des Nutzers nicht ins Repo)
   - [ ] Akkustand: Statusbyte per Rohdaten-Vergleich (Ladekabel/Akku) ermitteln, dann anzeigen
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
@@ -141,9 +143,9 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-- Reihenfolge der offenen Nutzerwünsche (2026-10-02, Vorschlag): 1. Auto-Speichern +
-  Undo/Redo-Symbole, 2. Ebenen links / Eigenschaften rechts, 3. senkrechte Bandausrichtung,
-  4. Segment-Rahmen + Editor.
+- Reihenfolge der offenen Nutzerwünsche (2026-10-02): ~~1. Auto-Speichern~~,
+  ~~2. Ebenen/Eigenschaften~~, 3. senkrechte Bandausrichtung, 4. Segment-Rahmen + Editor,
+  5. `.lbx`-Import.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
   Bandausrichtung im Editor, Akkuanzeige nach Rohdaten-Test, macOS-Build (Tauri kann es,
   braucht macOS-Runner in CI + Bluetooth über CoreBluetooth/IOBluetooth — neuer Transport),
@@ -300,6 +302,14 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Ebenen links, Eigenschaften rechts
+- Links nur noch die Elementliste (Ebenen): Typ, Inhalt, Ein-/Ausblenden, Sperren,
+  Duplizieren, Löschen; rechts neue Leiste „Eigenschaften“ mit allen Einstellungen des
+  gewählten Elements (bisherige Elementkarte, Drehen im Kopf).
+- `Item::hidden` (ll-core): ausgeblendete Elemente werden nicht gerendert/gedruckt, zählen
+  aber für die Labellänge mit (Länge springt nicht beim Ausblenden). Box blass/gepunktet.
+- Geprüft: Tests (1 neuer), Frontend-Build; GUI unter Xvfb (Auswahl, Ausblenden).
+
 ### 2026-10-02 – Claude Code, Auto-Speichern, Speichern/Speichern unter, Undo/Redo-Symbole
 - „Speichern“ schreibt direkt in die geöffnete Datei (Strg+S), „Speichern unter …“
   (Strg+Umschalt+S) fragt nach. Schalter „Auto-Speichern“: aktiv, sobald die Datei einen

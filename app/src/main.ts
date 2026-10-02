@@ -482,7 +482,7 @@ function renderBoxes(): void {
   state.label.elements.forEach((item, index) => {
     if (!item.rect) return;
     const box = document.createElement("div");
-    box.className = `box${index === state.selected ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}${item.locked ? " locked" : ""}`;
+    box.className = `box${index === state.selected ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}${item.locked ? " locked" : ""}${item.hidden ? " is-hidden" : ""}`;
     box.dataset.index = String(index);
     box.title = boxCaption(item);
     placeBox(box, item.rect);
@@ -579,11 +579,12 @@ function select(index: number): void {
   if (state.selected === index) return;
   state.selected = index;
   document.querySelectorAll<HTMLElement>(".box").forEach((b) => b.classList.toggle("selected", Number(b.dataset.index) === index));
-  document.querySelectorAll<HTMLElement>(".element").forEach((c) => {
+  document.querySelectorAll<HTMLElement>(".layer").forEach((c) => {
     const on = Number(c.dataset.index) === index;
     c.classList.toggle("selected", on);
     if (on) c.scrollIntoView({ block: "nearest" });
   });
+  renderProps();
 }
 
 /** Box for a new element: after the rightmost box, full tape height. */
@@ -669,6 +670,11 @@ function syncBoxCaption(): void {
   document.querySelectorAll<HTMLElement>(".box").forEach((b) => {
     const item = state.label.elements[Number(b.dataset.index)];
     if (item) b.title = boxCaption(item);
+  });
+  document.querySelectorAll<HTMLElement>(".layer").forEach((row) => {
+    const item = state.label.elements[Number(row.dataset.index)];
+    const caption = row.querySelector(".layer-caption");
+    if (item && caption && item.type !== "fill" && item.type !== "shape") caption.textContent = boxCaption(item);
   });
 }
 
@@ -1049,15 +1055,40 @@ function elementCard(item: Item, index: number): HTMLLIElement {
       item.rotation = ((item.rotation ?? 0) + 90) % 360;
       changed(true);
     }),
-    lockButton(item),
-    makeButton("⧉", t("elements.duplicate"), () => duplicateItem(index)),
-    makeButton("✕", t("elements.remove"), () => removeItem(index)),
   );
   li.append(header, ...contentFields(item));
   if (item.rect && !item.locked) li.append(alignRow(index));
   const contentRow = item.rect ? contentAlignRow(item) : null;
   if (contentRow) li.append(contentRow);
   if (item.rect) li.append(rectFields(item, index));
+  return li;
+}
+
+/** Layer list row: name plus show/hide, lock, duplicate, delete. */
+function layerRow(item: Item, index: number): HTMLLIElement {
+  const li = document.createElement("li");
+  li.className = `layer${index === state.selected ? " selected" : ""}${item.hidden ? " is-hidden" : ""}`;
+  li.dataset.index = String(index);
+  li.addEventListener("pointerdown", () => select(index));
+  const name = document.createElement("span");
+  name.className = "layer-name";
+  const kind = document.createElement("small");
+  kind.textContent = `${index + 1}. ${elementTitle(item)}`;
+  const caption = document.createElement("span");
+  caption.className = "layer-caption";
+  caption.textContent = item.type === "fill" || item.type === "shape" ? "" : boxCaption(item);
+  name.append(kind, caption);
+  const eye = makeButton(item.hidden ? "◌" : "👁", t(item.hidden ? "elements.show" : "elements.hide"), () => {
+    item.hidden = !item.hidden || undefined;
+    changed(true);
+  });
+  li.append(
+    name,
+    eye,
+    lockButton(item),
+    makeButton("⧉", t("elements.duplicate"), () => duplicateItem(index)),
+    makeButton("✕", t("elements.remove"), () => removeItem(index)),
+  );
   return li;
 }
 
@@ -1070,7 +1101,23 @@ function renderElements(): void {
     empty.textContent = t("elements.empty");
     list.append(empty);
   }
-  state.label.elements.forEach((item, i) => list.append(elementCard(item, i)));
+  state.label.elements.forEach((item, i) => list.append(layerRow(item, i)));
+  renderProps();
+}
+
+/** Right panel: every setting of the selected element. */
+function renderProps(): void {
+  const body = $("props-body");
+  body.replaceChildren();
+  const item = state.label.elements[state.selected];
+  if (!item) {
+    const hint = document.createElement("p");
+    hint.className = "muted hint";
+    hint.textContent = t("props.none");
+    body.append(hint);
+    return;
+  }
+  body.append(elementCard(item, state.selected));
 }
 
 function defaultElement(type: Element["type"]): Element {
