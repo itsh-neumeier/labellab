@@ -257,5 +257,16 @@
   "history.empty": "Noch nichts gedruckt.",
   "history.reopen": "Öffnen",
   "history.meta": "{date} · {width} mm · {count} Label",
-  "history.untitled": "Label"
+  "history.untitled": "Label",
+  "sheet.default": "Blatt {n}",
+  "sheet.add": "Neues Arbeitsblatt",
+  "sheet.rename": "Doppelklick: umbenennen",
+  "sheet.remove": "Arbeitsblatt löschen",
+  "sheet.removeConfirm": "Arbeitsblatt „{name}“ löschen?",
+  "file.unsaved": "Es gibt ungespeicherte Änderungen. Verwerfen?",
+  "file.unsavedTitle": "Ungespeicherte Änderungen",
+  "file.discard": "Verwerfen",
+  "file.cancel": "Abbrechen",
+  "file.yes": "Ja",
+  "file.no": "Nein"
 }

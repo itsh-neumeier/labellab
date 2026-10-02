@@ -154,8 +154,21 @@ export const models = () => invoke<Model[]>("models");
 export const defaultMarginDots = () => invoke<number>("default_margin_dots");
 export const listDevices = () => invoke<{ devices: Device[]; warnings: string[] }>("list_devices");
 export const queryStatus = (connection: Connection) => invoke<Status>("query_status", { connection });
-export const loadLabel = (path: string) => invoke<Label>("load_label", { path });
-export const saveLabel = (path: string, label: Label) => invoke<void>("save_label", { path, label });
+/** One sheet of a `.llabel` document (`ll_core::document::Sheet`). */
+export interface Sheet {
+  name: string;
+  width_mm?: number | null;
+  label: Label;
+}
+
+export interface LabelDocument {
+  version: number;
+  sheets: Sheet[];
+}
+
+export const loadDocument = (path: string) => invoke<LabelDocument>("load_document", { path });
+export const saveDocument = (path: string, document: LabelDocument) =>
+  invoke<void>("save_document", { path, document });
 
 /** Base64 PNG of the label as it will be printed (same render path),
  * plus the indices of elements whose text does not fit its box. */

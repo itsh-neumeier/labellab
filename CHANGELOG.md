@@ -99,6 +99,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Hauptschalter-Feld); auch per `labellab generate single-flag|terminal-block|fuse-box`
 - Druckverlauf „Verlauf …“: die letzten 50 gedruckten Labels mit Vorschau, Datum und Band,
   per Klick wieder öffnen
+- Mehrere Arbeitsblätter in einer `.llabel`-Datei (Reiter über der Vorschau; CLI
+  `--sheet`), Warnung vor ungespeicherten Änderungen beim Schließen, Neu und Öffnen
 
 ### Behoben
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb

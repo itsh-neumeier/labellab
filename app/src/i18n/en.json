@@ -257,5 +257,16 @@
   "history.empty": "Nothing printed yet.",
   "history.reopen": "Open",
   "history.meta": "{date} · {width} mm · {count} label(s)",
-  "history.untitled": "Label"
+  "history.untitled": "Label",
+  "sheet.default": "Sheet {n}",
+  "sheet.add": "New sheet",
+  "sheet.rename": "Double-click: rename",
+  "sheet.remove": "Delete sheet",
+  "sheet.removeConfirm": "Delete sheet “{name}”?",
+  "file.unsaved": "There are unsaved changes. Discard them?",
+  "file.unsavedTitle": "Unsaved changes",
+  "file.discard": "Discard",
+  "file.cancel": "Cancel",
+  "file.yes": "Yes",
+  "file.no": "No"
 }

@@ -3,7 +3,8 @@
 // other boxes). Underneath the boxes sits the live preview: the exact
 // 1-bit raster that gets printed, rendered by the Rust backend through the
 // same path as the print job.
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
@@ -41,6 +42,11 @@ function newLabel(): Label {
 
 const state = {
   label: newLabel(),
+  /** All sheets of the open document; `state.label` is the current one's label. */
+  sheets: [] as api.Sheet[],
+  sheet: 0,
+  /** Document JSON at the last open/save/new, to detect unsaved changes. */
+  savedSnapshot: "",
   filePath: null as string | null,
   models: [] as api.Model[],
   devices: [] as Device[],
@@ -109,6 +115,7 @@ function commit(): void {
   if (state.history.length > HISTORY_LIMIT) state.history.shift();
   state.historyIndex = state.history.length - 1;
   updateHistoryButtons();
+  updateFileName();
 }
 
 function commitSoon(): void {
@@ -1402,18 +1409,11 @@ async function showHistory(): Promise<void> {
       meta.append(name, info);
       const open = makeButton(t("history.reopen"), "", async () => {
         try {
-          state.label = await api.loadHistory(e.id);
-          for (const item of state.label.elements) if (item.rect) item.rect = roundRect(item.rect);
-          state.filePath = null;
-          if (e.model === selectedModel()) {
-            fillWidths(e.width_mm);
-            fitZoom();
-          }
-          state.selected = -1;
-          await ensureRects();
-          resetHistory();
+          if (!(await confirmDiscard())) return;
+          const label = await api.loadHistory(e.id);
+          const width = e.model === selectedModel() ? e.width_mm : null;
           dialog.close();
-          renderAll();
+          await setDocument({ version: 3, sheets: [{ name: e.name, width_mm: width, label }] }, null);
         } catch (err) {
           msg.textContent = t("error.prefix", { error: errorText(err) });
         }
@@ -1697,7 +1697,13 @@ async function importIconsetFile(): Promise<void> {
 async function removeCurrentIconset(): Promise<void> {
   const set = state.iconsets.find((s) => s.id === picker.setId);
   if (!set || set.builtin) return;
-  if (!window.confirm(t("symbol.removeConfirm", { name: textOf(set.name) }))) return;
+  const ok = await ask(t("symbol.removeConfirm", { name: textOf(set.name) }), {
+    title: t("symbol.remove"),
+    kind: "warning",
+    okLabel: t("file.yes"),
+    cancelLabel: t("file.no"),
+  });
+  if (!ok) return;
   try {
     await api.removeIconset(set.id);
     await loadIconsets();
@@ -1808,14 +1814,153 @@ async function showSeries(): Promise<void> {
 // ---------------------------------------------------------------- files
 
 function updateFileName(): void {
-  const name = state.filePath?.split(/[\\/]/).pop() ?? t("toolbar.untitled");
+  const name = (state.filePath?.split(/[\\/]/).pop() ?? t("toolbar.untitled")) + (isDirty() ? " •" : "");
   $("file-name").textContent = name;
   document.title = `${name} – LabelLab`;
+}
+
+// ---------------------------------------------------------------- sheets (several labels per file)
+
+/** The open document with the current sheet's latest state. */
+function currentDocument(): api.LabelDocument {
+  syncSheet();
+  return { version: 3, sheets: state.sheets };
+}
+
+/** Writes the editor state back into the current sheet. */
+function syncSheet(): void {
+  const sheet = state.sheets[state.sheet];
+  if (!sheet) return;
+  sheet.label = state.label;
+  sheet.width_mm = selectedWidth() || sheet.width_mm;
+}
+
+function isDirty(): boolean {
+  return state.sheets.length > 0 && JSON.stringify(currentDocument()) !== state.savedSnapshot;
+}
+
+function markSaved(): void {
+  state.savedSnapshot = JSON.stringify(currentDocument());
+  updateFileName();
+}
+
+/** Asks before unsaved changes would be lost; true = go ahead. */
+async function confirmDiscard(): Promise<boolean> {
+  if (!isDirty()) return true;
+  return ask(t("file.unsaved"), {
+    title: t("file.unsavedTitle"),
+    kind: "warning",
+    okLabel: t("file.discard"),
+    cancelLabel: t("file.cancel"),
+  });
+}
+
+/** Replaces the whole document (open, new, history) and shows sheet `index`. */
+async function setDocument(doc: api.LabelDocument, path: string | null): Promise<void> {
+  state.sheets = doc.sheets.length ? doc.sheets : [{ name: t("sheet.default", { n: 1 }), label: newLabel() }];
+  state.filePath = path;
+  await showSheet(0, false);
+  markSaved();
+}
+
+/** Switches the editor to sheet `index` (`sync`: keep the current one's edits first). */
+async function showSheet(index: number, sync = true): Promise<void> {
+  if (sync) syncSheet();
+  state.sheet = Math.max(0, Math.min(index, state.sheets.length - 1));
+  const sheet = state.sheets[state.sheet];
+  state.label = sheet.label;
+  for (const item of state.label.elements) if (item.rect) item.rect = roundRect(item.rect);
+  state.selected = -1;
+  const model = state.models.find((m) => m.name === selectedModel());
+  if (sheet.width_mm && model?.tapes.some((tp) => tp.width_mm === sheet.width_mm) && sheet.width_mm !== selectedWidth()) {
+    fillWidths(sheet.width_mm);
+    tapeChanged();
+  }
+  await ensureRects();
+  resetHistory();
+  renderAll();
+  renderSheetTabs();
+}
+
+function renderSheetTabs(): void {
+  const bar = $("sheet-tabs");
+  bar.replaceChildren();
+  state.sheets.forEach((sheet, i) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = `tab${i === state.sheet ? " active" : ""}`;
+    tab.title = t("sheet.rename");
+    const name = document.createElement("span");
+    name.textContent = sheet.name;
+    tab.append(name);
+    if (state.sheets.length > 1 && i === state.sheet) {
+      const x = document.createElement("span");
+      x.className = "x";
+      x.textContent = "×";
+      x.title = t("sheet.remove");
+      x.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void removeSheet(i);
+      });
+      tab.append(x);
+    }
+    tab.addEventListener("click", () => {
+      if (i !== state.sheet) void showSheet(i);
+    });
+    tab.addEventListener("dblclick", () => renameSheet(i, tab));
+    bar.append(tab);
+  });
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "add";
+  add.textContent = "+";
+  add.title = t("sheet.add");
+  add.addEventListener("click", () => {
+    syncSheet();
+    state.sheets.push({ name: t("sheet.default", { n: state.sheets.length + 1 }), width_mm: selectedWidth(), label: newLabel() });
+    void showSheet(state.sheets.length - 1, false).then(updateFileName);
+  });
+  bar.append(add);
+}
+
+function renameSheet(index: number, tab: HTMLElement): void {
+  const sheet = state.sheets[index];
+  const input = document.createElement("input");
+  input.value = sheet.name;
+  tab.replaceChildren(input);
+  input.focus();
+  input.select();
+  const done = (keep: boolean) => {
+    if (keep && input.value.trim()) sheet.name = input.value.trim();
+    renderSheetTabs();
+    updateFileName();
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") done(true);
+    if (e.key === "Escape") done(false);
+    e.stopPropagation();
+  });
+  input.addEventListener("blur", () => done(true));
+}
+
+async function removeSheet(index: number): Promise<void> {
+  const sheet = state.sheets[index];
+  const ok = await ask(t("sheet.removeConfirm", { name: sheet.name }), {
+    title: t("sheet.remove"),
+    kind: "warning",
+    okLabel: t("file.yes"),
+    cancelLabel: t("file.no"),
+  });
+  if (!ok) return;
+  state.sheets.splice(index, 1);
+  await showSheet(Math.min(index, state.sheets.length - 1), false);
+  updateFileName();
 }
 
 const LLABEL_FILTER = () => [{ name: t("file.filter"), extensions: ["llabel"] }];
 
 async function openFile(): Promise<void> {
+  if (!(await confirmDiscard())) return;
   const path = await open({ multiple: false, filters: LLABEL_FILTER() });
   if (typeof path !== "string") return;
   await openPath(path);
@@ -1823,12 +1968,7 @@ async function openFile(): Promise<void> {
 
 async function openPath(path: string): Promise<void> {
   try {
-    state.label = await api.loadLabel(path);
-    state.filePath = path;
-    state.selected = -1;
-    await ensureRects();
-    resetHistory();
-    renderAll();
+    await setDocument(await api.loadDocument(path), path);
     rememberRecent(path);
     setMessage("");
   } catch (e) {
@@ -1877,9 +2017,9 @@ async function saveFile(): Promise<void> {
   const path = await save({ defaultPath: state.filePath ?? "label.llabel", filters: LLABEL_FILTER() });
   if (!path) return;
   try {
-    await api.saveLabel(path, state.label);
+    await api.saveDocument(path, currentDocument());
     state.filePath = path;
-    updateFileName();
+    markSaved();
     rememberRecent(path);
     setMessage(t("file.saved", { path }));
   } catch (e) {
@@ -2109,17 +2249,18 @@ function nudge(dx: number, dy: number): void {
 
 function bindUi(): void {
   $("btn-new").addEventListener("click", async () => {
-    state.label = newLabel();
-    state.filePath = null;
-    state.selected = -1;
-    await ensureRects();
-    resetHistory();
-    renderAll();
+    if (!(await confirmDiscard())) return;
+    await setDocument({ version: 3, sheets: [] }, null);
+  });
+  void getCurrentWindow().onCloseRequested(async (event) => {
+    if (!(await confirmDiscard())) event.preventDefault();
   });
   $("btn-open").addEventListener("click", openFile);
   $<HTMLSelectElement>("recent").addEventListener("change", (e) => {
-    const path = (e.target as HTMLSelectElement).value;
-    if (path) void openPath(path);
+    const select = e.target as HTMLSelectElement;
+    const path = select.value;
+    select.value = "";
+    if (path) void confirmDiscard().then((ok) => (ok ? openPath(path) : undefined));
   });
   renderRecent();
   $("btn-series").addEventListener("click", () => void showSeries());
@@ -2233,9 +2374,7 @@ async function init(): Promise<void> {
   $<HTMLInputElement>("margin").value = String(await api.defaultMarginDots());
   fillTapeStyles();
 
-  await ensureRects();
-  resetHistory();
-  renderAll();
+  await setDocument({ version: 3, sheets: [{ name: t("sheet.default", { n: 1 }), label: state.label }] }, null);
   applyStatic();
   renderCsv();
   setPrinting(false);

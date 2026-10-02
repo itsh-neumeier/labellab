@@ -312,3 +312,14 @@ dialog#history-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .history-list .thumb img { display: block; height: 40px; background: #fff; box-shadow: 0 0 0 1px var(--border); }
 .history-list .meta { font-size: 13px; }
 .history-list .meta .muted { font-size: 12px; }
+
+/* ---- sheet tabs ---- */
+.sheet-tabs { display: flex; gap: 2px; align-items: flex-end; padding: 6px 12px 0; border-bottom: 1px solid var(--border); overflow-x: auto; flex: none; }
+.sheet-tabs .tab {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border);
+  border-bottom: none; border-radius: 6px 6px 0 0; background: transparent; white-space: nowrap; font-size: 13px;
+}
+.sheet-tabs .tab.active { background: var(--panel); font-weight: 600; position: relative; top: 1px; }
+.sheet-tabs .tab .x { color: var(--muted); padding: 0 2px; cursor: pointer; }
+.sheet-tabs .tab input { width: 9em; padding: 0 4px; font: inherit; }
+.sheet-tabs .add { border: none; background: none; font-size: 16px; padding: 2px 8px; }
