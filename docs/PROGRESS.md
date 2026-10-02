@@ -332,6 +332,17 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Einstellungen bei der exe (ADR-036)
+- `ll_core::paths` (exe-Ordner wenn beschreibbar, `llappdata/`, Übernahme aus %APPDATA%),
+  `ll_core::settings` (ChaCha20-Poly1305, Tests: Rundweg, Manipulation, atomar), App-Befehle
+  `load_settings`/`save_settings`, `app/src/settings.ts` ersetzt `localStorage`; zusätzlich
+  gemerkt: Drucker, Modell, Band, Mehrband, Kopien, Nachlauf, Schnittmarken, Spiegeln, Zoom,
+  Qualität. Geprüft: Tests, fmt/clippy, Build; GUI unter Xvfb (Neustart behält Werte, Datei
+  binär).
+- Als Nächstes (Nutzerwunsch, in Arbeit): A4-Druck ausgewählter Blätter auf normalem
+  Drucker mit Testseite/Korrekturwert, Kopf mit Logo, Farben; danach Mittelstrich
+  Kabelfahne, Patchfeld als Element.
+
 ### 2026-10-02 – Claude Code, Verteilerbeschriftung: mehrzeilig, Ausrichtung; Reihenklemmen, LSA-Leiste
 - Nutzerwünsche: Feldtexte mehrzeilig mit fett/kursiv für Teile, Zeilenabstand, Ausrichtung
   waagerecht/senkrecht; „Sicherungskasten“ heißt in der Oberfläche „Verteilerbeschriftung“;

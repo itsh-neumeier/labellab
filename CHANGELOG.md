@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Einstellungen und eigene Daten liegen bei der Programmdatei: `LabelLab.settings`
+  (verschlüsselt, Änderungen von außen werden erkannt und verworfen) und der Ordner
+  `llappdata` (Rahmen, Icon-Sets, Druckverlauf, eingefügte Bilder). Vorhandene Daten aus
+  `%APPDATA%\LabelLab` werden beim ersten Start übernommen. Ist der Programmordner nicht
+  beschreibbar (z. B. installiert unter „Programme“), bleibt alles im Benutzerordner
+- Zusätzlich gemerkt: zuletzt gewählter Drucker, Modell, Band, Mehrband, Kopien, Nachlauf,
+  Schnittmarken, Spiegeln, Zoom und Vorschau-Qualität
 - Projektstart: README, MIT-Lizenz, Master-Prompt, Multi-Agent-Struktur, Bluetooth-Diagnose-Skript
 - M1: Cargo-Workspace mit `ll-protocol`, `ll-transport`, `ll-render`, `ll-core`, `ll-cli`; CI
   (fmt/clippy/test auf Windows + Linux); `docs/PROTOCOL.md`, `docs/ARCHITECTURE.md`

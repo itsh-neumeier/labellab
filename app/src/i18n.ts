@@ -2,6 +2,7 @@
 // German is the default (`AGENTS.md`), English the second language.
 import de from "./i18n/de.json";
 import en from "./i18n/en.json";
+import { getSetting, setSetting } from "./settings";
 
 export type Lang = "de" | "en";
 type Dict = Record<string, string>;
@@ -9,19 +10,15 @@ type Dict = Record<string, string>;
 const dicts: Record<Lang, Dict> = { de, en };
 const STORAGE_KEY = "labellab.lang";
 
-function initialLang(): Lang {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "de" || stored === "en") return stored;
-  } catch {
-    // storage unavailable: use the default
-  }
-  // German is the project default; the webview's `navigator.language`
-  // isn't a reliable system-language signal on Linux (WebKitGTK).
-  return "de";
-}
+// German is the project default; the webview's `navigator.language`
+// isn't a reliable system-language signal on Linux (WebKitGTK).
+let lang: Lang = "de";
 
-let lang: Lang = initialLang();
+/** Takes the saved language (call after the settings are loaded). */
+export function loadLang(): void {
+  const stored = getSetting(STORAGE_KEY);
+  if (stored === "de" || stored === "en") lang = stored;
+}
 
 export function currentLang(): Lang {
   return lang;
@@ -29,11 +26,7 @@ export function currentLang(): Lang {
 
 /** Switches the UI language and remembers the user's choice. */
 export function setLang(next: Lang): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, next);
-  } catch {
-    // not persisted, still switched for this session
-  }
+  setSetting(STORAGE_KEY, next);
   applyLang(next);
 }
 

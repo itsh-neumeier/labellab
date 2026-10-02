@@ -13,7 +13,8 @@ import { bindImageEditor, openImageEditor } from "./imageEditor";
 import { bindPaint, loadPaint, newPaint, segmentSvg } from "./framePaint";
 import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
-import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
+import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
+import { getSetting, initSettings, setSetting } from "./settings";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
 
@@ -474,7 +475,7 @@ function fillTapeStyles(detected?: TapeStyle): void {
 
 function loadTapeStyle(): string {
   try {
-    return localStorage.getItem(TAPE_STYLE_KEY) ?? "";
+    return getSetting(TAPE_STYLE_KEY) ?? "";
   } catch {
     return "";
   }
@@ -483,7 +484,7 @@ function loadTapeStyle(): string {
 function applyTapeStyle(): void {
   const key = $<HTMLSelectElement>("tape-style").value;
   try {
-    localStorage.setItem(TAPE_STYLE_KEY, key);
+    setSetting(TAPE_STYLE_KEY, key);
   } catch {
     // not remembered, still applied
   }
@@ -1814,6 +1815,35 @@ function setMessage(text: string, isError = false): void {
   el.className = isError ? "message error" : "message";
 }
 
+const DEVICE_KEY = "labellab.device";
+/** Device bar and print bar fields remembered in the settings file (model before tape). */
+const PERSISTED_FIELDS = ["model", "width", "strips", "copies", "margin", "cut-marks", "mirror", "zoom", "quality"];
+
+/** Restores the remembered fields and saves them on every change. */
+function bindPersistedFields(): void {
+  for (const id of PERSISTED_FIELDS) {
+    const el = $<HTMLInputElement | HTMLSelectElement>(id);
+    const key = `labellab.field.${id}`;
+    const isCheck = el instanceof HTMLInputElement && el.type === "checkbox";
+    const saved = getSetting(key);
+    const known = !(el instanceof HTMLSelectElement) || Array.from(el.options).some((o) => o.value === saved);
+    if (saved !== null && known) {
+      if (isCheck) (el as HTMLInputElement).checked = saved === "1";
+      else el.value = saved;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const save = () => setSetting(key, isCheck ? ((el as HTMLInputElement).checked ? "1" : "0") : el.value);
+    el.addEventListener("input", save);
+    el.addEventListener("change", save);
+  }
+  const device = $<HTMLSelectElement>("device");
+  device.addEventListener("change", () => {
+    const d = state.devices[Number(device.value)];
+    if (d) setSetting(DEVICE_KEY, d.name);
+  });
+}
+
 async function refreshDevices(autoStatus = true): Promise<void> {
   const select = $<HTMLSelectElement>("device");
   const { devices, warnings } = await api.listDevices();
@@ -1823,9 +1853,11 @@ async function refreshDevices(autoStatus = true): Promise<void> {
   devices.forEach((d, i) => select.add(new Option(d.model ? `${d.name} – ${d.model}` : d.name, String(i))));
   if (warnings.length) console.warn("device enumeration:", warnings);
 
-  // Pick the first recognized printer, switch to its model and read the
-  // tape status right away.
-  const index = devices.findIndex((d) => d.model);
+  // Pick the printer used last time, else the first recognized one, switch
+  // to its model and read the tape status right away.
+  const last = getSetting(DEVICE_KEY);
+  const lastIndex = last ? devices.findIndex((d) => d.name === last) : -1;
+  const index = lastIndex >= 0 ? lastIndex : devices.findIndex((d) => d.model);
   if (index >= 0) {
     select.value = String(index);
     applyDeviceModel(devices[index]);
@@ -2156,7 +2188,7 @@ const SECTIONS_OPEN_BY_DEFAULT = ["elements.title", "layout.title"];
 function makeSectionsCollapsible(): void {
   let saved: Record<string, boolean> = {};
   try {
-    saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "{}");
+    saved = JSON.parse(getSetting(SECTIONS_KEY) ?? "{}");
   } catch {
     // defaults
   }
@@ -2183,7 +2215,7 @@ function makeSectionsCollapsible(): void {
       section.classList.toggle("collapsed");
       saved[key] = !section.classList.contains("collapsed");
       try {
-        localStorage.setItem(SECTIONS_KEY, JSON.stringify(saved));
+        setSetting(SECTIONS_KEY, JSON.stringify(saved));
       } catch {
         // not remembered
       }
@@ -2244,7 +2276,7 @@ function cutSettings(): Pick<api.PrintJob, "cut" | "chain" | "cutEvery" | "cutMa
 function bindCutOptions(): void {
   const select = $<HTMLSelectElement>("cut-mode");
   try {
-    const saved = localStorage.getItem(CUT_MODE_KEY);
+    const saved = getSetting(CUT_MODE_KEY);
     if (saved && Array.from(select.options).some((o) => o.value === saved)) select.value = saved;
   } catch {
     // default
@@ -2252,7 +2284,7 @@ function bindCutOptions(): void {
   const update = () => {
     $("cut-every-wrap").hidden = select.value !== "every";
     try {
-      localStorage.setItem(CUT_MODE_KEY, select.value);
+      setSetting(CUT_MODE_KEY, select.value);
     } catch {
       // not remembered
     }
@@ -3018,7 +3050,7 @@ const RECENT_MAX = 8;
 
 function recentFiles(): string[] {
   try {
-    const list: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    const list: unknown = JSON.parse(getSetting(RECENT_KEY) ?? "[]");
     return Array.isArray(list) ? list.filter((p): p is string => typeof p === "string") : [];
   } catch {
     return [];
@@ -3028,7 +3060,7 @@ function recentFiles(): string[] {
 function rememberRecent(path: string): void {
   const list = [path, ...recentFiles().filter((p) => p !== path)].slice(0, RECENT_MAX);
   try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+    setSetting(RECENT_KEY, JSON.stringify(list));
   } catch {
     // not remembered
   }
@@ -3076,7 +3108,7 @@ let autosaveTimer: number | undefined;
 /** Auto-save preference: on unless the user turned it off. */
 function autosaveWanted(): boolean {
   try {
-    return localStorage.getItem(AUTOSAVE_KEY) !== "off";
+    return getSetting(AUTOSAVE_KEY) !== "off";
   } catch {
     return true;
   }
@@ -3112,7 +3144,7 @@ function bindAutosave(): void {
   $<HTMLInputElement>("autosave").addEventListener("change", (e) => {
     const on = (e.target as HTMLInputElement).checked;
     try {
-      localStorage.setItem(AUTOSAVE_KEY, on ? "on" : "off");
+      setSetting(AUTOSAVE_KEY, on ? "on" : "off");
     } catch {
       // not remembered
     }
@@ -3991,6 +4023,8 @@ function bindUi(): void {
 
 async function init(): Promise<void> {
   const started = Date.now();
+  await initSettings();
+  loadLang();
   makeSectionsCollapsible();
   applyLang(currentLang());
   bindSplash();
@@ -4011,6 +4045,7 @@ async function init(): Promise<void> {
   renderCsv();
   setPrinting(false);
   // Font scan can take a moment; fill the font pickers when it's done.
+  bindPersistedFields();
   void loadIconsets();
   void loadFrameSets();
   api.fontFamilies().then((fonts) => {
