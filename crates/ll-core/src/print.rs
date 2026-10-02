@@ -216,6 +216,7 @@ pub async fn print_image(
         invert,
         brightness: 0,
         contrast: 0,
+        edit: Default::default(),
     });
     print_label(transport, model, &label, options).await
 }

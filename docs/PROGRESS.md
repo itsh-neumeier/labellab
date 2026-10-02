@@ -110,7 +110,7 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
-| – | – | – | – |
+| Bild-Editor (Nutzerwunsch 2026-10-02): Kern fertig (`ll_render::image_edit`: Drehen/Spiegeln, Zuschneiden, Hintergrund entfernen, Halbton/Schwelle; Feld `edit` am Bild-Element); offen: App-Dialog „Bild bearbeiten …“ | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —

@@ -923,6 +923,7 @@ impl ContentArgs {
                         invert: self.invert,
                         brightness: 0,
                         contrast: 0,
+                        edit: Default::default(),
                     },
                     &i,
                 ),

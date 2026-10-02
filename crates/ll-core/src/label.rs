@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 
 use ll_protocol::model::{dots_to_mm, mm_to_dots, pt_to_dots, ModelInfo, TapeGeometry};
 use ll_render::{
-    boxed, Bitmap, Face, ImageAdjust, QrErrorCorrection, ShapeKind, Symbology, TextAlign,
+    boxed, Bitmap, Face, ImageAdjust, ImageEdit, QrErrorCorrection, ShapeKind, Symbology, TextAlign,
 };
 use serde::{Deserialize, Serialize};
 
@@ -229,6 +229,9 @@ pub enum Element {
         /// -100..100, 0 = unchanged.
         #[serde(default, skip_serializing_if = "is_zero_i8")]
         contrast: i8,
+        /// Crop, background removal, rotation, halftone (non-destructive).
+        #[serde(default, skip_serializing_if = "ImageEdit::is_identity")]
+        edit: ImageEdit,
     },
     /// A bundled symbol by name, see `ll_render::SYMBOL_NAMES`.
     Symbol {
@@ -498,7 +501,8 @@ fn render_flow_element(
             invert,
             brightness,
             contrast,
-        } => ll_render::render_image_adjusted(
+            edit,
+        } => ll_render::render_image_edited(
             path,
             head,
             pins,
@@ -508,6 +512,7 @@ fn render_flow_element(
                 brightness: *brightness,
                 contrast: *contrast,
             },
+            edit,
         )?,
         Element::Symbol { name, invert } => {
             ll_render::render_symbol(name, head, pins, offset, *invert)?
@@ -578,7 +583,8 @@ fn render_boxed_element(
             invert,
             brightness,
             contrast,
-        } => boxed::image_in_box_adjusted(
+            edit,
+        } => boxed::image_in_box_edited(
             path,
             w,
             h,
@@ -587,6 +593,7 @@ fn render_boxed_element(
                 brightness: *brightness,
                 contrast: *contrast,
             },
+            edit,
         )?,
         Element::Shape {
             shape,
@@ -951,6 +958,7 @@ mod tests {
                     invert: false,
                     brightness: 0,
                     contrast: 0,
+                    edit: Default::default(),
                 }
                 .into(),
             ],
@@ -997,6 +1005,7 @@ mod tests {
             invert: false,
             brightness: 0,
             contrast: 0,
+            edit: Default::default(),
         });
         label.resolve_paths(Path::new("/tmp/labels"));
         assert_eq!(
@@ -1006,6 +1015,7 @@ mod tests {
                 invert: false,
                 brightness: 0,
                 contrast: 0,
+                edit: Default::default(),
             }
         );
     }
