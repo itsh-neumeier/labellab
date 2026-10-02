@@ -117,8 +117,11 @@ fn models() -> Vec<ModelDto> {
 /// Renders `label` for a `width_mm` tape as a PNG, base64-encoded. A plain
 /// string survives every IPC transport (raw binary responses arrived
 /// broken in the Windows WebView2 build, preview stayed empty).
+///
+/// Async and on a blocking worker: a synchronous command runs on the main
+/// thread and froze the window while a large label rendered.
 #[tauri::command]
-fn render_preview(
+async fn render_preview(
     label: Label,
     model: String,
     width_mm: u8,
@@ -128,13 +131,17 @@ fn render_preview(
     series: State<'_, SeriesState>,
 ) -> Result<PreviewDto, AppError> {
     let label = with_record(label, &series, row, numbering);
-    let preview =
-        label::render_label_preview(&label, find_model(&model)?, width_mm, scale.clamp(1, 8))
-            .map_err(err)?;
-    Ok(PreviewDto {
-        png: base64::engine::general_purpose::STANDARD.encode(preview.png),
-        overflowing: preview.overflowing,
+    let model = find_model(&model)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let preview =
+            label::render_label_preview(&label, model, width_mm, scale.clamp(1, 8)).map_err(err)?;
+        Ok(PreviewDto {
+            png: base64::engine::general_purpose::STANDARD.encode(preview.png),
+            overflowing: preview.overflowing,
+        })
     })
+    .await
+    .map_err(|e| AppError::new("internal", e.to_string()))?
 }
 
 #[derive(Serialize)]

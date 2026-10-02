@@ -115,6 +115,7 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
+| Nutzerwunsch 2026-10-02: Vorschau in echter Bandbreite mit grauem nicht druckbarem Rand; Zeilenabstand für Text; Render-Performance bei viel Inhalt | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —

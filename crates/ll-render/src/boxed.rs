@@ -6,7 +6,9 @@
 //! the label at the box position. Content is fitted into the box keeping
 //! its aspect ratio and centered (text: aligned as requested).
 
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
 
 use fontdue::layout::{
     CoordinateSystem, HorizontalAlign, Layout, LayoutSettings, TextStyle, VerticalAlign,
@@ -308,16 +310,73 @@ pub fn image_in_box_edited(
     adjust: ImageAdjust,
     edit: &ImageEdit,
 ) -> Result<Bitmap, RenderError> {
+    // Decoding, scaling and dithering a photo dominates the render time;
+    // the live preview re-renders on every edit, mostly with the image
+    // unchanged.
+    let key = image_cache_key(path, box_w, box_h, invert, adjust, edit);
+    if let Some(hit) = key.as_ref().and_then(|k| cache_get(k)) {
+        return Ok(hit);
+    }
     let mut gray = load_gray_edited(path, box_h, edit)?;
     adjust.apply(&mut gray);
-    gray_in_box_at(
+    let bitmap = gray_in_box_at(
         &gray,
         box_w,
         box_h,
         invert,
         edit.halftone(),
         edit.threshold.unwrap_or(ICON_THRESHOLD),
-    )
+    )?;
+    if let Some(key) = key {
+        cache_put(key, &bitmap);
+    }
+    Ok(bitmap)
+}
+
+/// Rendered image boxes kept for reuse; cleared when this many pile up.
+const IMAGE_CACHE_ENTRIES: usize = 64;
+
+type ImageCache = Mutex<HashMap<String, Bitmap>>;
+
+fn image_cache() -> &'static ImageCache {
+    static CACHE: OnceLock<ImageCache> = OnceLock::new();
+    CACHE.get_or_init(Default::default)
+}
+
+/// Everything the rendered box depends on, including the file's size and
+/// modification time (an image changed on disk renders anew). `None` if
+/// the file can't be inspected (then it isn't cached).
+fn image_cache_key(
+    path: &Path,
+    box_w: u32,
+    box_h: u16,
+    invert: bool,
+    adjust: ImageAdjust,
+    edit: &ImageEdit,
+) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    let edit = serde_json::to_string(edit).ok()?;
+    Some(format!(
+        "{}|{:?}|{}|{box_w}x{box_h}|{invert}|{}|{}|{edit}",
+        path.display(),
+        meta.modified().ok(),
+        meta.len(),
+        adjust.brightness,
+        adjust.contrast,
+    ))
+}
+
+fn cache_get(key: &str) -> Option<Bitmap> {
+    image_cache().lock().ok()?.get(key).cloned()
+}
+
+fn cache_put(key: String, bitmap: &Bitmap) {
+    if let Ok(mut cache) = image_cache().lock() {
+        if cache.len() >= IMAGE_CACHE_ENTRIES {
+            cache.clear();
+        }
+        cache.insert(key, bitmap.clone());
+    }
 }
 
 /// Renders a symbol from a registered icon set (see [`crate::iconset`])

@@ -167,7 +167,28 @@ let fitZoomPending = true;
 function schedulePreview(): void {
   updateSeriesButton();
   window.clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(updatePreview, PREVIEW_DEBOUNCE_MS);
+  previewTimer = window.setTimeout(runPreview, PREVIEW_DEBOUNCE_MS);
+}
+
+let previewBusy = false;
+let previewAgain = false;
+
+/** At most one render in flight; edits meanwhile cause exactly one more. */
+async function runPreview(): Promise<void> {
+  if (previewBusy) {
+    previewAgain = true;
+    return;
+  }
+  previewBusy = true;
+  try {
+    await updatePreview();
+  } finally {
+    previewBusy = false;
+    if (previewAgain) {
+      previewAgain = false;
+      void runPreview();
+    }
+  }
 }
 
 /** Elements whose text was clipped in the last preview. */
