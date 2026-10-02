@@ -71,6 +71,7 @@ fn text_item(text: &str, rect: Rect, rotation: u16) -> Item {
         element: Element::text(text),
         rect: Some(rect),
         rotation,
+        locked: false,
     }
 }
 
@@ -172,6 +173,7 @@ pub fn patch_panel(spec: &PatchPanel, tape_mm: f32) -> Label {
                     h_mm: tape_mm,
                 }),
                 rotation: 0,
+                locked: false,
             });
         }
     }

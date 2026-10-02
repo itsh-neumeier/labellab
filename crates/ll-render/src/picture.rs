@@ -24,8 +24,52 @@ pub fn render_image(
     left_offset_pins: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    let gray = load_gray(path, printable_pins)?;
+    render_image_adjusted(
+        path,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+        invert,
+        ImageAdjust::default(),
+    )
+}
+
+/// [`render_image`] with brightness/contrast applied before dithering.
+pub fn render_image_adjusted(
+    path: &Path,
+    head_pins: u16,
+    printable_pins: u16,
+    left_offset_pins: u16,
+    invert: bool,
+    adjust: ImageAdjust,
+) -> Result<Bitmap, RenderError> {
+    let mut gray = load_gray(path, printable_pins)?;
+    adjust.apply(&mut gray);
     render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
+}
+
+/// Brightness and contrast correction for imported images, each from
+/// -100 to 100 (0 = unchanged).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ImageAdjust {
+    pub brightness: i8,
+    pub contrast: i8,
+}
+
+impl ImageAdjust {
+    /// Applies the correction in place (no-op for the default).
+    pub fn apply(self, gray: &mut GrayImage) {
+        if self == Self::default() {
+            return;
+        }
+        let gain = 1.0 + self.contrast.clamp(-100, 100) as f32 / 100.0;
+        let offset = self.brightness.clamp(-100, 100) as f32 * 1.28;
+        for Luma([v]) in gray.pixels_mut() {
+            *v = ((*v as f32 - 128.0) * gain + 128.0 + offset)
+                .round()
+                .clamp(0.0, 255.0) as u8;
+        }
+    }
 }
 
 /// Loads `path` as grayscale: PNG/JPEG/BMP via `image`, SVG (by
@@ -214,6 +258,32 @@ mod tests {
                 Luma([255u8])
             }
         })
+    }
+
+    #[test]
+    fn adjust_changes_brightness_and_contrast() {
+        let mut g = GrayImage::from_pixel(2, 1, Luma([100u8]));
+        g.put_pixel(1, 0, Luma([160]));
+        let mut brighter = g.clone();
+        ImageAdjust {
+            brightness: 50,
+            contrast: 0,
+        }
+        .apply(&mut brighter);
+        assert_eq!(brighter.get_pixel(0, 0)[0], 164);
+        let mut sharper = g.clone();
+        ImageAdjust {
+            brightness: 0,
+            contrast: 100,
+        }
+        .apply(&mut sharper);
+        assert_eq!(
+            (sharper.get_pixel(0, 0)[0], sharper.get_pixel(1, 0)[0]),
+            (72, 192)
+        );
+        let mut same = g.clone();
+        ImageAdjust::default().apply(&mut same);
+        assert_eq!(same, g);
     }
 
     #[test]

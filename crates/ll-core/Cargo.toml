@@ -11,6 +11,8 @@ thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 csv.workspace = true
+# Local date/time for {{datum}}/{{zeit}} placeholders (MIT/Apache-2.0).
+chrono.workspace = true
 ll-protocol = { path = "../ll-protocol" }
 ll-transport = { path = "../ll-transport" }
 ll-render = { path = "../ll-render" }

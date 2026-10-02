@@ -843,6 +843,8 @@ impl ContentArgs {
                     Element::Image {
                         path: i.clone().into(),
                         invert: self.invert,
+                        brightness: 0,
+                        contrast: 0,
                     },
                     &i,
                 ),
@@ -950,7 +952,8 @@ async fn print(
             .clone()
             .map(|n| series::apply(&label, s.data.as_ref(), n, s.numbering))
             .collect(),
-        None => vec![label],
+        // Still fill built-in placeholders such as {{datum}} or {{n}}.
+        None => vec![series::apply(&label, None, 1, Numbering::default())],
     };
     let mut transport = device::connect(&connect.into_connection()).await?;
     let mut printed = 0;

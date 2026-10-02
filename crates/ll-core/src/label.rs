@@ -21,7 +21,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use ll_protocol::model::{dots_to_mm, mm_to_dots, pt_to_dots, ModelInfo, TapeGeometry};
-use ll_render::{boxed, Bitmap, Face, QrErrorCorrection, Symbology, TextAlign};
+use ll_render::{
+    boxed, Bitmap, Face, ImageAdjust, QrErrorCorrection, ShapeKind, Symbology, TextAlign,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::CoreError;
@@ -107,6 +109,10 @@ pub struct Label {
     /// `border` for styled borders, which takes precedence).
     #[serde(default)]
     pub frame: bool,
+    /// With `min_length_mm`: the label is exactly that long, content
+    /// beyond it is cut off (otherwise the length only grows to fit).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fixed_length: bool,
     /// Styled border: pattern, thickness, sides.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub border: Option<LabelBorder>,
@@ -134,6 +140,7 @@ impl Default for Label {
             padding_mm: 0.0,
             min_length_mm: None,
             frame: false,
+            fixed_length: false,
             border: None,
             strips: 1,
         }
@@ -163,6 +170,10 @@ pub struct Item {
     /// Only applies to boxed elements.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub rotation: u16,
+    /// Locked in the editor: not movable or resizable with mouse/keys.
+    /// Has no effect on rendering.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
 }
 
 fn is_zero(v: &u16) -> bool {
@@ -175,6 +186,7 @@ impl From<Element> for Item {
             element,
             rect: None,
             rotation: 0,
+            locked: false,
         }
     }
 }
@@ -211,6 +223,12 @@ pub enum Element {
         path: PathBuf,
         #[serde(default)]
         invert: bool,
+        /// -100..100, 0 = unchanged.
+        #[serde(default, skip_serializing_if = "is_zero_i8")]
+        brightness: i8,
+        /// -100..100, 0 = unchanged.
+        #[serde(default, skip_serializing_if = "is_zero_i8")]
+        contrast: i8,
     },
     /// A bundled symbol by name, see `ll_render::SYMBOL_NAMES`.
     Symbol {
@@ -220,6 +238,25 @@ pub enum Element {
     },
     /// A solid black box (separator lines, bars, blocks).
     Fill,
+    /// Line, rectangle, rounded rectangle or ellipse filling its box.
+    Shape {
+        #[serde(default)]
+        shape: ShapeKind,
+        /// Line width in mm.
+        #[serde(default = "default_stroke_mm")]
+        stroke_mm: f32,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        filled: bool,
+    },
+}
+
+fn is_zero_i8(v: &i8) -> bool {
+    *v == 0
+}
+
+/// Default shape line width: 0.3 mm (about 2 print dots).
+fn default_stroke_mm() -> f32 {
+    0.3
 }
 
 impl Element {
@@ -456,11 +493,42 @@ fn render_flow_element(
             offset,
             ll_render::linear_barcode::MODULE_PX * canvas.scale,
         )?,
-        Element::Image { path, invert } => {
-            ll_render::render_image(path, head, pins, offset, *invert)?
-        }
+        Element::Image {
+            path,
+            invert,
+            brightness,
+            contrast,
+        } => ll_render::render_image_adjusted(
+            path,
+            head,
+            pins,
+            offset,
+            *invert,
+            ImageAdjust {
+                brightness: *brightness,
+                contrast: *contrast,
+            },
+        )?,
         Element::Symbol { name, invert } => {
             ll_render::render_symbol(name, head, pins, offset, *invert)?
+        }
+        Element::Shape {
+            shape,
+            stroke_mm,
+            filled,
+        } => {
+            // A flow-layout shape is a square of the tape height (a line
+            // runs across that square).
+            let local = ll_render::shape::shape_in_box(
+                *shape,
+                pins as u32,
+                pins,
+                canvas.mm(*stroke_mm) as f32,
+                *filled,
+            )?;
+            let mut out = Bitmap::new(head, pins as u32);
+            out.blit(&local, offset as i32, 0, offset..offset + pins);
+            out
         }
         Element::Fill => {
             // A flow-layout fill is a 1 mm bar across the tape.
@@ -505,7 +573,26 @@ fn render_boxed_element(
         }
         Element::Qr { data } => boxed::qr_in_box(data, w, h, QrErrorCorrection::Medium)?,
         Element::Barcode { symbology, data } => boxed::barcode_in_box(*symbology, data, w, h)?,
-        Element::Image { path, invert } => boxed::image_in_box(path, w, h, *invert)?,
+        Element::Image {
+            path,
+            invert,
+            brightness,
+            contrast,
+        } => boxed::image_in_box_adjusted(
+            path,
+            w,
+            h,
+            *invert,
+            ImageAdjust {
+                brightness: *brightness,
+                contrast: *contrast,
+            },
+        )?,
+        Element::Shape {
+            shape,
+            stroke_mm,
+            filled,
+        } => ll_render::shape::shape_in_box(*shape, w, h, canvas.mm(*stroke_mm) as f32, *filled)?,
         Element::Symbol { name, invert } => boxed::symbol_in_box(name, w, h, *invert)?,
         Element::Fill => {
             let mut b = Bitmap::new(h, w);
@@ -649,6 +736,11 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
             }
             boxes[i] = Some((x, y, w, h as u32));
         }
+    }
+
+    if label.fixed_length && min_len > 0 {
+        bitmap.truncate(min_len);
+        bitmap.extend_blank(min_len.saturating_sub(bitmap.height_dots()));
     }
 
     if let Some(border) = label.effective_border() {
@@ -843,6 +935,7 @@ mod tests {
                         h_mm: 8.0,
                     }),
                     rotation: 0,
+                    locked: false,
                 },
                 Element::Qr {
                     data: "https://example.org".into(),
@@ -856,6 +949,8 @@ mod tests {
                 Element::Image {
                     path: "icon.svg".into(),
                     invert: false,
+                    brightness: 0,
+                    contrast: 0,
                 }
                 .into(),
             ],
@@ -900,13 +995,17 @@ mod tests {
         let mut label = Label::single(Element::Image {
             path: "a.png".into(),
             invert: false,
+            brightness: 0,
+            contrast: 0,
         });
         label.resolve_paths(Path::new("/tmp/labels"));
         assert_eq!(
             label.elements[0].element,
             Element::Image {
                 path: "/tmp/labels/a.png".into(),
-                invert: false
+                invert: false,
+                brightness: 0,
+                contrast: 0,
             }
         );
     }
@@ -958,6 +1057,7 @@ mod tests {
                     h_mm: 4.0,
                 }),
                 rotation: 0,
+                locked: false,
             }],
             ..Label::default()
         };
@@ -995,6 +1095,7 @@ mod tests {
                     h_mm: 20.0,
                 }),
                 rotation: 0,
+                locked: false,
             }],
             ..Label::default()
         };
@@ -1078,6 +1179,7 @@ mod tests {
                     h_mm: 2.0 * tape_mm,
                 }),
                 rotation: 0,
+                locked: false,
             }],
             ..Label::default()
         };
@@ -1115,6 +1217,7 @@ mod tests {
                     h_mm: 9.0,
                 }),
                 rotation: 0,
+                locked: false,
             }],
             padding_mm: 1.0,
             ..Label::default()
@@ -1186,6 +1289,48 @@ mod tests {
     }
 
     #[test]
+    fn fixed_length_cuts_longer_content() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let bar = |x_mm| Item {
+            element: Element::Fill,
+            rect: Some(Rect {
+                x_mm,
+                y_mm: 0.0,
+                w_mm: 10.0,
+                h_mm: 5.0,
+            }),
+            rotation: 0,
+            locked: false,
+        };
+        let mut label = Label {
+            elements: vec![bar(0.0), bar(40.0)],
+            min_length_mm: Some(20.0),
+            ..Label::default()
+        };
+        let grown = render_label(&label, model, geometry).unwrap();
+        assert!(grown.height_dots() > mm_to_dots(45.0));
+        label.fixed_length = true;
+        let fixed = render_label(&label, model, geometry).unwrap();
+        assert_eq!(fixed.height_dots(), mm_to_dots(20.0));
+    }
+
+    #[test]
+    fn shapes_render_in_boxes_and_flow() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let shape = |filled| Element::Shape {
+            shape: ShapeKind::Ellipse,
+            stroke_mm: 0.5,
+            filled,
+        };
+        let flow = render_label(&Label::single(shape(false)), model, geometry).unwrap();
+        assert!(!ink_lines(&flow).is_empty());
+        let json = Label::single(shape(true)).to_json().unwrap();
+        assert!(json.contains(r#""type": "shape""#) && json.contains(r#""shape": "ellipse""#));
+    }
+
+    #[test]
     fn preview_reports_overflowing_text() {
         if !has_font() {
             return;
@@ -1207,6 +1352,7 @@ mod tests {
                 h_mm: 6.0,
             }),
             rotation: 0,
+            locked: false,
         };
         let label = Label {
             elements: vec![boxed(None), boxed(Some(30.0))],
@@ -1232,6 +1378,7 @@ mod tests {
                 h_mm: 9.0,
             }),
             rotation,
+            locked: false,
         };
         for rotation in [0, 90, 180, 270] {
             let label = Label {
@@ -1282,6 +1429,7 @@ mod tests {
                     h_mm: 9.0,
                 }),
                 rotation: 0,
+                locked: false,
             }],
             ..Label::default()
         };

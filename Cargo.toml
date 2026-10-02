@@ -24,6 +24,7 @@ async-trait = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-util"] }
 tokio-serial = "5"
 serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 fontdue = "0.9"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp"] }
 qrcode = { version = "0.14", default-features = false }

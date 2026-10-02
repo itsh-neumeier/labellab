@@ -62,6 +62,14 @@ impl Bitmap {
         self.height_dots += lines;
     }
 
+    /// Cuts the bitmap to at most `lines` raster lines (drops the rest).
+    pub fn truncate(&mut self, lines: u32) {
+        if lines < self.height_dots {
+            self.rows.truncate(lines as usize);
+            self.height_dots = lines;
+        }
+    }
+
     /// Inserts `lines` blank raster lines at the start.
     pub fn prepend_blank(&mut self, lines: u32) {
         let row_bytes = self.width_pins.div_ceil(8) as usize;
