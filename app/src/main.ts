@@ -13,7 +13,9 @@ import { bindImageEditor, openImageEditor } from "./imageEditor";
 import { bindPaint, loadPaint, newPaint, segmentSvg } from "./framePaint";
 import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
-import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
+import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
+import { getSetting, initSettings, setSetting } from "./settings";
+import { buildPages, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
 
@@ -474,7 +476,7 @@ function fillTapeStyles(detected?: TapeStyle): void {
 
 function loadTapeStyle(): string {
   try {
-    return localStorage.getItem(TAPE_STYLE_KEY) ?? "";
+    return getSetting(TAPE_STYLE_KEY) ?? "";
   } catch {
     return "";
   }
@@ -483,7 +485,7 @@ function loadTapeStyle(): string {
 function applyTapeStyle(): void {
   const key = $<HTMLSelectElement>("tape-style").value;
   try {
-    localStorage.setItem(TAPE_STYLE_KEY, key);
+    setSetting(TAPE_STYLE_KEY, key);
   } catch {
     // not remembered, still applied
   }
@@ -1814,6 +1816,35 @@ function setMessage(text: string, isError = false): void {
   el.className = isError ? "message error" : "message";
 }
 
+const DEVICE_KEY = "labellab.device";
+/** Device bar and print bar fields remembered in the settings file (model before tape). */
+const PERSISTED_FIELDS = ["model", "width", "strips", "copies", "margin", "cut-marks", "mirror", "zoom", "quality"];
+
+/** Restores the remembered fields and saves them on every change. */
+function bindPersistedFields(): void {
+  for (const id of PERSISTED_FIELDS) {
+    const el = $<HTMLInputElement | HTMLSelectElement>(id);
+    const key = `labellab.field.${id}`;
+    const isCheck = el instanceof HTMLInputElement && el.type === "checkbox";
+    const saved = getSetting(key);
+    const known = !(el instanceof HTMLSelectElement) || Array.from(el.options).some((o) => o.value === saved);
+    if (saved !== null && known) {
+      if (isCheck) (el as HTMLInputElement).checked = saved === "1";
+      else el.value = saved;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const save = () => setSetting(key, isCheck ? ((el as HTMLInputElement).checked ? "1" : "0") : el.value);
+    el.addEventListener("input", save);
+    el.addEventListener("change", save);
+  }
+  const device = $<HTMLSelectElement>("device");
+  device.addEventListener("change", () => {
+    const d = state.devices[Number(device.value)];
+    if (d) setSetting(DEVICE_KEY, d.name);
+  });
+}
+
 async function refreshDevices(autoStatus = true): Promise<void> {
   const select = $<HTMLSelectElement>("device");
   const { devices, warnings } = await api.listDevices();
@@ -1823,9 +1854,11 @@ async function refreshDevices(autoStatus = true): Promise<void> {
   devices.forEach((d, i) => select.add(new Option(d.model ? `${d.name} – ${d.model}` : d.name, String(i))));
   if (warnings.length) console.warn("device enumeration:", warnings);
 
-  // Pick the first recognized printer, switch to its model and read the
-  // tape status right away.
-  const index = devices.findIndex((d) => d.model);
+  // Pick the printer used last time, else the first recognized one, switch
+  // to its model and read the tape status right away.
+  const last = getSetting(DEVICE_KEY);
+  const lastIndex = last ? devices.findIndex((d) => d.name === last) : -1;
+  const index = lastIndex >= 0 ? lastIndex : devices.findIndex((d) => d.model);
   if (index >= 0) {
     select.value = String(index);
     applyDeviceModel(devices[index]);
@@ -2156,7 +2189,7 @@ const SECTIONS_OPEN_BY_DEFAULT = ["elements.title", "layout.title"];
 function makeSectionsCollapsible(): void {
   let saved: Record<string, boolean> = {};
   try {
-    saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "{}");
+    saved = JSON.parse(getSetting(SECTIONS_KEY) ?? "{}");
   } catch {
     // defaults
   }
@@ -2183,7 +2216,7 @@ function makeSectionsCollapsible(): void {
       section.classList.toggle("collapsed");
       saved[key] = !section.classList.contains("collapsed");
       try {
-        localStorage.setItem(SECTIONS_KEY, JSON.stringify(saved));
+        setSetting(SECTIONS_KEY, JSON.stringify(saved));
       } catch {
         // not remembered
       }
@@ -2244,7 +2277,7 @@ function cutSettings(): Pick<api.PrintJob, "cut" | "chain" | "cutEvery" | "cutMa
 function bindCutOptions(): void {
   const select = $<HTMLSelectElement>("cut-mode");
   try {
-    const saved = localStorage.getItem(CUT_MODE_KEY);
+    const saved = getSetting(CUT_MODE_KEY);
     if (saved && Array.from(select.options).some((o) => o.value === saved)) select.value = saved;
   } catch {
     // default
@@ -2252,7 +2285,7 @@ function bindCutOptions(): void {
   const update = () => {
     $("cut-every-wrap").hidden = select.value !== "every";
     try {
-      localStorage.setItem(CUT_MODE_KEY, select.value);
+      setSetting(CUT_MODE_KEY, select.value);
     } catch {
       // not remembered
     }
@@ -3018,7 +3051,7 @@ const RECENT_MAX = 8;
 
 function recentFiles(): string[] {
   try {
-    const list: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    const list: unknown = JSON.parse(getSetting(RECENT_KEY) ?? "[]");
     return Array.isArray(list) ? list.filter((p): p is string => typeof p === "string") : [];
   } catch {
     return [];
@@ -3028,7 +3061,7 @@ function recentFiles(): string[] {
 function rememberRecent(path: string): void {
   const list = [path, ...recentFiles().filter((p) => p !== path)].slice(0, RECENT_MAX);
   try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+    setSetting(RECENT_KEY, JSON.stringify(list));
   } catch {
     // not remembered
   }
@@ -3076,7 +3109,7 @@ let autosaveTimer: number | undefined;
 /** Auto-save preference: on unless the user turned it off. */
 function autosaveWanted(): boolean {
   try {
-    return localStorage.getItem(AUTOSAVE_KEY) !== "off";
+    return getSetting(AUTOSAVE_KEY) !== "off";
   } catch {
     return true;
   }
@@ -3112,7 +3145,7 @@ function bindAutosave(): void {
   $<HTMLInputElement>("autosave").addEventListener("change", (e) => {
     const on = (e.target as HTMLInputElement).checked;
     try {
-      localStorage.setItem(AUTOSAVE_KEY, on ? "on" : "off");
+      setSetting(AUTOSAVE_KEY, on ? "on" : "off");
     } catch {
       // not remembered
     }
@@ -3688,6 +3721,182 @@ function bindWizard(): void {
   });
 }
 
+// ---------------------------------------------------------------- A4 printing
+
+/** Sheets chosen for A4 printing, with copies (by sheet index). */
+let a4Copies: number[] = [];
+let a4Seq = 0;
+let a4Timer: number | undefined;
+
+const A4_FIELDS: [string, string][] = [
+  ["a4-header", "labellab.a4.header"],
+  ["a4-gray", "labellab.a4.gray"],
+  ["a4-outline", "labellab.a4.outline"],
+  ["a4-colors", "labellab.a4.colors"],
+  ["a4-bg", "labellab.a4.bg"],
+  ["a4-ink", "labellab.a4.ink"],
+  ["a4-gap", "labellab.a4.gap"],
+  ["a4-sx", "labellab.a4.scaleX"],
+  ["a4-sy", "labellab.a4.scaleY"],
+];
+
+function a4Options(): A4Options {
+  const colors = $<HTMLSelectElement>("a4-colors").value;
+  const st = parseStyleKey($<HTMLSelectElement>("tape-style").value) ?? TAPE_STYLES[0];
+  const background =
+    colors === "custom" ? $<HTMLInputElement>("a4-bg").value : colors === "tape" ? TAPE_CSS[st.tape] : null;
+  const ink = colors === "custom" ? $<HTMLInputElement>("a4-ink").value : colors === "tape" ? (INK_CSS[st.ink] ?? INK_CSS.black) : "#000";
+  const percent = (id: string) => Math.min(150, Math.max(50, Number($<HTMLInputElement>(id).value) || 100)) / 100;
+  const doc = state.filePath?.split(/[\\/]/).pop() ?? t("toolbar.untitled");
+  const date = new Date().toLocaleDateString(currentLang() === "de" ? "de-DE" : "en-GB");
+  return {
+    title: doc,
+    header: $<HTMLInputElement>("a4-header").checked,
+    gray: $<HTMLInputElement>("a4-gray").checked,
+    background,
+    ink,
+    outline: $<HTMLInputElement>("a4-outline").checked,
+    gapMm: Math.max(0, Number($<HTMLInputElement>("a4-gap").value) || 0),
+    scaleX: percent("a4-sx"),
+    scaleY: percent("a4-sy"),
+    logo: appIcon,
+    headerText: (page, pages) => `${doc} · ${date} · ${t("a4.page", { page, pages })}`,
+  };
+}
+
+/** Renders the chosen sheets (each `copies` times) for A4. */
+async function a4Labels(): Promise<A4Label[]> {
+  const model = state.models.find((m) => m.name === selectedModel());
+  const out: A4Label[] = [];
+  for (const [i, sheet] of state.sheets.entries()) {
+    const copies = a4Copies[i] ?? 0;
+    if (copies <= 0) continue;
+    const width = sheet.width_mm ?? selectedWidth();
+    const tape = model?.tapes.find((tp) => tp.width_mm === width);
+    const preview = await api.renderPreview(sheet.label, selectedModel(), width, null, null, RENDER_SCALE);
+    for (let c = 0; c < copies; c++) {
+      out.push({ name: sheet.name, png: preview.png, tapeMm: width, printableMm: tape?.printable_mm ?? width });
+    }
+  }
+  return out;
+}
+
+function scheduleA4Preview(): void {
+  window.clearTimeout(a4Timer);
+  a4Timer = window.setTimeout(() => void renderA4Preview(), 250);
+}
+
+async function renderA4Preview(): Promise<void> {
+  const seq = ++a4Seq;
+  const info = $("a4-info");
+  try {
+    const labels = await a4Labels();
+    const pages = await buildPages(labels, a4Options());
+    if (seq !== a4Seq) return;
+    $("a4-preview").replaceChildren(
+      ...pages.map((p) => {
+        const holder = document.createElement("div");
+        holder.className = "a4-thumb";
+        holder.append(p);
+        return holder;
+      }),
+    );
+    info.textContent = t("a4.summary", { labels: labels.length, pages: pages.length });
+    $<HTMLButtonElement>("a4-print-btn").disabled = labels.length === 0;
+  } catch (e) {
+    if (seq === a4Seq) info.textContent = t("error.prefix", { error: errorText(e) });
+  }
+}
+
+function renderA4Sheets(): void {
+  const list = $("a4-sheets");
+  list.replaceChildren();
+  state.sheets.forEach((sheet, i) => {
+    const row = document.createElement("label");
+    row.className = "a4-sheet";
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = (a4Copies[i] ?? 0) > 0;
+    const name = document.createElement("span");
+    name.textContent = `${sheet.name} (${sheet.width_mm ?? selectedWidth()} mm)`;
+    const copies = document.createElement("input");
+    copies.type = "number";
+    copies.min = "1";
+    copies.value = String(Math.max(1, a4Copies[i] ?? 1));
+    copies.title = t("print.copies");
+    check.addEventListener("change", () => {
+      a4Copies[i] = check.checked ? Math.max(1, Number(copies.value) || 1) : 0;
+      scheduleA4Preview();
+    });
+    copies.addEventListener("input", () => {
+      if (check.checked) a4Copies[i] = Math.max(1, Number(copies.value) || 1);
+      scheduleA4Preview();
+    });
+    row.append(check, name, copies);
+    list.append(row);
+  });
+}
+
+function bindA4(): void {
+  const dialog = $<HTMLDialogElement>("a4-dialog");
+  for (const [id, key] of A4_FIELDS) {
+    const el = $<HTMLInputElement | HTMLSelectElement>(id);
+    const isCheck = el instanceof HTMLInputElement && el.type === "checkbox";
+    const saved = getSetting(key);
+    if (saved !== null) {
+      if (isCheck) (el as HTMLInputElement).checked = saved === "1";
+      else el.value = saved;
+    }
+    el.addEventListener("input", () => {
+      setSetting(key, isCheck ? ((el as HTMLInputElement).checked ? "1" : "0") : el.value);
+      $("a4-custom").hidden = $<HTMLSelectElement>("a4-colors").value !== "custom";
+      scheduleA4Preview();
+    });
+    el.addEventListener("change", () => el.dispatchEvent(new Event("input")));
+  }
+  $("a4-custom").hidden = $<HTMLSelectElement>("a4-colors").value !== "custom";
+  $("btn-a4").addEventListener("click", () => {
+    syncSheet();
+    // Default: the current sheet once (keep earlier choices of this session).
+    if (a4Copies.length !== state.sheets.length) a4Copies = state.sheets.map((_, i) => (i === state.sheet ? 1 : 0));
+    renderA4Sheets();
+    $("a4-preview").replaceChildren();
+    dialog.showModal();
+    scheduleA4Preview();
+  });
+  $("a4-print-btn").addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      const pages = await buildPages(await a4Labels(), a4Options());
+      dialog.close();
+      await printPages(pages);
+    } catch (err) {
+      $("a4-info").textContent = t("error.prefix", { error: errorText(err) });
+    }
+  });
+  $("a4-test").addEventListener("click", async () => {
+    const page = testPage(a4Options(), {
+      hint: t("a4.testHint"),
+      horizontal: t("a4.testHorizontal"),
+      vertical: t("a4.testVertical"),
+    });
+    dialog.close();
+    await printPages([page]);
+  });
+  // Measured length of the 100 mm rulers → new correction factor.
+  $("a4-apply-measure").addEventListener("click", () => {
+    for (const [measured, factor] of [["a4-mx", "a4-sx"], ["a4-my", "a4-sy"]] as const) {
+      const m = Number($<HTMLInputElement>(measured).value);
+      if (!(m > 50 && m < 150)) continue;
+      const current = Number($<HTMLInputElement>(factor).value) || 100;
+      const next = Math.round(((current * 100) / m) * 10) / 10;
+      $<HTMLInputElement>(factor).value = String(next);
+      $<HTMLInputElement>(factor).dispatchEvent(new Event("input"));
+      $<HTMLInputElement>(measured).value = "";
+    }
+  });
+}
+
 // ---------------------------------------------------------------- clipboard
 
 /** Clipboard type for copied elements (JSON list of items). */
@@ -3991,6 +4200,8 @@ function bindUi(): void {
 
 async function init(): Promise<void> {
   const started = Date.now();
+  await initSettings();
+  loadLang();
   makeSectionsCollapsible();
   applyLang(currentLang());
   bindSplash();
@@ -4011,6 +4222,8 @@ async function init(): Promise<void> {
   renderCsv();
   setPrinting(false);
   // Font scan can take a moment; fill the font pickers when it's done.
+  bindPersistedFields();
+  bindA4();
   void loadIconsets();
   void loadFrameSets();
   api.fontFamilies().then((fonts) => {

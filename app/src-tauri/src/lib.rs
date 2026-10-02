@@ -405,6 +405,19 @@ async fn print_label(
         .map_err(|e| err(ll_core::CoreError::from(e)))
 }
 
+/// The saved app settings; empty when there are none or the file was
+/// modified (it is then replaced on the next save).
+#[tauri::command]
+fn load_settings() -> ll_core::settings::Settings {
+    ll_core::settings::load().unwrap_or_default()
+}
+
+/// Saves the app settings (encrypted, next to the executable).
+#[tauri::command]
+fn save_settings(settings: ll_core::settings::Settings) -> Result<(), AppError> {
+    ll_core::settings::save(&settings).map_err(err)
+}
+
 /// Feeds and cuts the tape without printing (button next to "print").
 #[tauri::command]
 async fn feed_cut(connection: Connection, model: String) -> Result<(), AppError> {
@@ -830,6 +843,8 @@ pub fn run() {
             query_status,
             print_label,
             feed_cut,
+            load_settings,
+            save_settings,
             load_csv,
             clear_csv,
             font_families,

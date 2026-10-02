@@ -655,3 +655,34 @@ Vorlage:
   Schwelle oder Floyd-Steinberg-Raster in Pixel umgesetzt.
 - Konsequenzen: Auf anderen Bandbreiten wird die Zeichnung skaliert (nicht mehr
   pixelgenau). Keine neue Abhängigkeit.
+
+## ADR-036: Portable Ablage, verschlüsselte Einstellungsdatei
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Einstellungen „direkt bei der exe und verschlüsselt, damit man
+  nicht einfach so herumspielen kann“; eigene Importe in einem Unterordner `llappdata` bei
+  der exe. Bisher: WebView-`localStorage` (an das WebView-Profil gebunden) und
+  `%APPDATA%\LabelLab`.
+- Entscheidung: `ll_core::paths`: Ist der Ordner der exe beschreibbar, liegen dort
+  `LabelLab.settings` und `llappdata/`; sonst der Benutzerordner. Einmalige Übernahme alter
+  Daten aus dem Benutzerordner. `ll_core::settings`: Schlüssel/Wert-JSON, verschlüsselt mit
+  ChaCha20-Poly1305 (neue Abhängigkeit `chacha20poly1305`, RustCrypto, Apache-2.0/MIT),
+  Format `LLS1` + Nonce + Chiffrat, atomar geschrieben. Der Schlüssel steckt im Programm: Das
+  schützt vor Lesen/Ändern mit dem Editor und erkennt jede Änderung (dann Standardwerte),
+  ist aber kein Geheimnis gegen jemanden, der das Programm zerlegt. Die Oberfläche nutzt
+  `app/src/settings.ts` statt `localStorage` (alte Werte werden einmal übernommen).
+- Konsequenzen: Mehrere Benutzer derselben portablen Kopie teilen sich die Einstellungen.
+  Umgebungsvariablen `LABELLAB_DATA_DIR`/`LABELLAB_SETTINGS` überschreiben die Pfade.
+
+## ADR-037: A4-Druck über den Druckdialog der WebView
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: ausgewählte Blätter auf A4 mit normalem Drucker drucken, mit Kopf,
+  Logo, Graustufen, Farbwahl und Testseite mit Korrekturwert.
+- Entscheidung: `app/src/a4print.ts` rendert jedes Blatt über `render_preview` (gleicher
+  Renderpfad, 720 dpi), färbt es auf einem Canvas (Band-/Schriftfarbe), verteilt die Labels
+  regalweise auf A4-Seiten (zu lange Labels hochkant) und druckt per `window.print()` mit
+  Druck-CSS (`@page A4, margin 0`). Korrekturfaktoren X/Y (%) skalieren den Seiteninhalt; die
+  Testseite hat 100-mm-Lineale und 10/50-mm-Quadrate. Keine neue Abhängigkeit (kein PDF).
+- Konsequenzen: Die Maßhaltigkeit hängt vom Druckdialog ab: WebKitGTK (Linux) skaliert auf
+  ca. 94 % (eigene Seitenränder, gemessen per „In Datei drucken“), WebView2 (Windows) sollte
+  100 % liefern – unverifiziert, daher Testseite und Korrekturwert. Seitenhöhe im Druck 287 mm,
+  damit kein leeres Zusatzblatt entsteht. Serien/CSV werden auf A4 noch nicht ausgegeben.

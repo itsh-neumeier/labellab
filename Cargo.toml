@@ -34,4 +34,6 @@ usvg = "0.48"
 tiny-skia = "0.12"
 fontdb = "0.24"
 csv = "1"
+# Settings file encryption/tamper check (RustCrypto, Apache-2.0 OR MIT), ADR-036.
+chacha20poly1305 = "0.10"
 nusb = { version = "0.2", features = ["tokio"] }

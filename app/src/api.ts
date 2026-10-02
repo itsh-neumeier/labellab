@@ -299,6 +299,10 @@ export interface PrintJob {
 export const printLabel = (args: { label: Label; connection: Connection; model: string; job: PrintJob }) =>
   invoke<void>("print_label", args);
 
+/** Saved app settings (encrypted file next to the program). */
+export const loadSettings = () => invoke<Record<string, unknown>>("load_settings");
+export const saveSettings = (settings: Record<string, unknown>) => invoke<void>("save_settings", { settings });
+
 /** Feeds and cuts the tape without printing. */
 export const feedCut = (args: { connection: Connection; model: string }) => invoke<void>("feed_cut", args);
 

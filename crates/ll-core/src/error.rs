@@ -18,6 +18,9 @@ pub enum CoreError {
     #[error("icon set: {0}")]
     IconSet(String),
 
+    #[error("settings: {0}")]
+    Settings(String),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
@@ -56,6 +59,7 @@ impl CoreError {
             CoreError::Render(_) => "render",
             CoreError::Template(_) => "template",
             CoreError::IconSet(_) => "iconset",
+            CoreError::Settings(_) => "settings",
             CoreError::Io(e) if e.kind() == std::io::ErrorKind::NotFound => "file_not_found",
             CoreError::Io(_) => "io",
             CoreError::Unsupported(_) => "unsupported",

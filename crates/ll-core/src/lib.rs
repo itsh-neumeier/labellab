@@ -15,7 +15,9 @@ pub mod iconsets;
 pub mod label;
 pub mod layouts;
 pub mod pasted;
+pub mod paths;
 pub mod print;
 pub mod series;
+pub mod settings;
 
 pub use error::CoreError;

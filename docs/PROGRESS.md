@@ -206,6 +206,9 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- **A4-Druck unter Windows (2026-10-02):** „A4-Druck …“ → „Testseite drucken“ auf einem
+  normalen Drucker mit „Tatsächliche Größe“: Sind die Lineale 100 mm? (Unter Linux/WebKitGTK
+  94 %.) Danach Labels auf A4 drucken und nachmessen.
 - **Knopf „✂ Schnitt“ (2026-10-02):** nach „Kein Schnitt“ drücken → Band wird vorgeschoben
   und genau einmal geschnitten? Wie viel leeres Band kommt heraus?
 - **Kein Schnitt (2026-10-02):** Schnitt „Kein Schnitt“ und „Kettendruck ohne Schnitt“
@@ -332,6 +335,19 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Einstellungen bei der exe (ADR-036)
+- `ll_core::paths` (exe-Ordner wenn beschreibbar, `llappdata/`, Übernahme aus %APPDATA%),
+  `ll_core::settings` (ChaCha20-Poly1305, Tests: Rundweg, Manipulation, atomar), App-Befehle
+  `load_settings`/`save_settings`, `app/src/settings.ts` ersetzt `localStorage`; zusätzlich
+  gemerkt: Drucker, Modell, Band, Mehrband, Kopien, Nachlauf, Schnittmarken, Spiegeln, Zoom,
+  Qualität. Geprüft: Tests, fmt/clippy, Build; GUI unter Xvfb (Neustart behält Werte, Datei
+  binär).
+- A4-Druck (ADR-037): `app/src/a4print.ts`, Dialog „A4-Druck …“ (Blätter + Anzahl, Kopf mit
+  Logo, Graustufen, Farben, Schnittlinie, Abstand, Korrektur X/Y, Testseite, Messwerte →
+  Korrektur). Geprüft unter Xvfb: Vorschau, „In Datei drucken“ (PDF: A4, 1 bzw. 3 Seiten,
+  Lineale 94 % unter WebKitGTK → Korrektur nötig). Hardware-Test Windows offen.
+- Danach: Mittelstrich Kabelfahne, Patchfeld als Element.
+
 ### 2026-10-02 – Claude Code, Verteilerbeschriftung: mehrzeilig, Ausrichtung; Reihenklemmen, LSA-Leiste
 - Nutzerwünsche: Feldtexte mehrzeilig mit fett/kursiv für Teile, Zeilenabstand, Ausrichtung
   waagerecht/senkrecht; „Sicherungskasten“ heißt in der Oberfläche „Verteilerbeschriftung“;

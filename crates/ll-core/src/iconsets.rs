@@ -4,9 +4,8 @@
 //! see the same sets. Also builds sets from a folder of SVG files
 //! ([`from_dir`]).
 //!
-//! Data directory: `LABELLAB_DATA_DIR` if set, else `%APPDATA%\LabelLab`
-//! (Windows), `~/Library/Application Support/LabelLab` (macOS) or
-//! `$XDG_DATA_HOME/labellab` / `~/.local/share/labellab` (Linux).
+//! Data directory: see [`crate::paths::data_dir`] (`llappdata` next to the
+//! executable, else the per-user folder).
 
 use std::path::{Path, PathBuf};
 
@@ -19,26 +18,9 @@ fn err(e: impl std::fmt::Display) -> CoreError {
     CoreError::IconSet(e.to_string())
 }
 
-/// LabelLab's per-user data directory (not created).
+/// LabelLab's data directory (not created), see [`crate::paths::data_dir`].
 pub fn data_dir() -> Result<PathBuf, CoreError> {
-    let env = |k: &str| {
-        std::env::var_os(k)
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-    };
-    if let Some(dir) = env("LABELLAB_DATA_DIR") {
-        return Ok(dir);
-    }
-    let dir = if cfg!(windows) {
-        env("APPDATA").map(|d| d.join("LabelLab"))
-    } else if cfg!(target_os = "macos") {
-        env("HOME").map(|h| h.join("Library/Application Support/LabelLab"))
-    } else {
-        env("XDG_DATA_HOME")
-            .or_else(|| env("HOME").map(|h| h.join(".local/share")))
-            .map(|d| d.join("labellab"))
-    };
-    dir.ok_or_else(|| err("no user data directory (HOME/APPDATA not set)"))
+    crate::paths::data_dir()
 }
 
 /// Where imported icon sets are stored.
