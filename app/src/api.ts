@@ -67,7 +67,28 @@ export type Layout =
       digits: number;
       separators: boolean;
       margin_mm: number;
-    };
+    }
+  | { kind: "single_flag"; text: string; diameter_mm: number; flag_mm: number }
+  | ({ kind: "terminal_block"; rows: number } & FieldSpec)
+  | ({
+      kind: "fuse_box";
+      vertical: boolean;
+      main_switch: string;
+      main_switch_mm: number;
+      main_switch_right: boolean;
+    } & FieldSpec);
+
+/** Numbered fields in a fixed pitch (terminal block, fuse box). */
+export interface FieldSpec {
+  count: number;
+  pitch_mm: number;
+  start: number;
+  step: number;
+  prefix: string;
+  digits: number;
+  separators: boolean;
+  margin_mm: number;
+}
 
 export type BorderStyle = "solid" | "dashed" | "dotted" | "double" | "striped";
 

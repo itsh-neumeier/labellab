@@ -94,6 +94,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   „Länge fest“ (Inhalt wird auf die Mindestlänge abgeschnitten), Platzhalter `{{datum}}` und
   `{{zeit}}`, Helligkeit/Kontrast für Bilder, Elemente sperren, Ausrichten-Knöpfe, Lineal in mm,
   Umschalt beim Skalieren hält das Seitenverhältnis
+- Vorlagen-Galerie („Vorlagen …“) mit Live-Vorschau und neuen Vorlagen: Einzelfähnchen,
+  Klemmblock/LSA-Leiste (zweireihig), Sicherungskasten/Verteiler (senkrechte Beschriftung,
+  Hauptschalter-Feld); auch per `labellab generate single-flag|terminal-block|fuse-box`
 
 ### Behoben
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb

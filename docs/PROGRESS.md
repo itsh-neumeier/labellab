@@ -90,9 +90,10 @@
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
   - [x] Lineal (mm) über der Vorschau
   Paket 2 – Vorlagen-Startseite:
-  - [ ] Startseite/Galerie mit Vorlagen nach Kategorien (Fähnchen, Einzelfähnchen, Umlauf,
-    Selbstlaminierend, Schrumpfschlauch, Anschlüsse/Patchpanel, Verteiler/Sicherungskasten mit
-    senkrechter Beschriftung und Hauptschalter, Klemmblock zweireihig, Anschlussblock)
+  - [x] Vorlagen-Galerie („Vorlagen …“, früher „Assistent“) mit Kategorien, Kacheln und
+    Live-Vorschau: Kabelfahne, Einzelfähnchen, Kabelwickel, Patchpanel/Ports, Klemmblock/LSA
+    (1–2 Reihen), Sicherungskasten/Verteiler (senkrecht, Hauptschalter). Offen daraus:
+    Selbstlaminierend und Schrumpfschlauch (brauchen eigene Bandgeometrie, s. u.)
   - [ ] Selbstlaminierende Bänder (bedruckbarer Teil + transparente Wickelzone) und
     Schrumpfschlauch-Bänder (HS 5,8–23,6 mm) — Geometrie/Medientypen `TODO(verify)`
   - [ ] „Erstellte Labels“: zuletzt verwendet mit Vorschaubild, Druckverlauf (Datum, Band)
@@ -104,7 +105,7 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
-| M9 Paket 2a: Vorlagen-Galerie + neue Generatoren (Einzelfähnchen, Klemmblock zweireihig, Sicherungskasten) | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
+| – | – | – | – |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
@@ -255,8 +256,13 @@
   optional Hauptschalter-Feld links/rechts). CLI `generate single-flag|terminal-block|fuse-box`.
 - Geprüft: Tests (je ein Test pro Generator), CLI-Renders (Klemmblock 6×2 auf 24 mm, Verteiler
   mit HAUPT + F1–F6 auf 12 mm).
-- Nächster Schritt (2a Teil 2): GUI – „Assistent …“ zur Vorlagen-Galerie mit Kategorien und
-  Live-Vorschau ausbauen, neue Generatoren dort anbieten.
+- 2a Teil 2 erledigt: „Vorlagen …“-Dialog als Galerie (Kategorien Kabel / Verteiler & Netzwerk,
+  Kacheln mit Mini-Zeichnung, Live-Vorschau über `generate_layout` + `render_preview`,
+  typische Raster je Vorlage: 12,7 / 15 / 17,5 mm). Unter Xvfb geprüft.
+- Stolperstein: Container-Platte voll (`app/src-tauri/target` 14 GB) → alte Build-Ordner
+  gelöscht; bei „No space left on device“ zuerst `target/*windows*`, `*/release`, App-`target`.
+- Nächster Schritt: Paket 2b „Erstellte Labels“ (zuletzt verwendet mit Vorschaubild,
+  Druckverlauf), danach 2c SL-/Schrumpfschlauch-Bänder (Protokoll `TODO(verify)`).
 
 ### 2026-10-02 – Nutzer-Test Windows (Stand `main` nach PR itsh-neumeier/labellab#7)
 - Nutzer meldet: „alle Funktionen funktionieren perfekt“ (Icon-Sets/Symbolauswahl, Formen,

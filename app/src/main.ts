@@ -1865,17 +1865,70 @@ function bindPairing(): void {
 
 const num = (id: string) => Number($<HTMLInputElement>(id).value) || 0;
 
-function wizardLayout(): api.Layout {
-  const kind = $<HTMLSelectElement>("wz-kind").value;
-  const text = $<HTMLInputElement>("wz-text").value;
-  const diameter_mm = Math.max(0.5, num("wz-diameter"));
-  if (kind === "cable_flag") return { kind, text, diameter_mm, flag_mm: Math.max(5, num("wz-flag")) };
-  if (kind === "cable_wrap") {
-    const repeats = Math.trunc(num("wz-repeats"));
-    return { kind, text, diameter_mm, repeats: repeats > 0 ? repeats : null, vertical: $<HTMLInputElement>("wz-vertical").checked };
+/** Template tiles in the gallery: kind, i18n key, category key, mini drawing. */
+const TEMPLATES: { kind: api.Layout["kind"]; name: string; cat: string; svg: string }[] = [
+  { kind: "cable_flag", name: "wizard.cableFlag", cat: "wizard.catCable",
+    svg: '<rect x="2" y="8" width="26" height="16" rx="2"/><rect x="31" y="13" width="10" height="6"/><rect x="44" y="8" width="26" height="16" rx="2"/>' },
+  { kind: "single_flag", name: "wizard.singleFlag", cat: "wizard.catCable",
+    svg: '<rect x="4" y="13" width="14" height="6"/><rect x="20" y="8" width="48" height="16" rx="2"/>' },
+  { kind: "cable_wrap", name: "wizard.cableWrap", cat: "wizard.catCable",
+    svg: '<rect x="6" y="6" width="60" height="20" rx="10"/><path d="M20 6v20M36 6v20M52 6v20"/>' },
+  { kind: "patch_panel", name: "wizard.patchPanel", cat: "wizard.catPanel",
+    svg: '<rect x="2" y="8" width="68" height="16"/><path d="M19 8v16M36 8v16M53 8v16"/>' },
+  { kind: "terminal_block", name: "wizard.terminalBlock", cat: "wizard.catPanel",
+    svg: '<rect x="2" y="4" width="68" height="24"/><path d="M2 16h68M19 4v24M36 4v24M53 4v24"/>' },
+  { kind: "fuse_box", name: "wizard.fuseBox", cat: "wizard.catPanel",
+    svg: '<rect x="2" y="6" width="68" height="20"/><path d="M22 6v20M34 6v20M46 6v20M58 6v20"/><path d="M28 10v12M40 10v12M52 10v12M64 10v12" stroke-width="2"/>' },
+];
+
+function renderGallery(): void {
+  const gallery = $("wz-gallery");
+  gallery.replaceChildren();
+  const current = $<HTMLInputElement>("wz-kind").value;
+  for (const cat of [...new Set(TEMPLATES.map((tp) => tp.cat))]) {
+    const head = document.createElement("div");
+    head.className = "cat";
+    head.textContent = t(cat);
+    const tiles = document.createElement("div");
+    tiles.className = "tiles";
+    for (const tp of TEMPLATES.filter((x) => x.cat === cat)) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = `wz-tile${tp.kind === current ? " active" : ""}`;
+      tile.innerHTML = `<svg viewBox="0 0 72 32" fill="none" stroke="currentColor" stroke-width="1.5">${tp.svg}</svg>`;
+      const label = document.createElement("span");
+      label.textContent = t(tp.name);
+      tile.append(label);
+      tile.addEventListener("click", () => {
+        if ($<HTMLInputElement>("wz-kind").value !== tp.kind) applyFieldDefaults(tp.kind);
+        $<HTMLInputElement>("wz-kind").value = tp.kind;
+        renderGallery();
+        updateWizard();
+      });
+      tiles.append(tile);
+    }
+    gallery.append(head, tiles);
   }
+}
+
+/** Typical count/pitch/prefix per template (19" patch panel, LSA strip, DIN module). */
+const FIELD_DEFAULTS: Partial<Record<api.Layout["kind"], [number, number, string]>> = {
+  patch_panel: [24, 12.7, ""],
+  terminal_block: [6, 15, "1A-A"],
+  fuse_box: [12, 17.5, "F"],
+};
+
+function applyFieldDefaults(kind: api.Layout["kind"]): void {
+  const d = FIELD_DEFAULTS[kind];
+  if (!d) return;
+  $<HTMLInputElement>("wz-count").value = String(d[0]);
+  $<HTMLInputElement>("wz-pitch").value = String(d[1]);
+  $<HTMLInputElement>("wz-prefix").value = d[2];
+  $<HTMLInputElement>("wz-digits").value = kind === "terminal_block" ? "2" : "0";
+}
+
+function fieldSpec(): api.FieldSpec {
   return {
-    kind: "patch_panel",
     count: Math.max(1, Math.trunc(num("wz-count"))),
     pitch_mm: Math.max(1, num("wz-pitch")),
     start: Math.trunc(num("wz-start")),
@@ -1887,23 +1940,64 @@ function wizardLayout(): api.Layout {
   };
 }
 
+function wizardLayout(): api.Layout {
+  const kind = $<HTMLInputElement>("wz-kind").value as api.Layout["kind"];
+  const text = $<HTMLInputElement>("wz-text").value;
+  const diameter_mm = Math.max(0.5, num("wz-diameter"));
+  switch (kind) {
+    case "cable_flag":
+    case "single_flag":
+      return { kind, text, diameter_mm, flag_mm: Math.max(5, num("wz-flag")) };
+    case "cable_wrap": {
+      const repeats = Math.trunc(num("wz-repeats"));
+      return { kind, text, diameter_mm, repeats: repeats > 0 ? repeats : null, vertical: $<HTMLInputElement>("wz-vertical").checked };
+    }
+    case "terminal_block":
+      return { kind, rows: Number($<HTMLSelectElement>("wz-rows").value) || 2, ...fieldSpec() };
+    case "fuse_box":
+      return {
+        kind,
+        vertical: $<HTMLInputElement>("wz-fb-vertical").checked,
+        main_switch: $<HTMLInputElement>("wz-main").value,
+        main_switch_mm: Math.max(1, num("wz-main-width")),
+        main_switch_right: $<HTMLInputElement>("wz-main-right").checked,
+        ...fieldSpec(),
+      };
+    default:
+      return { kind: "patch_panel", ...fieldSpec() };
+  }
+}
+
+let wizardSeq = 0;
+
 function updateWizard(): void {
-  const kind = $<HTMLSelectElement>("wz-kind").value;
+  const kind = $<HTMLInputElement>("wz-kind").value;
   document.querySelectorAll<HTMLElement>("#wizard .wz-group").forEach((g) => {
     g.hidden = !(g.dataset.kind ?? "").split(" ").includes(kind);
   });
   const layout = wizardLayout();
   const info = $("wz-info");
-  if (layout.kind === "patch_panel") {
-    info.textContent = t("wizard.panelInfo", { length: (2 * layout.margin_mm + layout.count * layout.pitch_mm).toFixed(1) });
-  } else {
-    info.textContent = t("wizard.wrapInfo", { wrap: (Math.PI * layout.diameter_mm).toFixed(1) });
-  }
+  info.textContent = "diameter_mm" in layout ? t("wizard.wrapInfo", { wrap: (Math.PI * layout.diameter_mm).toFixed(1) }) : "";
+  // Live preview of the generated label (same render path as printing).
+  const seq = ++wizardSeq;
+  void (async () => {
+    try {
+      const label = await api.generateLayout(layout, selectedModel(), selectedWidth());
+      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), null, null, 2);
+      if (seq !== wizardSeq) return;
+      $<HTMLImageElement>("wz-preview-img").src = `data:image/png;base64,${preview.png}`;
+      const length = label.min_length_mm ?? 0;
+      info.textContent = [info.textContent, t("wizard.length", { length: length.toFixed(1) })].filter(Boolean).join(" · ");
+    } catch (err) {
+      if (seq === wizardSeq) info.textContent = t("error.prefix", { error: errorText(err) });
+    }
+  })();
 }
 
 function bindWizard(): void {
   const dialog = $<HTMLDialogElement>("wizard");
   $("btn-wizard").addEventListener("click", () => {
+    renderGallery();
     updateWizard();
     dialog.showModal();
   });
