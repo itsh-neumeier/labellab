@@ -33,6 +33,8 @@ Editor
 - Strg+V fuegt ein Bild (z. B. Screenshot) oder Text aus der Zwischenablage als neues
   Element ein. Strg+C / Strg+X / Strg+V kopieren das gewaehlte Element. Eingefuegte Bilder
   liegen unter %APPDATA%\LabelLab\pasted.
+- Vorschau: grau schraffiert = Rand des Bandes, den der Drucker nicht bedrucken kann.
+- Text: "Zeilenabstand" (1,0 = normal) fuer mehrzeilige Texte.
 - Bild bearbeiten ...: Rahmen ziehen zum Zuschneiden, drehen/spiegeln, Hintergrund
   entfernen (Randfarbe automatisch oder "Farbe im Bild waehlen"), Raster fuer Fotos oder
   Schwelle fuer Logos. Das Originalbild bleibt unveraendert.

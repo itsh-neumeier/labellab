@@ -14,6 +14,8 @@ import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle
 
 const DOTS_PER_MM = 180 / 25.4;
 const PREVIEW_DEBOUNCE_MS = 40;
+/** Base color of clear tape (matches `.stage.clear-tape`). */
+const CLEAR_TAPE_CSS = "#e9edf1";
 const HISTORY_DEBOUNCE_MS = 400;
 const HISTORY_LIMIT = 200;
 /** On-screen tape height the zoom is fitted to when the tape changes. */
@@ -84,6 +86,13 @@ function strips(): number {
 }
 
 /** Editor height in mm: all stacked strips. */
+/** Non-printable strip at each tape edge in mm (tape width minus printable area, halved). */
+function tapeMarginMm(): number {
+  const model = state.models.find((m) => m.name === selectedModel());
+  const tape = model?.tapes.find((tp) => tp.width_mm === selectedWidth());
+  return tape ? Math.max(0, (tape.width_mm - tape.printable_mm) / 2) : 0;
+}
+
 function labelHeightMm(): number {
   return tapeMm() * strips();
 }
@@ -167,7 +176,28 @@ let fitZoomPending = true;
 function schedulePreview(): void {
   updateSeriesButton();
   window.clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(updatePreview, PREVIEW_DEBOUNCE_MS);
+  previewTimer = window.setTimeout(runPreview, PREVIEW_DEBOUNCE_MS);
+}
+
+let previewBusy = false;
+let previewAgain = false;
+
+/** At most one render in flight; edits meanwhile cause exactly one more. */
+async function runPreview(): Promise<void> {
+  if (previewBusy) {
+    previewAgain = true;
+    return;
+  }
+  previewBusy = true;
+  try {
+    await updatePreview();
+  } finally {
+    previewBusy = false;
+    if (previewAgain) {
+      previewAgain = false;
+      void runPreview();
+    }
+  }
 }
 
 /** Elements whose text was clipped in the last preview. */
@@ -235,6 +265,8 @@ function layoutStage(): void {
   const stage = $("stage");
   stage.style.width = `${width}px`;
   stage.style.height = `${height}px`;
+  // Show the whole tape: grey bands for what the print head can't reach.
+  $("tape-frame").style.paddingBlock = `${tapeMarginMm() * ppm}px`;
   const lines = $("strip-lines");
   lines.replaceChildren();
   for (let k = 1; k < strips(); k++) {
@@ -347,6 +379,7 @@ function applyTapeStyle(): void {
   stage.style.backgroundColor = bg ?? "";
   $("ink").style.backgroundColor = INK_CSS[st.ink] ?? INK_CSS.black;
   stage.classList.toggle("dark-tape", st.tape === "black");
+  $("tape-frame").style.setProperty("--tape-bg", bg ?? CLEAR_TAPE_CSS);
 }
 
 // ---------------------------------------------------------------- boxes (canvas)
@@ -633,9 +666,15 @@ function contentFields(item: Item): HTMLElement[] {
         item.align = align.value as api.TextAlign;
         changed(true);
       });
+      const spacing = numberInput(item.line_spacing, 0.1, "1.0", (v) => {
+        item.line_spacing = v && v > 0 ? Math.min(3, Math.max(0.5, v)) : null;
+      });
+      spacing.min = "0.5";
+      spacing.max = "3";
+      spacing.title = t("elements.lineSpacingHint");
       const row = document.createElement("div");
       row.className = "row";
-      row.append(field("elements.size", size), field("elements.align", align));
+      row.append(field("elements.size", size), field("elements.lineSpacing", spacing), field("elements.align", align));
 
       const font = fontPicker(item.font ?? null, (family) => {
         item.font = family;

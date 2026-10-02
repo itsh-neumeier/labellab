@@ -19,6 +19,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use ll_protocol::model::{dots_to_mm, mm_to_dots, pt_to_dots, ModelInfo, TapeGeometry};
 use ll_render::{
@@ -211,6 +212,10 @@ pub enum Element {
         bold: bool,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         italic: bool,
+        /// Line spacing as a multiple of the font's normal line height
+        /// (0.5–3); `None` = 1.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        line_spacing: Option<f32>,
     },
     Qr {
         data: String,
@@ -272,6 +277,7 @@ impl Element {
             font: None,
             bold: false,
             italic: false,
+            line_spacing: None,
         }
     }
 }
@@ -352,18 +358,41 @@ impl Label {
 /// Fonts loaded while rendering one label: the default font's raw bytes
 /// (flow fast path, unchanged since M5) and parsed faces per
 /// (family, bold, italic).
+/// Font faces are parsed once per process and shared: parsing a font
+/// file on every live-preview render costs noticeable time.
+type FaceKey = (Option<String>, bool, bool);
+
+fn shared_faces() -> &'static Mutex<HashMap<FaceKey, Arc<Face>>> {
+    static FACES: OnceLock<Mutex<HashMap<FaceKey, Arc<Face>>>> = OnceLock::new();
+    FACES.get_or_init(Default::default)
+}
+
+fn shared_default_bytes() -> Result<Arc<Vec<u8>>, CoreError> {
+    static BYTES: OnceLock<Arc<Vec<u8>>> = OnceLock::new();
+    if let Some(bytes) = BYTES.get() {
+        return Ok(bytes.clone());
+    }
+    let bytes = Arc::new(ll_render::fontsrc::load_default_font()?);
+    Ok(BYTES.get_or_init(|| bytes).clone())
+}
+
+/// Fonts used while composing one label (handles into the shared cache).
 #[derive(Default)]
 struct FontCache {
-    default_bytes: Option<Vec<u8>>,
-    faces: HashMap<(Option<String>, bool, bool), Face>,
+    default_bytes: Option<Arc<Vec<u8>>>,
+    faces: HashMap<FaceKey, Arc<Face>>,
 }
 
 impl FontCache {
     fn default_bytes(&mut self) -> Result<&[u8], CoreError> {
         if self.default_bytes.is_none() {
-            self.default_bytes = Some(ll_render::fontsrc::load_default_font()?);
+            self.default_bytes = Some(shared_default_bytes()?);
         }
-        Ok(self.default_bytes.as_deref().unwrap_or_default())
+        Ok(self
+            .default_bytes
+            .as_deref()
+            .map(Vec::as_slice)
+            .unwrap_or_default())
     }
 
     fn face(
@@ -374,11 +403,25 @@ impl FontCache {
     ) -> Result<&Face, CoreError> {
         let key = (family.clone(), bold, italic);
         if !self.faces.contains_key(&key) {
-            let face = Face::load(family.as_deref(), bold, italic)?;
+            let shared = shared_faces()
+                .lock()
+                .ok()
+                .and_then(|faces| faces.get(&key).cloned());
+            let face = match shared {
+                Some(face) => face,
+                None => {
+                    let face = Arc::new(Face::load(family.as_deref(), bold, italic)?);
+                    if let Ok(mut faces) = shared_faces().lock() {
+                        faces.insert(key.clone(), face.clone());
+                    }
+                    face
+                }
+            };
             self.faces.insert(key.clone(), face);
         }
         self.faces
             .get(&key)
+            .map(|f| f.as_ref())
             .ok_or(CoreError::Template("font cache".into()))
     }
 }
@@ -474,12 +517,14 @@ fn render_flow_element(
             font,
             bold,
             italic,
+            line_spacing,
         } => {
             let font = fonts.face(font, *bold, *italic)?;
             let size_px = size_pt.map(|pt| canvas.pt(pt));
-            let width = boxed::text_natural_width(text, font, pins, size_px)?;
+            let spacing = line_spacing.unwrap_or(1.0);
+            let width = boxed::text_natural_width(text, font, pins, size_px, spacing)?;
             let (local, clipped) =
-                boxed::text_in_box_checked(text, font, width, pins, size_px, *align)?;
+                boxed::text_in_box_checked(text, font, width, pins, size_px, *align, spacing)?;
             *overflow |= clipped;
             let mut out = Bitmap::new(head, width);
             out.blit(&local, offset as i32, 0, offset..offset + pins);
@@ -564,6 +609,7 @@ fn render_boxed_element(
             font,
             bold,
             italic,
+            line_spacing,
         } => {
             let (bitmap, clipped) = boxed::text_in_box_checked(
                 text,
@@ -572,6 +618,7 @@ fn render_boxed_element(
                 h,
                 size_pt.map(|pt| canvas.pt(pt)),
                 *align,
+                line_spacing.unwrap_or(1.0),
             )?;
             *overflow |= clipped;
             bitmap
@@ -934,6 +981,7 @@ mod tests {
                         font: Some("DejaVu Sans".into()),
                         bold: true,
                         italic: false,
+                        line_spacing: None,
                     },
                     rect: Some(Rect {
                         x_mm: 1.0,
@@ -1164,6 +1212,7 @@ mod tests {
             font: None,
             bold: true,
             italic: true,
+            line_spacing: None,
         });
         let bitmap = render_label(&label, model, geometry).unwrap();
         assert!(!ink_lines(&bitmap).is_empty());
@@ -1354,6 +1403,7 @@ mod tests {
                 font: None,
                 bold: false,
                 italic: false,
+                line_spacing: None,
             },
             rect: Some(Rect {
                 x_mm: 0.0,

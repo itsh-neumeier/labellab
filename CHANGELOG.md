@@ -106,11 +106,16 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- Zeilenabstand für Text einstellbar (Feld „Zeilenabstand“, 0,5–3)
 ### Geändert
+- Vorschau zeigt die volle Bandbreite; der Rand, den der Druckkopf nicht erreicht, ist grau
+- Deutlich schnellere Vorschau bei vielen Elementen und großen Bildern; die Oberfläche
+  bleibt während des Renderns bedienbar
 - Texte der Oberfläche (Beschriftungen, Hinweise, Knöpfe) lassen sich nicht mehr markieren;
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- Bild-Editor: Die Abdunklung des Zuschnitt-Rahmens lag über dem ganzen Dialog
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb
   `labellab.exe` beim Packen die Oberfläche `LabelLab.exe` (Windows unterscheidet keine
   Groß-/Kleinschreibung), das Artefakt enthielt nur die CLI.
