@@ -293,7 +293,7 @@ async fn read_status_and_geometry<'m>(
 /// Dotted line across the printable pins on the last raster line.
 fn add_cut_mark(page: &mut Bitmap, offset: u16, pins: u16) {
     let line = page.height_dots().saturating_sub(1);
-    for p in (0..pins).filter(|p| (p / CUT_MARK_DASH) % 2 == 0) {
+    for p in (0..pins).filter(|p| (p / CUT_MARK_DASH).is_multiple_of(2)) {
         page.set_pixel(offset + p, line, true);
     }
 }
