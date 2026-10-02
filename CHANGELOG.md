@@ -90,6 +90,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Mitgelieferte Icon-Sets „ISO 7010 Sicherheitszeichen“ (335 Warn-, Verbots-, Gebots-,
   Brandschutz- und Rettungszeichen) und „IEC 60417 Gerätesymbole“ (754 Symbole, z. B. Erde,
   Sicherung, Ein/Aus, Schutzklasse II), Grafiken von Wikimedia Commons (gemeinfrei/CC0)
+- Editor: Formen (Linie, Rechteck, abgerundetes Rechteck, Oval; Kontur oder gefüllt),
+  „Länge fest“ (Inhalt wird auf die Mindestlänge abgeschnitten), Platzhalter `{{datum}}` und
+  `{{zeit}}`, Helligkeit/Kontrast für Bilder, Elemente sperren, Ausrichten-Knöpfe, Lineal in mm,
+  Umschalt beim Skalieren hält das Seitenverhältnis
 
 ### Behoben
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb
