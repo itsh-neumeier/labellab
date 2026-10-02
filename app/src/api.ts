@@ -52,6 +52,8 @@ export type Element =
       separator?: FuseSeparator;
       vertical?: boolean;
       reverse?: boolean;
+      /** Equal fields without merging (patch panel). */
+      fixed?: boolean;
       size_pt?: number | null;
       align?: TextAlign;
       /** Multiple of the normal line height (0.5–3); absent = 1. */

@@ -415,6 +415,10 @@ pub enum Element {
         /// Fields in reverse order (last field at the label start).
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         reverse: bool,
+        /// All fields one module wide, no merging (patch panel); only an
+        /// editor hint, rendering follows the ratios as always.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        fixed: bool,
         /// One size for all fields; `None` = largest size fitting every
         /// field.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1989,6 +1993,7 @@ mod tests {
             separator,
             vertical,
             reverse: false,
+            fixed: false,
             size_pt: None,
             align: TextAlign::Center,
             line_spacing: None,

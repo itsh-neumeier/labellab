@@ -536,6 +536,7 @@ function applyTapeStyle(): void {
 // ---------------------------------------------------------------- boxes (canvas)
 
 function elementTitle(el: Element): string {
+  if (el.type === "fuse_box" && el.fixed) return t("elements.patch_panel");
   return t(`elements.${el.type}`);
 }
 
@@ -983,8 +984,12 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
         if (f.vertical == null) delete f.vertical;
         changed();
       });
-      row.append(num, text, ratio, dir);
-      if (i < item.fields.length - 1) {
+      row.append(num, text);
+      if (!item.fixed) row.append(ratio);
+      row.append(dir);
+      if (item.fixed) {
+        row.classList.add("fixed");
+      } else if (i < item.fields.length - 1) {
         const merge = makeButton("⇔", t("fuse.merge"), () => {
           const next = item.fields[i + 1];
           f.ratio = fuseRatio(f) + fuseRatio(next);
@@ -3243,10 +3248,10 @@ const TEMPLATES: { id: string; kind: api.Layout["kind"]; name: string; cat: stri
     svg: '<rect x="4" y="13" width="14" height="6"/><rect x="20" y="8" width="48" height="16" rx="2"/>' },
   { id: "cable_wrap", kind: "cable_wrap", name: "wizard.cableWrap", cat: "wizard.catCable",
     svg: '<rect x="6" y="6" width="60" height="20" rx="10"/><path d="M20 6v20M36 6v20M52 6v20"/>' },
-  { id: "patch_panel", kind: "patch_panel", name: "wizard.patchPanel", cat: "wizard.catPanel",
-    svg: '<rect x="2" y="8" width="68" height="16"/><path d="M19 8v16M36 8v16M53 8v16"/>' },
   { id: "terminal_block", kind: "terminal_block", name: "wizard.terminalBlock", cat: "wizard.catPanel",
     svg: '<rect x="2" y="4" width="68" height="24"/><path d="M2 16h68M19 4v24M36 4v24M53 4v24"/>' },
+  { id: "patch_panel", kind: "patch_panel", name: "wizard.patchPanel", cat: "wizard.catSpecial",
+    svg: '<rect x="2" y="8" width="68" height="16"/><path d="M19 8v16M36 8v16M53 8v16"/>' },
   { id: "fuse_box", kind: "fuse_box", name: "wizard.fuseBox", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="6" width="68" height="20"/><path d="M22 6v20M34 6v20M46 6v20M58 6v20"/><path d="M28 10v12M40 10v12M52 10v12M64 10v12" stroke-width="2"/>' },
   { id: "terminal_strip", kind: "fuse_box", name: "wizard.terminalStrip", cat: "wizard.catSpecial",
@@ -3659,7 +3664,7 @@ let wizardSeq = 0;
  */
 function defaultWizardTarget(kind: string, editing: boolean): string {
   if (editing || state.label.elements.length === 0) return "replace";
-  return kind === "fuse_box" ? "insert" : "sheet";
+  return kind === "fuse_box" || kind === "patch_panel" ? "insert" : "sheet";
 }
 
 function updateWizard(): void {

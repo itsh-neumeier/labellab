@@ -531,5 +531,6 @@
   "a4.testHorizontal": "horizontal: 100 mm",
   "a4.testVertical": "vertical: 100 mm",
   "wizard.centerMark": "Center line (alignment aid)",
-  "wizard.centerMarkHint": "Fine line (1 print dot) in the middle of the wrap area – helps to put the label on the cable centered"
+  "wizard.centerMarkHint": "Fine line (1 print dot) in the middle of the wrap area – helps to put the label on the cable centered",
+  "elements.patch_panel": "Patch panel"
 }

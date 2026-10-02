@@ -275,32 +275,48 @@ fn fill_item(rect: Rect) -> Item {
     }
 }
 
+/// One fixed-width [`Element::FuseBox`] (no merging): a field per port,
+/// numbered, separated by lines; editable afterwards like the
+/// distribution board label.
 pub fn patch_panel(spec: &PatchPanel, tape_mm: f32) -> Label {
     let count = spec.count.max(1);
     let pitch = spec.pitch_mm.max(1.0);
     let margin = spec.margin_mm.max(0.0);
-    let mut elements = Vec::new();
-    for i in 0..count {
-        let number = spec.start + i as i64 * spec.step;
-        let text = numbered(&spec.prefix, number, spec.digits);
-        let x = margin + i as f32 * pitch;
-        elements.push(text_item(
-            &text,
-            Rect {
-                x_mm: x,
-                y_mm: 0.0,
-                w_mm: pitch,
-                h_mm: tape_mm,
+    let fields = (0..count)
+        .map(|i| {
+            let number = spec.start + i as i64 * spec.step;
+            FuseField::new(numbered(&spec.prefix, number, spec.digits), 1.0)
+        })
+        .collect();
+    let length = count as f32 * pitch;
+    let item = Item {
+        rect: Some(Rect {
+            x_mm: margin,
+            y_mm: 0.0,
+            w_mm: length,
+            h_mm: tape_mm,
+        }),
+        ..Element::FuseBox {
+            fields,
+            pitch_mm: pitch,
+            separator: if spec.separators {
+                FuseSeparator::Line
+            } else {
+                FuseSeparator::None
             },
-            0,
-        ));
-    }
-    if spec.separators {
-        for i in 0..=count {
-            elements.push(separator(margin + i as f32 * pitch, 0.0, tape_mm));
+            vertical: false,
+            reverse: false,
+            fixed: true,
+            size_pt: None,
+            align: TextAlign::Center,
+            line_spacing: None,
+            font: None,
+            bold: false,
+            italic: false,
         }
-    }
-    fixed_length(elements, 2.0 * margin + count as f32 * pitch)
+        .into()
+    };
+    fixed_length(vec![item], 2.0 * margin + length)
 }
 
 pub fn single_flag(spec: &SingleFlag, tape_mm: f32) -> Label {
@@ -420,6 +436,7 @@ pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
             },
             vertical: spec.vertical,
             reverse: false,
+            fixed: false,
             size_pt: None,
             align: TextAlign::Center,
             line_spacing: None,
@@ -533,11 +550,18 @@ mod tests {
             margin_mm: 2.0,
         };
         let label = patch_panel(&spec, 9.9);
-        let t = texts(&label);
-        assert_eq!(t.first().map(String::as_str), Some("P01"));
-        assert_eq!(t.last().map(String::as_str), Some("P24"));
-        // 24 fields + 25 separators.
-        assert_eq!(label.elements.len(), 49);
+        // One fixed-width field-row element, 24 equal fields.
+        assert_eq!(label.elements.len(), 1);
+        let Element::FuseBox { fields, fixed, .. } = &label.elements[0].element else {
+            panic!("not a field row");
+        };
+        assert!(*fixed);
+        assert_eq!(fields.len(), 24);
+        assert_eq!(fields[0].text, "P01");
+        assert_eq!(fields[23].text, "P24");
+        assert!(fields.iter().all(|f| f.ratio == 1.0));
+        let rect = label.elements[0].rect.unwrap();
+        assert!((rect.x_mm - 2.0).abs() < 1e-3 && (rect.w_mm - 24.0 * 12.7).abs() < 1e-3);
 
         // Rendered length matches margins + 24 × pitch within a dot.
         let model = p710();

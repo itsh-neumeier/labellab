@@ -4,6 +4,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Patchfeld als Spezial-Element: ein bearbeitbares Element mit gleich breiten Feldern
+  (kein Verbinden), Texte mehrzeilig/fett/kursiv, Trennzeichen, Ausrichtung; Standardziel
+  „Ins aktuelle Blatt einfügen“
 - Kabelfahne und Einzelfähnchen: Häkchen „Mittelstrich (Zentrierhilfe)“ – feine Linie
   (1 Druckpunkt) in der Mitte des Wickelbereichs; CLI `--center-mark`
 - Vorschau mit dem Mausrad zoomen (um den Mauszeiger, Umschalt+Rad scrollt); Zoom in

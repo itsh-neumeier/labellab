@@ -531,5 +531,6 @@
   "a4.testHorizontal": "waagerecht: 100 mm",
   "a4.testVertical": "senkrecht: 100 mm",
   "wizard.centerMark": "Mittelstrich (Zentrierhilfe)",
-  "wizard.centerMarkHint": "Feine Linie (1 Druckpunkt) in der Mitte des Wickelbereichs – hilft, das Label mittig am Kabel anzulegen"
+  "wizard.centerMarkHint": "Feine Linie (1 Druckpunkt) in der Mitte des Wickelbereichs – hilft, das Label mittig am Kabel anzulegen",
+  "elements.patch_panel": "Patchfeld"
 }
