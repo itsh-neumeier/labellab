@@ -106,6 +106,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- Deko-Rahmen aus Anfangs-, Mittel- (wiederholt) und Endstück: 8 mitgelieferte Rahmen,
+  eigener Rahmen-Editor (SVG), Import von Rahmen-Sets (`.llabel-frames`)
 - Hochformat: Label mit senkrechtem Band bearbeiten („Ausrichtung“ unter Label)
 - Elemente können eigene Namen bekommen (Doppelklick in der Liste)
 - Editor-Aufbau wie Ebenen: links die Elementliste mit Ein-/Ausblenden, Sperren,

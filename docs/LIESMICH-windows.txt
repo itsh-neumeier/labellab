@@ -44,6 +44,9 @@ Editor
   Obergrenze fuer den Vorschub des Druckers.
 - Rand links / Rand rechts: Abstand zwischen Schnitt und Inhalt, in der Vorschau
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
+- Rahmen > Deko-Rahmen: Rahmen aus der Galerie waehlen oder mit "Neuer Rahmen ..."
+  selbst anlegen (Anfang, Mitte, Ende als SVG). Eigene Rahmen liegen unter
+  %APPDATA%\LabelLab\frames.
 - Label > Ausrichtung: Querformat oder Hochformat (Band senkrecht bearbeiten).
 - Elemente umbenennen: Doppelklick auf den Namen in der Liste.
 - Links: Liste der Elemente (Auge = ein-/ausblenden, Schloss, Duplizieren, Loeschen).

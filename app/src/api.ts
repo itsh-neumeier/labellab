@@ -125,6 +125,8 @@ export type Orientation = "landscape" | "portrait";
 export interface Label {
   version: number;
   elements: Item[];
+  /** Decorative segment frame `set:frame`. */
+  decor?: string | null;
   /** Editor orientation; portrait boxes are in portrait coordinates (absent = landscape). */
   orientation?: Orientation;
   /** With `min_length_mm`: exactly that long, content beyond is cut off. */
@@ -344,3 +346,28 @@ export interface PrinterInfo {
 }
 
 export const printerInfo = (connection: Connection) => invoke<PrinterInfo>("printer_info", { connection });
+
+/** A decorative segment frame (`ll_render::decor::FrameDef`); SVG strings. */
+export interface FrameDef {
+  id: string;
+  name: I18nText;
+  start: string;
+  middle: string;
+  end: string;
+}
+
+export interface FrameSet {
+  id: string;
+  name: I18nText;
+  builtin: boolean;
+  frames: (FrameDef & { preview: string })[];
+}
+
+export const frameSets = () => invoke<FrameSet[]>("frame_sets");
+export const framePreview = (frame: FrameDef) => invoke<string>("frame_preview", { frame });
+/** Saves into the user's set; returns the `set:frame` name. */
+export const saveFrame = (frame: FrameDef) => invoke<string>("save_frame", { frame });
+export const deleteFrame = (id: string) => invoke<void>("delete_frame", { id });
+export const importFrameSet = (path: string) => invoke<string>("import_frame_set", { path });
+export const removeFrameSet = (id: string) => invoke<void>("remove_frame_set", { id });
+export const readSvg = (path: string) => invoke<string>("read_svg", { path });

@@ -599,6 +599,104 @@ fn iconsets() -> Vec<IconSetDto> {
         .collect()
 }
 
+/// Size of the frame thumbnails (length x height in dots).
+const FRAME_THUMB: (u32, u16) = (180, 48);
+
+/// One frame with a thumbnail (base64 PNG mask).
+#[derive(Serialize)]
+struct FrameDto {
+    #[serde(flatten)]
+    frame: ll_render::decor::FrameDef,
+    preview: String,
+}
+
+#[derive(Serialize)]
+struct FrameSetDto {
+    id: String,
+    name: ll_render::iconset::Text,
+    builtin: bool,
+    frames: Vec<FrameDto>,
+}
+
+fn frame_png(frame: &ll_render::decor::FrameDef) -> Result<String, AppError> {
+    let (len, h) = FRAME_THUMB;
+    let bitmap = ll_render::decor::render_frame(frame, len, h)
+        .map_err(|e| err(ll_core::CoreError::from(e)))?;
+    let png =
+        ll_render::png::to_png_mask(&bitmap, 0, h).map_err(|e| err(ll_core::CoreError::from(e)))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(png))
+}
+
+/// All frame sets with thumbnails, built-in first.
+#[tauri::command]
+fn frame_sets() -> Vec<FrameSetDto> {
+    ll_render::decor::sets()
+        .iter()
+        .map(|s| FrameSetDto {
+            id: s.id.clone(),
+            name: s.name.clone(),
+            builtin: ll_render::decor::is_builtin(&s.id),
+            frames: s
+                .frames
+                .iter()
+                .map(|f| FrameDto {
+                    preview: frame_png(f).unwrap_or_default(),
+                    frame: f.clone(),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+/// Thumbnail of a frame being edited (fails on invalid SVG).
+#[tauri::command]
+fn frame_preview(frame: ll_render::decor::FrameDef) -> Result<String, AppError> {
+    for svg in [&frame.start, &frame.middle, &frame.end] {
+        usvg_check(svg)?;
+    }
+    frame_png(&frame)
+}
+
+fn usvg_check(svg: &str) -> Result<(), AppError> {
+    ll_render::iconset::normalize_svg(svg.as_bytes())
+        .map(|_| ())
+        .map_err(|e| err(ll_core::CoreError::from(e)))
+}
+
+/// Saves a frame from the editor into the user's own set.
+#[tauri::command]
+fn save_frame(mut frame: ll_render::decor::FrameDef) -> Result<String, AppError> {
+    for svg in [&mut frame.start, &mut frame.middle, &mut frame.end] {
+        *svg = ll_render::iconset::normalize_svg(svg.as_bytes())
+            .map_err(|e| err(ll_core::CoreError::from(e)))?;
+    }
+    let id = frame.id.clone();
+    ll_core::frames::save_user_frame(frame).map_err(err)?;
+    Ok(format!("{}:{id}", ll_core::frames::USER_SET_ID))
+}
+
+/// Reads an SVG file for the frame editor (cleaned up, text as paths).
+#[tauri::command]
+fn read_svg(path: PathBuf) -> Result<String, AppError> {
+    let data = std::fs::read(&path).map_err(|e| err(ll_core::CoreError::from(e)))?;
+    ll_render::iconset::normalize_svg(&data).map_err(|e| err(ll_core::CoreError::from(e)))
+}
+
+#[tauri::command]
+fn delete_frame(id: String) -> Result<(), AppError> {
+    ll_core::frames::delete_user_frame(&id).map_err(err)
+}
+
+#[tauri::command]
+fn import_frame_set(path: PathBuf) -> Result<String, AppError> {
+    Ok(ll_core::frames::import(&path).map_err(err)?.id)
+}
+
+#[tauri::command]
+fn remove_frame_set(id: String) -> Result<(), AppError> {
+    ll_core::frames::remove(&id).map_err(err)
+}
+
 /// Stores an image pasted from the clipboard (base64) and returns its path.
 #[tauri::command]
 fn save_pasted_image(data: String, extension: String) -> Result<PathBuf, AppError> {
@@ -708,6 +806,13 @@ pub fn run() {
             history,
             image_editor_source,
             save_pasted_image,
+            frame_sets,
+            frame_preview,
+            read_svg,
+            save_frame,
+            delete_frame,
+            import_frame_set,
+            remove_frame_set,
             printer_info,
             paste_clipboard_image,
             record_history,
