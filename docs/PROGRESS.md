@@ -157,7 +157,8 @@
 ## Nächste Schritte
 - Offene Nutzerwünsche (Stand 2026-10-02 abends): `.lbx`-Import (Plan `docs/IMPORT-LBX.md`),
   Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
-  Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel.
+  Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel,
+  Code-Assistent, Sicherungskasten-Felder verbinden + „Vorlage bearbeiten“, Vorlagen-Ziel.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
   Bandausrichtung im Editor, Akkuanzeige nach Rohdaten-Test, macOS-Build (Tauri kann es,
   braucht macOS-Runner in CI + Bluetooth über CoreBluetooth/IOBluetooth — neuer Transport),
@@ -318,6 +319,24 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Code-Assistent, Verteiler-Felder verbinden, Vorlagen-Ziel (ADR-033)
+- „Code-Assistent …“ statt der Knöpfe QR-Code/Barcode: Dialog mit Code-Typ, für QR Inhaltsarten
+  (Text, Link, WLAN, vCard, E-Mail, Telefon; `app/src/codes.ts` baut/erkennt den Inhalt),
+  Live-Vorschau über `render_preview` (Fehler sperren „Einfügen“), Hinweise je Symbologie.
+  In den Eigenschaften von QR/Barcode „Assistent …“ zum Bearbeiten (QR ⇄ Barcode möglich).
+- Sicherungskasten: `FuseBox::spans`/`texts` (ll-core, CLI `--spans 1,3,2 --texts ";FI"`),
+  Feldleiste im Assistenten (⇔ verbinden, ✂ trennen, Text je Feld). `Label::source` speichert
+  die Vorlage; „Vorlage bearbeiten …“ unter Label öffnet sie wieder. Ziel: aktuelles Blatt /
+  neues Blatt / neue Datei.
+- Fix: UPC-A wurde als EAN-13 ohne führende 0 kodiert.
+- Stolperstein: horizontal scrollende Feldleiste – die GTK-Overlay-Scrollbar fing Klicks auf
+  ⇔ ab; Leiste bricht jetzt um statt zu scrollen. Lückenhaftes `texts`-Array → `null` im
+  JSON → Fehler; wird jetzt aufgefüllt.
+- Geprüft: fmt/clippy/Tests (UPC-A-Test neu), Build; GUI unter Xvfb (WLAN-QR einfügen und
+  wieder öffnen, EAN-13-Fehler, QR → Code 128, Verteiler als neues Blatt, Vorlage bearbeiten).
+  Nicht in der GUI geprüft: Ziel „Neue Datei“ (nativer Rückfrage-Dialog).
+- Offen: `.lbx`-Import, Akkuanzeige, Hardware-Tests.
+
 ### 2026-10-02 – Claude Code, Beispiel-CSV
 - „Beispiel-CSV …“ unter Daten (CSV): Spalten = vom Label genutzte `{{Platzhalter}}` (ohne
   n/a/A/datum/zeit), sonst „Name;Raum;Nummer“; 3 Beispielzeilen, `;`-getrennt; Speicherort

@@ -139,6 +139,15 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Einzelne Textteile fett oder kursiv: Text markieren und F/K (Strg+B/Strg+I) drücken;
   gespeichert als `**fett**` und `__kursiv__` im Text
 - Zeilenabstand für Text einstellbar (Feld „Zeilenabstand“, 0,5–3)
+- „Code-Assistent …“ ersetzt die Knöpfe QR-Code und Barcode: Code-Typ wählen (QR, Code 128,
+  EAN-13, EAN-8, UPC-A, Code 39, ITF), für QR-Codes Inhalte wie WLAN-Zugang, Kontakt (vCard),
+  E-Mail, Telefon oder Link ausfüllen, Live-Vorschau mit Prüfung; bestehende Codes über
+  „Assistent …“ in den Eigenschaften bearbeiten (auch QR ⇄ Barcode umstellen)
+- Vorlage Sicherungskasten/Verteiler: Teileinheiten zu einem Feld verbinden (⇔) und wieder
+  trennen (✂), eigener Text je Feld; das Label merkt sich die Vorlage und lässt sich über
+  „Vorlage bearbeiten …“ jederzeit anpassen
+- Vorlagen: Ziel wählbar – aktuelles Blatt ersetzen, als neues Blatt hinzufügen oder neue
+  Datei
 ### Geändert
 - Vorschau zeigt die volle Bandbreite; der Rand, den der Druckkopf nicht erreicht, ist grau
 - Deutlich schnellere Vorschau bei vielen Elementen und großen Bildern; die Oberfläche
@@ -147,6 +156,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- UPC-A: 11 Ziffern (oder 12 mit Prüfziffer) werden jetzt als UPC-A kodiert; vorher wurde die
+  Eingabe als EAN-13 ohne führende 0 gelesen
 - USB unter Windows: Der Drucker wird jetzt über den Windows-Druckertreiber angesprochen
   (vorher Fehler „incompatible driver is installed for this device“)
 - Gedruckte Labels waren um etwa 8 mm länger als eingestellt (der Drucker-Nachlauf kam an

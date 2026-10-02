@@ -605,3 +605,18 @@ Vorlage:
   Zusätzlich zum bisherigen Linienrahmen (`border`), nicht als Ersatz.
 - Konsequenzen: Boxen werden nicht automatisch vor dem Mittelstück geschützt (nur Anfang beim
   Wählen); Rahmen-SVGs werden beim Speichern normalisiert (Text zu Pfaden).
+
+## ADR-033: Vorlage bleibt am Label (`Label::source`), Code-Assistent im Frontend
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Sicherungskasten-Felder verbinden und „nicht nur einmal generierbar,
+  sondern dynamisch anpassbar“; QR/Barcode in einem Assistenten.
+- Entscheidung: `layouts::generate` speichert die erzeugende `Layout`-Beschreibung in
+  `Label::source` (in `.llabel` mitgespeichert, optional). „Vorlage bearbeiten …“ öffnet den
+  Assistenten damit und erzeugt das Blatt neu; Handänderungen an den Elementen gehen dabei
+  verloren (bewusst: die Vorlage ist die Quelle). Sicherungskasten: `spans` (Teileinheiten je
+  Feld) und `texts` (eigener Text je Feld, leer = Nummer); leer = wie bisher ein Feld je
+  Teileinheit. Der Code-Assistent baut nur den Inhalt (`WIFI:`, vCard 3.0, `mailto:`, `tel:`)
+  im Frontend (`app/src/codes.ts`) und erkennt ihn beim Bearbeiten wieder; das Datenformat
+  der Elemente `qr`/`barcode` bleibt unverändert.
+- Konsequenzen: Alte Dateien ohne `source` bleiben gültig (kein „Vorlage bearbeiten“).
+  UPC-A wird jetzt als EAN-13 mit führender 0 kodiert (Fehlerkorrektur).

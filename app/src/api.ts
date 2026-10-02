@@ -94,6 +94,10 @@ export type Layout =
       main_switch: string;
       main_switch_mm: number;
       main_switch_right: boolean;
+      /** Modules per field (merged devices); empty = one module per field. */
+      spans?: number[];
+      /** Text per field; empty = number. */
+      texts?: string[];
     } & FieldSpec);
 
 /** Numbered fields in a fixed pitch (terminal block, fuse box). */
@@ -125,6 +129,8 @@ export type Orientation = "landscape" | "portrait";
 export interface Label {
   version: number;
   elements: Item[];
+  /** Template the label was generated from (editable again). */
+  source?: Layout | null;
   /** Decorative segment frame `set:frame`. */
   decor?: string | null;
   /** Editor orientation; portrait boxes are in portrait coordinates (absent = landscape). */

@@ -176,6 +176,10 @@ pub struct Label {
     /// between the label margins over the full printable height.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub decor: Option<String>,
+    /// The template this label was generated from (editable again in the
+    /// wizard); no effect on rendering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<Box<crate::layouts::Layout>>,
 }
 
 /// Editor orientation of a label, see [`Label::orientation`].
@@ -261,6 +265,7 @@ impl Default for Label {
             strips: 1,
             orientation: Orientation::Landscape,
             decor: None,
+            source: None,
         }
     }
 }

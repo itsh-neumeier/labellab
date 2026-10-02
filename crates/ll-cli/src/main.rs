@@ -429,6 +429,13 @@ enum GenerateKind {
         /// Hauptschalter-Feld am Ende statt am Anfang.
         #[arg(long)]
         main_switch_right: bool,
+        /// Module je Feld, z. B. "1,1,3,2" (Gerät über mehrere Module = ein Feld);
+        /// ersetzt --count.
+        #[arg(long, value_delimiter = ',')]
+        spans: Vec<u32>,
+        /// Text je Feld, mit ";" getrennt (leer = Nummer).
+        #[arg(long, default_value = "")]
+        texts: String,
     },
 }
 
@@ -1207,6 +1214,8 @@ fn generate(
             main_switch,
             main_switch_width,
             main_switch_right,
+            spans,
+            texts,
         } => Layout::FuseBox(FuseBox {
             count: f.count,
             pitch_mm: f.pitch,
@@ -1220,6 +1229,12 @@ fn generate(
             main_switch_right,
             separators: f.separators,
             margin_mm: f.margin,
+            spans,
+            texts: if texts.is_empty() {
+                Vec::new()
+            } else {
+                texts.split(';').map(str::to_owned).collect()
+            },
         }),
     };
     let label = layouts::generate(&layout, tape_mm);

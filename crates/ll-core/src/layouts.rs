@@ -110,6 +110,25 @@ pub struct FuseBox {
     pub main_switch_right: bool,
     pub separators: bool,
     pub margin_mm: f32,
+    /// Modules per field: a device spanning several modules becomes one
+    /// field (column). Empty = `count` fields of one module each;
+    /// otherwise `count` is ignored and the fields follow `spans`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub spans: Vec<u32>,
+    /// Text per field; missing or empty = automatic number.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub texts: Vec<String>,
+}
+
+impl FuseBox {
+    /// Modules per field (see [`FuseBox::spans`]).
+    pub fn field_spans(&self) -> Vec<u32> {
+        if self.spans.is_empty() {
+            vec![1; self.count.max(1) as usize]
+        } else {
+            self.spans.iter().map(|s| (*s).max(1)).collect()
+        }
+    }
 }
 
 fn default_main_switch_mm() -> f32 {
@@ -317,7 +336,8 @@ pub fn terminal_block(spec: &TerminalBlock, tape_mm: f32) -> Label {
 }
 
 pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
-    let count = spec.count.max(1);
+    let spans = spec.field_spans();
+    let modules: u32 = spans.iter().sum();
     let pitch = spec.pitch_mm.max(1.0);
     let margin = spec.margin_mm.max(0.0);
     let main = !spec.main_switch.trim().is_empty();
@@ -335,20 +355,30 @@ pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
     // Vertical text reads bottom to top, as usual on distribution boards.
     let rotation = if spec.vertical { 270 } else { 0 };
     let mut elements = Vec::new();
-    for i in 0..count {
+    // Field edges in modules from the first field.
+    let mut edges = vec![0u32];
+    for (i, span) in spans.iter().enumerate() {
+        let start = *edges.last().unwrap_or(&0);
+        edges.push(start + span);
         let number = spec.start + i as i64 * spec.step;
+        let text = spec
+            .texts
+            .get(i)
+            .filter(|t| !t.trim().is_empty())
+            .cloned()
+            .unwrap_or_else(|| numbered(&spec.prefix, number, spec.digits));
         elements.push(text_item(
-            &numbered(&spec.prefix, number, spec.digits),
+            &text,
             Rect {
-                x_mm: fields_x + i as f32 * pitch,
+                x_mm: fields_x + start as f32 * pitch,
                 y_mm: 0.0,
-                w_mm: pitch,
+                w_mm: *span as f32 * pitch,
                 h_mm: tape_mm,
             },
             rotation,
         ));
     }
-    let fields_end = fields_x + count as f32 * pitch;
+    let fields_end = fields_x + modules as f32 * pitch;
     if main {
         let x = if spec.main_switch_right {
             fields_end
@@ -367,7 +397,7 @@ pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
         ));
     }
     if spec.separators {
-        let mut edges: Vec<f32> = (0..=count).map(|i| fields_x + i as f32 * pitch).collect();
+        let mut edges: Vec<f32> = edges.iter().map(|e| fields_x + *e as f32 * pitch).collect();
         if main {
             edges.push(if spec.main_switch_right {
                 fields_end + main_w
@@ -379,11 +409,19 @@ pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
             elements.push(separator(x, 0.0, tape_mm));
         }
     }
-    fixed_length(elements, 2.0 * margin + count as f32 * pitch + main_w)
+    fixed_length(elements, 2.0 * margin + modules as f32 * pitch + main_w)
 }
 
 /// Runs the generator selected by `layout`.
+/// Generates the label for `layout` and remembers the layout in it
+/// ([`Label::source`]), so the template can be edited again later.
 pub fn generate(layout: &Layout, tape_mm: f32) -> Label {
+    let mut label = generate_plain(layout, tape_mm);
+    label.source = Some(Box::new(layout.clone()));
+    label
+}
+
+fn generate_plain(layout: &Layout, tape_mm: f32) -> Label {
     match layout {
         Layout::CableFlag(s) => cable_flag(s, tape_mm),
         Layout::CableWrap(s) => cable_wrap(s, tape_mm),
@@ -529,9 +567,29 @@ mod tests {
             main_switch_right: false,
             separators: true,
             margin_mm: 0.0,
+            spans: Vec::new(),
+            texts: Vec::new(),
         };
         let label = fuse_box(&spec, 9.9);
         assert_eq!(texts(&label), ["F1", "F2", "F3", "F4", "HAUPTSCHALTER"]);
+        assert!(generate(&Layout::FuseBox(spec.clone()), 9.9)
+            .source
+            .is_some());
+        // Merged modules: a 3-module device is one field; custom text.
+        let merged = FuseBox {
+            spans: vec![1, 3, 2],
+            texts: vec![String::new(), "FI".into()],
+            main_switch: String::new(),
+            ..spec.clone()
+        };
+        let m = fuse_box(&merged, 9.9);
+        assert_eq!(texts(&m), ["F1", "FI", "F3"]);
+        let w: Vec<f32> = m.elements[..3]
+            .iter()
+            .map(|i| i.rect.unwrap().w_mm)
+            .collect();
+        assert_eq!(w, [17.5, 52.5, 35.0]);
+        assert!((m.min_length_mm.unwrap() - 6.0 * 17.5).abs() < 1e-3);
         assert_eq!(label.elements[0].rotation, 270);
         assert!((label.elements[0].rect.unwrap().x_mm - 35.0).abs() < 1e-3);
         assert!((label.min_length_mm.unwrap() - (35.0 + 4.0 * 17.5)).abs() < 1e-3);
