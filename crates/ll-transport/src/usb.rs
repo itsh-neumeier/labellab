@@ -10,8 +10,9 @@
 //!   needs a udev rule (see `docs/PROTOCOL.md`).
 //! - Windows: `nusb` can only claim interfaces bound to WinUSB. With
 //!   Windows' generic `usbprint.sys` (or Brother's driver) bound, opening
-//!   fails. TODO(verify): whether the PT-P710BT works with WinUSB bound
-//!   (e.g. via Zadig) — not tested on hardware yet.
+//!   fails ("incompatible driver is installed for this device", confirmed
+//!   2026-10-02); `ll_core::device::open_usb` therefore uses
+//!   [`crate::usbprint`] first on Windows.
 
 use std::time::Duration;
 

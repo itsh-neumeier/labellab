@@ -581,3 +581,15 @@ Vorlage:
 - Konsequenzen: Ältere Labels mit Rahmen und Rand > 0 zeichnen den Rahmen jetzt um den Rand
   nach innen versetzt. Bilder mit weißem Hintergrund richten sich nach ihrer Tinte, nicht
   nach dem Bildrand.
+
+## ADR-031: Hochformat als Ansicht, Druck immer im Querformat
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Label mit senkrechtem Band bearbeiten (wie Hochformat im
+  Hersteller-Editor).
+- Entscheidung: `Label::orientation = portrait` speichert Boxen in Hochformat-Koordinaten
+  (x quer zum Band, y entlang). Vor dem Rendern wird daraus das Querformat-Label
+  (`to_landscape`: Box gedreht, Inhalt +270°); der Druckpfad bleibt unverändert. Die
+  Vorschau dreht nur das fertige Bild für die Anzeige. Beim Umschalten dreht der Editor
+  Boxen und Inhalte mit, damit der Ausdruck gleich bleibt.
+- Konsequenzen: Rahmen-Seiten (oben/unten/links/rechts) beziehen sich weiter auf das Band
+  im Querformat. Fluss-Elemente ohne Box werden beim Umschalten in Boxen umgewandelt.

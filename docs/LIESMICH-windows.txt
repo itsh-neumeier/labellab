@@ -44,6 +44,8 @@ Editor
   Obergrenze fuer den Vorschub des Druckers.
 - Rand links / Rand rechts: Abstand zwischen Schnitt und Inhalt, in der Vorschau
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
+- Label > Ausrichtung: Querformat oder Hochformat (Band senkrecht bearbeiten).
+- Elemente umbenennen: Doppelklick auf den Namen in der Liste.
 - Links: Liste der Elemente (Auge = ein-/ausblenden, Schloss, Duplizieren, Loeschen).
   Rechts: Eigenschaften des gewaehlten Elements.
 - Speichern: "Speichern" (Strg+S) schreibt in die offene Datei, "Speichern unter ..."

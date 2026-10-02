@@ -36,7 +36,8 @@
 | Fakt | Wert | Status | Quelle |
 |---|---|---|---|
 | Interface-Klasse | Drucker (`0x07`), Bulk-OUT für Befehle/Raster, Bulk-IN für den 32-Byte-Status | unverifiziert | Annahme nach USB-Druckerklasse; `ll_transport::usb` sucht Endpunkte dynamisch statt fester Adressen |
-| Windows-Treiberbindung | `nusb` braucht WinUSB am Interface (nicht `usbprint.sys`/Brother-Treiber) | unverifiziert | `nusb`-Doku; Hardware-Test offen |
+| Windows-Treiberbindung | `nusb` braucht WinUSB am Interface; mit `usbprint.sys` gebunden: „incompatible driver is installed for this device“ | **verifiziert** | Nutzer 2026-10-02 (PT-P710BT per USB unter Windows) |
+| Windows über `usbprint.sys` | Geräteschnittstelle `GUID_DEVINTERFACE_USBPRINT` {28D78FAD-5A12-11D1-AE5B-0000F803A8C2} per SetupAPI finden, mit `CreateFile` öffnen, Schreiben = Bulk OUT, Lesen = Bulk IN | unverifiziert (TODO(verify): Status lesen über usbprint) | Windows-Treibermodell; `ll_transport::usbprint` |
 | Linux-Zugriff ohne root | udev-Regel, z. B. `SUBSYSTEM=="usb", ATTRS{idVendor}=="04f9", ATTRS{idProduct}=="20af", MODE="0660", TAG+="uaccess"` in `/etc/udev/rules.d/60-labellab.rules` | unverifiziert | Annahme, Hardware-Test offen |
 
 ## Befehle

@@ -106,6 +106,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- Hochformat: Label mit senkrechtem Band bearbeiten („Ausrichtung“ unter Label)
+- Elemente können eigene Namen bekommen (Doppelklick in der Liste)
 - Editor-Aufbau wie Ebenen: links die Elementliste mit Ein-/Ausblenden, Sperren,
   Duplizieren und Löschen, rechts die Eigenschaften des gewählten Elements; ausgeblendete
   Elemente werden nicht gedruckt
@@ -139,6 +141,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- USB unter Windows: Der Drucker wird jetzt über den Windows-Druckertreiber angesprochen
+  (vorher Fehler „incompatible driver is installed for this device“)
 - Gedruckte Labels waren um etwa 8 mm länger als eingestellt (der Drucker-Nachlauf kam an
   beiden Enden dazu); er wird jetzt von den Label-Rändern abgezogen, Standard ist 0
 - Bild-Editor: Die Abdunklung des Zuschnitt-Rahmens lag über dem ganzen Dialog

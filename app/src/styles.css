@@ -215,6 +215,9 @@ button.primary.busy::before {
 }
 #margin-start { border-right: 1px dashed rgba(229, 54, 122, 0.7); }
 #margin-end { border-left: 1px dashed rgba(229, 54, 122, 0.7); }
+.stage-row.portrait #margin-start { border-right: 0; border-bottom: 1px dashed rgba(229, 54, 122, 0.7); }
+.stage-row.portrait #margin-end { border-left: 0; border-top: 1px dashed rgba(229, 54, 122, 0.7); }
+.strip-line.vertical { top: 0; bottom: 0; left: auto; right: auto; border-top: 0; border-left: 1px dashed rgba(229, 54, 122, 0.8); }
 .strip-line { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(229, 54, 122, 0.8); }
 .zoom label { display: flex; align-items: center; gap: 6px; }
 .zoom { flex-wrap: wrap; row-gap: 4px; }

@@ -23,6 +23,8 @@ windows = { version = "0.58", features = [
     "Networking",
     "Networking_Sockets",
     "Storage_Streams",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Foundation",
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
