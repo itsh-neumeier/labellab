@@ -687,6 +687,9 @@ pub fn run() {
     for warning in ll_core::iconsets::load_installed() {
         eprintln!("icon set not loaded: {warning}");
     }
+    for warning in ll_core::frames::load_installed() {
+        eprintln!("frame set not loaded: {warning}");
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())

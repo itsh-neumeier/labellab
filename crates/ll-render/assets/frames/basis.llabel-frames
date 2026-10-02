@@ -1,0 +1,92 @@
+{
+ "format": "labellab-frames",
+ "version": 1,
+ "id": "basis",
+ "name": {
+  "de": "Basis-Rahmen",
+  "en": "Basic frames"
+ },
+ "license": "MIT (LabelLab)",
+ "frames": [
+  {
+   "id": "brace",
+   "name": {
+    "de": "Geschweifte Klammer",
+    "en": "Curly brace"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"100\" viewBox=\"0 0 24 100\"><path d=\"M24 4 Q12 4 12 16 V40 Q12 50 3 50 Q12 50 12 60 V84 Q12 96 24 96\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M0 4 H20 M0 96 H20\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"100\" viewBox=\"0 0 24 100\"><g transform=\"matrix(-1 0 0 1 24 0)\"><path d=\"M24 4 Q12 4 12 16 V40 Q12 50 3 50 Q12 50 12 60 V84 Q12 96 24 96\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\"/></g></svg>"
+  },
+  {
+   "id": "arrow",
+   "name": {
+    "de": "Pfeilband",
+    "en": "Arrow band"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"30\" height=\"100\" viewBox=\"0 0 30 100\"><path d=\"M30 4 H4 L18 50 L4 96 H30\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"5\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M0 4 H20 M0 96 H20\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"5\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"100\" viewBox=\"0 0 40 100\"><path d=\"M0 4 H10 L36 50 L10 96 H0\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"5\"/></svg>"
+  },
+  {
+   "id": "wave",
+   "name": {
+    "de": "Welle",
+    "en": "Wave"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M20 6 A16 44 0 0 0 20 94\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"100\" viewBox=\"0 0 40 100\"><path d=\"M0 6 Q10 0 20 6 T40 6 M0 94 Q10 100 20 94 T40 94\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><g transform=\"matrix(-1 0 0 1 20 0)\"><path d=\"M20 6 A16 44 0 0 0 20 94\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\"/></g></svg>"
+  },
+  {
+   "id": "dots",
+   "name": {
+    "de": "Punktreihe",
+    "en": "Dotted"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><circle cx=\"10\" cy=\"8\" r=\"4.5\"/><circle cx=\"10\" cy=\"29\" r=\"4.5\"/><circle cx=\"10\" cy=\"50\" r=\"4.5\"/><circle cx=\"10\" cy=\"71\" r=\"4.5\"/><circle cx=\"10\" cy=\"92\" r=\"4.5\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><circle cx=\"10\" cy=\"8\" r=\"4.5\"/><circle cx=\"10\" cy=\"92\" r=\"4.5\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><g transform=\"matrix(-1 0 0 1 20 0)\"><circle cx=\"10\" cy=\"8\" r=\"4.5\"/><circle cx=\"10\" cy=\"29\" r=\"4.5\"/><circle cx=\"10\" cy=\"50\" r=\"4.5\"/><circle cx=\"10\" cy=\"71\" r=\"4.5\"/><circle cx=\"10\" cy=\"92\" r=\"4.5\"/></g></svg>"
+  },
+  {
+   "id": "diamond",
+   "name": {
+    "de": "Doppellinie mit Raute",
+    "en": "Double line with diamond"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"100\" viewBox=\"0 0 40 100\"><path d=\"M40 3 H6 V97 H40 M40 11 H14 V89 H40\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2.5\"/><path d=\"M27 38 L35 50 L27 62 L19 50 Z\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M0 3 H20 M0 11 H20 M0 89 H20 M0 97 H20\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2.5\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"100\" viewBox=\"0 0 40 100\"><g transform=\"matrix(-1 0 0 1 40 0)\"><path d=\"M40 3 H6 V97 H40 M40 11 H14 V89 H40\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2.5\"/><path d=\"M27 38 L35 50 L27 62 L19 50 Z\"/></g></svg>"
+  },
+  {
+   "id": "zigzag",
+   "name": {
+    "de": "Zickzack",
+    "en": "Zigzag"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"100\" viewBox=\"0 0 14 100\"><path d=\"M14 10 H6 L2 15 L10 20 L2 25 L10 30 L2 35 L10 40 L2 45 L10 50 L2 55 L10 60 L2 65 L10 70 L2 75 L10 80 L2 85 L10 90 L14 90\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"3\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M0 10 L5 2 L10 10 L15 2 L20 10 M0 90 L5 98 L10 90 L15 98 L20 90\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"3\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"100\" viewBox=\"0 0 14 100\"><g transform=\"matrix(-1 0 0 1 14 0)\"><path d=\"M14 10 H6 L2 15 L10 20 L2 25 L10 30 L2 35 L10 40 L2 45 L10 50 L2 55 L10 60 L2 65 L10 70 L2 75 L10 80 L2 85 L10 90 L14 90\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"3\"/></g></svg>"
+  },
+  {
+   "id": "banner",
+   "name": {
+    "de": "Banner",
+    "en": "Banner"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"30\" height=\"100\" viewBox=\"0 0 30 100\"><path d=\"M30 0 H0 L12 50 L0 100 H30 Z\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M0 2 H20 M0 98 H20\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"30\" height=\"100\" viewBox=\"0 0 30 100\"><g transform=\"matrix(-1 0 0 1 30 0)\"><path d=\"M30 0 H0 L12 50 L0 100 H30 Z\"/></g></svg>"
+  },
+  {
+   "id": "rounded",
+   "name": {
+    "de": "Abgerundet",
+    "en": "Rounded"
+   },
+   "start": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M20 4 A16 16 0 0 0 4 20 V80 A16 16 0 0 0 20 96\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"5\"/></svg>",
+   "middle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><path d=\"M0 4 H20 M0 96 H20\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"5\"/></svg>",
+   "end": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"100\" viewBox=\"0 0 20 100\"><g transform=\"matrix(-1 0 0 1 20 0)\"><path d=\"M20 4 A16 16 0 0 0 4 20 V80 A16 16 0 0 0 20 96\" fill=\"none\" stroke=\"#000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"5\"/></g></svg>"
+  }
+ ]
+}

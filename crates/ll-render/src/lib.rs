@@ -9,6 +9,7 @@
 pub mod barcode;
 mod bitmap;
 pub mod boxed;
+pub mod decor;
 mod error;
 pub mod fonts;
 pub mod fontsrc;

@@ -172,6 +172,10 @@ pub struct Label {
     /// the landscape form ([`Label::to_landscape`]).
     #[serde(default, skip_serializing_if = "Orientation::is_landscape")]
     pub orientation: Orientation,
+    /// Decorative segment frame `set:frame` (see `ll_render::decor`), drawn
+    /// between the label margins over the full printable height.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decor: Option<String>,
 }
 
 /// Editor orientation of a label, see [`Label::orientation`].
@@ -256,6 +260,7 @@ impl Default for Label {
             border: None,
             strips: 1,
             orientation: Orientation::Landscape,
+            decor: None,
         }
     }
 }
@@ -883,6 +888,18 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
         .effective_border()
         .map(|b| border_reserve(&b, canvas))
         .unwrap_or_default();
+    let decor = label.decor.as_deref().and_then(ll_render::decor::resolve);
+    let reserve = match &decor {
+        Some(frame) => {
+            let (start, end) = ll_render::decor::end_widths(frame, pins)?;
+            Reserve {
+                left: reserve.left.max(start),
+                right: reserve.right.max(end),
+                ..reserve
+            }
+        }
+        None => reserve,
+    };
     let flow_canvas = Canvas {
         offset: canvas.offset + reserve.top,
         pins: pins.saturating_sub(reserve.top + reserve.bottom).max(1),
@@ -1001,6 +1018,17 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     if label.fixed_length && min_len > 0 {
         bitmap.truncate(min_len);
         bitmap.extend_blank(min_len.saturating_sub(bitmap.height_dots()));
+    }
+
+    if let Some(frame) = &decor {
+        let length = bitmap.height_dots().saturating_sub(padding_start + padding);
+        let local = ll_render::decor::render_frame(frame, length, pins)?;
+        bitmap.blit(
+            &local,
+            canvas.offset as i32,
+            padding_start as i32,
+            canvas.offset..canvas.offset + pins,
+        );
     }
 
     if let Some(border) = label.effective_border() {
@@ -1731,6 +1759,34 @@ mod tests {
         // Round trip of the box mapping.
         landscape.elements[0].rect = Some(r.landscape_to_portrait(tape));
         assert_eq!(landscape.elements[0].rect, bar.rect);
+    }
+
+    #[test]
+    fn decor_frame_sits_between_the_margins() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let label = Label {
+            padding_mm: 3.0,
+            min_length_mm: Some(40.0),
+            fixed_length: true,
+            decor: Some("basis:rounded".into()),
+            ..Label::default()
+        };
+        let b = render_label(&label, model, geometry).unwrap();
+        let lines = ink_lines(&b);
+        assert!(
+            lines[0].abs_diff(mm_to_dots(3.0)) <= 2,
+            "first {}",
+            lines[0]
+        );
+        let end_gap = b.height_dots() - 1 - lines[lines.len() - 1];
+        assert!(end_gap.abs_diff(mm_to_dots(3.0)) <= 2, "end gap {end_gap}");
+        // Unknown frames are ignored instead of failing the print.
+        let unknown = Label {
+            decor: Some("nope:nope".into()),
+            ..label
+        };
+        assert!(ink_lines(&render_label(&unknown, model, geometry).unwrap()).is_empty());
     }
 
     #[test]
