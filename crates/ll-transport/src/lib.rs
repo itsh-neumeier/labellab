@@ -10,6 +10,8 @@ mod error;
 pub mod mock;
 pub mod serial;
 pub mod usb;
+#[cfg(windows)]
+pub mod usbprint;
 
 use std::time::Duration;
 

@@ -241,7 +241,7 @@
   "error.no_device": "No printer connected. Please select a printer.",
   "error.device_not_found": "Printer not found. Is it paired or plugged in? Refresh the list with “Search”.",
   "error.connection": "Connection to the printer failed or was interrupted.",
-  "error.platform": "Bluetooth/USB reported a system error. Is Bluetooth switched on?",
+  "error.platform": "Bluetooth/USB reported a system error. Bluetooth: switched on and paired? USB: cable plugged in, printer on?",
   "error.tape_width": "This tape width is not supported by the printer.",
   "error.unknown_model": "Unknown printer model.",
   "error.protocol": "Unexpected response from the printer.",

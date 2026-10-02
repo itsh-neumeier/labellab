@@ -141,6 +141,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- USB unter Windows: Der Drucker wird jetzt über den Windows-Druckertreiber angesprochen
+  (vorher Fehler „incompatible driver is installed for this device“)
 - Gedruckte Labels waren um etwa 8 mm länger als eingestellt (der Drucker-Nachlauf kam an
   beiden Enden dazu); er wird jetzt von den Label-Rändern abgezogen, Standard ist 0
 - Bild-Editor: Die Abdunklung des Zuschnitt-Rahmens lag über dem ganzen Dialog

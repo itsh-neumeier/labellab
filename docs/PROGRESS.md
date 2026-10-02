@@ -109,9 +109,12 @@
   - [x] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
     2026-10-02, = Hochformat aus Paket 3b, ADR-031)
   - [x] Eigene Namen für Elemente (Doppelklick in der Liste, Feld „Name“)
-  - [ ] USB unter Windows: Fehler „incompatible driver is installed“ (Nutzer 2026-10-02) —
-    `nusb` braucht WinUSB, am Drucker hängt der Windows-Druckertreiber (usbprint). Lösung:
-    Windows-Transport über die usbprint-Geräteschnittstelle (SetupAPI + CreateFile)
+  - [x] USB unter Windows: Fehler „incompatible driver is installed“ (Nutzer 2026-10-02) —
+    neuer Transport `ll_transport::usbprint` über die Geräteschnittstelle des
+    Windows-Druckertreibers, `nusb` nur noch Rückfall (Hardware-Test offen)
+  - [ ] Schnittoptionen wie im Hersteller-Editor (Auto-Schnitt, Halbschnitt, Kettendruck,
+    Schnitt am Ende, spezielles Band) – Nutzerwunsch 2026-10-02; Halbschnitt am PT-P710BT
+    unverifiziert
   - [ ] Daten (CSV): Beispieldatei erzeugen und speichern lassen (Nutzerwunsch 2026-10-02)
   - [x] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
     an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
@@ -192,6 +195,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- USB unter Windows ohne Treibertausch: Status lesen und Drucken über `usbprint.sys`
+  (`ll_transport::usbprint`). Klappt das Lesen des Status nicht, Fehlermeldung notieren.
 - Länge: Label mit fester Länge 100 mm (Rand links/rechts ≥ 4 mm) drucken → genau 100 mm?
   (Vorschub `1B 69 64` wird jetzt von den leeren Label-Enden abgezogen, PROTOCOL.md)
 - „Wach halten“: einschalten, Drucker länger als seine Abschaltzeit liegen lassen — bleibt
@@ -308,6 +313,14 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, USB unter Windows über usbprint.sys
+- Nutzerfehler „incompatible driver is installed for this device“: `nusb` braucht WinUSB.
+  Neu `ll_transport::usbprint` (Windows): SetupAPI-Suche nach `GUID_DEVINTERFACE_USBPRINT`,
+  Gerät per `std::fs` öffnen, Lesen/Schreiben im Blocking-Pool; `open_usb` nimmt unter
+  Windows zuerst diesen Weg. Fehlertext „Systemfehler“ nennt jetzt auch USB-Ursachen.
+- Geprüft: `cargo check`/`clippy` für `x86_64-pc-windows-msvc` (ll-transport, ll-core),
+  Linux-Tests. **Nicht am Gerät geprüft.**
+
 ### 2026-10-02 – Claude Code, Hochformat, Elementnamen (ADR-031)
 - `Label::orientation` (`landscape`/`portrait`); Hochformat-Boxen in Hochformat-Koordinaten,
   `Label::to_landscape` (Box gedreht, Inhalt +270°) vor dem Rendern/Drucken; Vorschau-PNG im

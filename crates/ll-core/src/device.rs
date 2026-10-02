@@ -36,7 +36,7 @@ pub async fn connect(connection: &Connection) -> Result<Box<dyn Transport>, Core
         Connection::Serial { port, baud_rate } => {
             Ok(Box::new(SerialTransport::open(port, *baud_rate)?))
         }
-        Connection::Usb { spec } => Ok(Box::new(open_usb(spec.as_deref()).await?)),
+        Connection::Usb { spec } => open_usb(spec.as_deref()).await,
         #[cfg(windows)]
         Connection::Bluetooth { device_id } => {
             let id = resolve_bluetooth_id(device_id).await;
@@ -143,15 +143,29 @@ pub fn select_usb_printer<'a>(
 }
 
 /// Opens the USB printer selected by `spec` (see [`select_usb_printer`]).
-pub async fn open_usb(spec: Option<&str>) -> Result<UsbTransport, CoreError> {
+///
+/// On Windows the printer is normally owned by the system's printer class
+/// driver (`usbprint.sys`), which `nusb` can't use; that driver's device
+/// interface is tried first and `nusb` (WinUSB bound, e.g. via Zadig)
+/// only as a fallback.
+pub async fn open_usb(spec: Option<&str>) -> Result<Box<dyn Transport>, CoreError> {
     let printers = list_usb_printers().await?;
     let printer = select_usb_printer(&printers, spec).ok_or(CoreError::NoDevice)?;
-    Ok(UsbTransport::open(
-        printer.model.usb_vid,
-        printer.model.usb_pid,
-        printer.serial_number.as_deref(),
-    )
-    .await?)
+    #[cfg(windows)]
+    if let Some(path) = ll_transport::usbprint::find(printer.model.usb_vid, printer.model.usb_pid)?
+    {
+        return Ok(Box::new(ll_transport::usbprint::UsbPrintTransport::open(
+            &path,
+        )?));
+    }
+    Ok(Box::new(
+        UsbTransport::open(
+            printer.model.usb_vid,
+            printer.model.usb_pid,
+            printer.serial_number.as_deref(),
+        )
+        .await?,
+    ))
 }
 
 #[cfg(any(windows, target_os = "linux"))]
