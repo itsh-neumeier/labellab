@@ -241,6 +241,55 @@
       </form>
     </dialog>
 
+    <dialog id="image-dialog">
+      <form method="dialog" class="image-editor">
+        <h2 data-i18n="imgedit.title"></h2>
+        <div class="ie-body">
+          <div class="ie-stage-wrap">
+            <div id="ie-stage" class="ie-stage">
+              <img id="ie-img" alt="" draggable="false" />
+              <div id="ie-crop" class="ie-crop">
+                <div class="ie-h" data-h="nw"></div><div class="ie-h" data-h="ne"></div>
+                <div class="ie-h" data-h="sw"></div><div class="ie-h" data-h="se"></div>
+              </div>
+            </div>
+            <p id="ie-hint" class="muted hint" data-i18n="imgedit.cropHint"></p>
+          </div>
+          <div class="ie-controls">
+            <div class="row">
+              <button type="button" id="ie-rotate" data-i18n="imgedit.rotate"></button>
+              <button type="button" id="ie-flip-h" data-i18n="imgedit.flipH"></button>
+              <button type="button" id="ie-flip-v" data-i18n="imgedit.flipV"></button>
+            </div>
+            <button type="button" id="ie-crop-reset" data-i18n="imgedit.cropReset"></button>
+            <h3 data-i18n="imgedit.background"></h3>
+            <label class="check"><input type="checkbox" id="ie-bg" /> <span data-i18n="imgedit.removeBg"></span></label>
+            <div id="ie-bg-opts">
+              <div class="row">
+                <span id="ie-swatch" class="ie-swatch"></span>
+                <button type="button" id="ie-pick" data-i18n="imgedit.pick"></button>
+                <button type="button" id="ie-auto" data-i18n="imgedit.auto"></button>
+              </div>
+              <label class="range-row"><span data-i18n="imgedit.tolerance"></span><input type="range" id="ie-tol" min="0" max="100" /><output id="ie-tol-out"></output></label>
+              <label class="check"><input type="checkbox" id="ie-contig" /> <span data-i18n="imgedit.contiguous"></span></label>
+            </div>
+            <h3 data-i18n="imgedit.print"></h3>
+            <select id="ie-halftone">
+              <option value="dither" data-i18n="imgedit.dither"></option>
+              <option value="threshold" data-i18n="imgedit.threshold"></option>
+            </select>
+            <label class="range-row" id="ie-thr-row"><span data-i18n="imgedit.level"></span><input type="range" id="ie-thr" min="1" max="254" /><output id="ie-thr-out"></output></label>
+            <h3 data-i18n="imgedit.result"></h3>
+            <div class="ie-result"><img id="ie-result" alt="" /></div>
+          </div>
+        </div>
+        <div class="row end">
+          <button value="cancel" data-i18n="wizard.cancel"></button>
+          <button id="ie-apply" value="apply" class="primary" data-i18n="imgedit.apply"></button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="series-dialog">
       <form method="dialog" class="wizard">
         <h2 data-i18n="series.title"></h2>

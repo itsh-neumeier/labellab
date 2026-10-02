@@ -506,3 +506,20 @@ Vorlage:
 - Konsequenzen: Die App lädt/speichert nur noch Dokumente (`load_document`/`save_document`).
   Druck/Serien/CSV wirken auf das aktuelle Blatt.
 
+
+## ADR-026: Nicht-destruktiver Bild-Editor
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Bilder im Programm zuschneiden und Hintergründe entfernen
+  (transparent setzen), ohne externes Grafikprogramm.
+- Entscheidung: Bearbeitungen werden als `ImageEdit` am Bild-Element gespeichert
+  (`edit` in `.llabel`, fehlt = unverändert), die Bilddatei wird nie verändert. Zuschnitt in
+  Bruchteilen des gedrehten Bildes (unabhängig von der Auflösung), Hintergrund =
+  Farbabstand zu Rand- oder gewählter Farbe (Toleranz 0–100), optional nur vom Rand aus
+  zusammenhängend (Flutfüllung), entfernte Pixel werden weiß (= nicht gedruckt).
+  Druckumsetzung wählbar: Raster (Floyd-Steinberg, Standard) oder Schwelle (1–254).
+  Vorschau und Druck nutzen denselben Pfad in `ll-render`; der Dialog zeigt zusätzlich
+  eine verkleinerte Fassung (≤ 640 px) zum Bearbeiten.
+- Konsequenzen: App-Backend hängt direkt an `image` (bereits Abhängigkeit von `ll-render`,
+  MIT/Apache-2.0) für die PNG-Kodierung der Editor-Vorschau. Ältere Programmstände
+  ignorieren das unbekannte Feld `edit`: Labels mit Bearbeitung öffnen dort, aber
+  unbearbeitet.

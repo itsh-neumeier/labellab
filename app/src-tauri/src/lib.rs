@@ -422,6 +422,59 @@ async fn pair_bluetooth(id: String) -> Result<(), AppError> {
     }
 }
 
+/// Size of the image shown in the image editor (longest side, px).
+const IMAGE_EDITOR_PX: u32 = 640;
+
+/// The image for the editor: rotated/flipped (no crop), once with the
+/// background removed (`masked`) and once without (`plain`, for picking a
+/// color), as base64 PNGs.
+#[derive(Serialize)]
+struct ImageEditorDto {
+    masked: String,
+    plain: String,
+    width: u32,
+    height: u32,
+}
+
+#[tauri::command]
+fn image_editor_source(
+    path: PathBuf,
+    edit: ll_render::ImageEdit,
+) -> Result<ImageEditorDto, AppError> {
+    use ll_render::image_edit;
+    let source = image_edit::load_rgba(&path, IMAGE_EDITOR_PX as u16)
+        .map_err(|e| err(ll_core::CoreError::from(e)))?;
+    let source = if source.width().max(source.height()) > IMAGE_EDITOR_PX {
+        image::imageops::thumbnail(
+            &source,
+            IMAGE_EDITOR_PX * source.width() / source.width().max(source.height()),
+            IMAGE_EDITOR_PX * source.height() / source.width().max(source.height()),
+        )
+    } else {
+        source
+    };
+    let plain = image_edit::transform_and_mask(
+        source.clone(),
+        &ll_render::ImageEdit {
+            background: None,
+            ..edit
+        },
+    );
+    let masked = image_edit::transform_and_mask(source, &edit);
+    let png = |img: &image::RgbaImage| -> Result<String, AppError> {
+        let mut out = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+            .map_err(|e| AppError::new("image", e.to_string()))?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(out))
+    };
+    Ok(ImageEditorDto {
+        masked: png(&masked)?,
+        plain: png(&plain)?,
+        width: masked.width(),
+        height: masked.height(),
+    })
+}
+
 /// One print history entry with its preview (base64 PNG mask, may be empty).
 #[derive(Serialize)]
 struct HistoryDto {
@@ -551,6 +604,7 @@ pub fn run() {
             font_families,
             iconsets,
             history,
+            image_editor_source,
             record_history,
             load_history,
             import_iconset,

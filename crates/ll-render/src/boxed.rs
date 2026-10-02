@@ -15,8 +15,11 @@ use fontdue::Font;
 use serde::{Deserialize, Serialize};
 
 use crate::iconset::Halftone;
+use crate::image_edit::ImageEdit;
 use crate::linear_barcode::encode_modules;
-use crate::picture::{halftone_bits, load_gray, render_svg_to_gray, ImageAdjust};
+use crate::picture::{
+    halftone_bits_at, load_gray_edited, render_svg_to_gray, ImageAdjust, ICON_THRESHOLD,
+};
 use crate::{render_qr, Bitmap, Face, QrErrorCorrection, RenderError, Symbology};
 
 /// Alpha threshold (0-255) above which a rasterized pixel counts as ink.
@@ -286,20 +289,35 @@ pub fn image_in_box(
     box_h: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    image_in_box_adjusted(path, box_w, box_h, invert, ImageAdjust::default())
+    image_in_box_edited(
+        path,
+        box_w,
+        box_h,
+        invert,
+        ImageAdjust::default(),
+        &ImageEdit::default(),
+    )
 }
 
-/// [`image_in_box`] with brightness/contrast correction.
-pub fn image_in_box_adjusted(
+/// [`image_in_box`] with an [`ImageEdit`] and brightness/contrast.
+pub fn image_in_box_edited(
     path: &Path,
     box_w: u32,
     box_h: u16,
     invert: bool,
     adjust: ImageAdjust,
+    edit: &ImageEdit,
 ) -> Result<Bitmap, RenderError> {
-    let mut gray = load_gray(path, box_h)?;
+    let mut gray = load_gray_edited(path, box_h, edit)?;
     adjust.apply(&mut gray);
-    gray_in_box(&gray, box_w, box_h, invert, Halftone::Dither)
+    gray_in_box_at(
+        &gray,
+        box_w,
+        box_h,
+        invert,
+        edit.halftone(),
+        edit.threshold.unwrap_or(ICON_THRESHOLD),
+    )
 }
 
 /// Renders a symbol from a registered icon set (see [`crate::iconset`])
@@ -328,6 +346,17 @@ fn gray_in_box(
     invert: bool,
     halftone: Halftone,
 ) -> Result<Bitmap, RenderError> {
+    gray_in_box_at(gray, box_w, box_h, invert, halftone, ICON_THRESHOLD)
+}
+
+fn gray_in_box_at(
+    gray: &image::GrayImage,
+    box_w: u32,
+    box_h: u16,
+    invert: bool,
+    halftone: Halftone,
+    threshold: u8,
+) -> Result<Bitmap, RenderError> {
     let (src_w, src_h) = gray.dimensions();
     let mut out = Bitmap::new(box_h, box_w);
     if src_w == 0 || src_h == 0 || box_w == 0 || box_h == 0 {
@@ -338,7 +367,7 @@ fn gray_in_box(
     let new_h = ((src_h as f32 * scale).round() as u32).clamp(1, box_h as u32);
     let resized =
         image::imageops::resize(gray, new_w, new_h, image::imageops::FilterType::Triangle);
-    let bits = halftone_bits(&resized, invert, halftone);
+    let bits = halftone_bits_at(&resized, invert, halftone, threshold);
 
     let line_off = (box_w - new_w) / 2;
     let pin_off = (box_h as u32 - new_h) / 2;

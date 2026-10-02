@@ -38,7 +38,7 @@ export type Element =
     }
   | { type: "qr"; data: string }
   | { type: "barcode"; symbology: Symbology; data: string }
-  | { type: "image"; path: string; invert: boolean; brightness?: number; contrast?: number }
+  | { type: "image"; path: string; invert: boolean; brightness?: number; contrast?: number; edit?: ImageEdit }
   | { type: "symbol"; name: string; invert: boolean }
   | { type: "fill" }
   | { type: "shape"; shape: ShapeKind; stroke_mm: number; filled?: boolean };
@@ -274,3 +274,17 @@ export const history = () => invoke<HistoryEntry[]>("history");
 export const recordHistory = (label: Label, model: string, widthMm: number, name: string, count: number) =>
   invoke<void>("record_history", { label, model, widthMm, name, count });
 export const loadHistory = (id: string) => invoke<Label>("load_history", { id });
+
+/** Non-destructive image edits (`ll_render::ImageEdit`). Crop in fractions of the rotated image. */
+export interface ImageEdit {
+  rotation?: number;
+  flip_h?: boolean;
+  flip_v?: boolean;
+  crop?: { x: number; y: number; w: number; h: number } | null;
+  background?: { color?: [number, number, number] | null; tolerance: number; contiguous: boolean } | null;
+  halftone?: "dither" | "threshold" | null;
+  threshold?: number | null;
+}
+
+export const imageEditorSource = (path: string, edit: ImageEdit) =>
+  invoke<{ masked: string; plain: string; width: number; height: number }>("image_editor_source", { path, edit });

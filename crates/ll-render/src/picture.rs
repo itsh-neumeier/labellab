@@ -11,6 +11,7 @@ use std::path::Path;
 use image::{GrayImage, Luma};
 
 use crate::iconset::Halftone;
+use crate::image_edit::{self, ImageEdit};
 use crate::{Bitmap, RenderError};
 
 /// Loads `path` (PNG/JPEG/BMP via `image`, SVG via `resvg`/`usvg`/
@@ -24,28 +25,39 @@ pub fn render_image(
     left_offset_pins: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    render_image_adjusted(
+    render_image_edited(
         path,
         head_pins,
         printable_pins,
         left_offset_pins,
         invert,
         ImageAdjust::default(),
+        &ImageEdit::default(),
     )
 }
 
-/// [`render_image`] with brightness/contrast applied before dithering.
-pub fn render_image_adjusted(
+/// [`render_image`] with an [`ImageEdit`] (crop, background removal, …)
+/// and brightness/contrast applied before the halftone step.
+pub fn render_image_edited(
     path: &Path,
     head_pins: u16,
     printable_pins: u16,
     left_offset_pins: u16,
     invert: bool,
     adjust: ImageAdjust,
+    edit: &ImageEdit,
 ) -> Result<Bitmap, RenderError> {
-    let mut gray = load_gray(path, printable_pins)?;
+    let mut gray = load_gray_edited(path, printable_pins, edit)?;
     adjust.apply(&mut gray);
-    render_gray(&gray, head_pins, printable_pins, left_offset_pins, invert)
+    render_gray_with(
+        &gray,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+        invert,
+        edit.halftone(),
+        edit.threshold.unwrap_or(ICON_THRESHOLD),
+    )
 }
 
 /// Brightness and contrast correction for imported images, each from
@@ -72,21 +84,15 @@ impl ImageAdjust {
     }
 }
 
-/// Loads `path` as grayscale: PNG/JPEG/BMP via `image`, SVG (by
-/// extension) rasterized `svg_height_px` tall via `resvg`.
-pub(crate) fn load_gray(path: &Path, svg_height_px: u16) -> Result<GrayImage, RenderError> {
-    let is_svg = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case("svg"));
-
-    if is_svg {
-        render_svg_to_gray(&std::fs::read(path)?, svg_height_px)
-    } else {
-        Ok(image::open(path)
-            .map_err(|e| RenderError::Image(e.to_string()))?
-            .to_luma8())
-    }
+/// Loads `path` with `edit` applied, composited on white (transparent
+/// areas are not printed) and converted to gray.
+pub(crate) fn load_gray_edited(
+    path: &Path,
+    svg_height_px: u16,
+    edit: &ImageEdit,
+) -> Result<GrayImage, RenderError> {
+    let rgba = image_edit::load_rgba(path, svg_height_px)?;
+    Ok(image_edit::to_gray_on_white(&image_edit::apply(rgba, edit)))
 }
 
 /// Renders raw SVG bytes (e.g. a bundled symbol, see [`crate::symbols`])
@@ -170,6 +176,26 @@ pub fn render_gray_halftone(
     invert: bool,
     halftone: Halftone,
 ) -> Result<Bitmap, RenderError> {
+    render_gray_with(
+        gray,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+        invert,
+        halftone,
+        ICON_THRESHOLD,
+    )
+}
+
+fn render_gray_with(
+    gray: &GrayImage,
+    head_pins: u16,
+    printable_pins: u16,
+    left_offset_pins: u16,
+    invert: bool,
+    halftone: Halftone,
+    threshold: u8,
+) -> Result<Bitmap, RenderError> {
     let (src_w, src_h) = gray.dimensions();
     if src_w == 0 || src_h == 0 || printable_pins == 0 {
         return Ok(Bitmap::new(head_pins, 0));
@@ -181,7 +207,7 @@ pub fn render_gray_halftone(
 
     let resized =
         image::imageops::resize(gray, new_w, new_h, image::imageops::FilterType::Triangle);
-    let bits = halftone_bits(&resized, invert, halftone);
+    let bits = halftone_bits_at(&resized, invert, halftone, threshold);
 
     let mut bitmap = Bitmap::new(head_pins, new_w);
     for y in 0..new_h {
@@ -197,15 +223,21 @@ pub fn render_gray_halftone(
 /// Gray level below which a pixel becomes ink with [`Halftone::Threshold`].
 /// Chosen so safety yellow (luma ≈ 170–200) stays white while signal red,
 /// blue and green (luma ≈ 60–110) and black become ink.
-const ICON_THRESHOLD: u8 = 150;
+pub(crate) const ICON_THRESHOLD: u8 = 150;
 
-/// One `bool` per pixel (row-major), `true` = ink.
-pub(crate) fn halftone_bits(img: &GrayImage, invert: bool, halftone: Halftone) -> Vec<bool> {
+/// One `bool` per pixel (row-major), `true` = ink; `threshold` applies to
+/// [`Halftone::Threshold`].
+pub(crate) fn halftone_bits_at(
+    img: &GrayImage,
+    invert: bool,
+    halftone: Halftone,
+    threshold: u8,
+) -> Vec<bool> {
     match halftone {
         Halftone::Dither => floyd_steinberg_dither(img, invert),
         Halftone::Threshold => img
             .pixels()
-            .map(|Luma([v])| (*v < ICON_THRESHOLD) != invert)
+            .map(|Luma([v])| (*v < threshold) != invert)
             .collect(),
     }
 }
