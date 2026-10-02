@@ -569,5 +569,8 @@
   "wizard.codeData": "Contenu du code",
   "wizard.codeDataHint": "vide = numéro d'inventaire ; p. ex. https://inventaire.example/{{n}}",
   "wizard.assetHint": "{{n:05}} s'incrémente à l'impression (numérotation ou CSV) : INV-00001, INV-00002 …",
-  "wizard.lengthMm": "Longueur (mm)"
+  "wizard.lengthMm": "Longueur (mm)",
+  "export.png": "En image …",
+  "export.pngHint": "Enregistrer la feuille en PNG aux couleurs du ruban (720 dpi), p. ex. pour la documentation",
+  "export.saved": "Image enregistrée : {path}"
 }

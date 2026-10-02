@@ -16,7 +16,7 @@ import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } fro
 import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
 import { langInfo, langPicker } from "./langs";
 import { getSetting, initSettings, setSetting } from "./settings";
-import { buildPages, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
+import { buildPages, labelPng, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
 
@@ -4107,6 +4107,31 @@ function a4Options(): A4Options {
   };
 }
 
+/** Saves the current sheet as a PNG in tape colours (720 dpi, first label of a series). */
+async function exportPng(): Promise<void> {
+  syncSheet();
+  const sheet = state.sheets[state.sheet];
+  const base = (sheet?.name || state.filePath?.split(/[\\/]/).pop()?.replace(/\.llabel$/i, "") || "label").replace(/[\\/:*?"<>|]/g, "_");
+  const path = await save({ defaultPath: `${base}.png`, filters: [{ name: "PNG", extensions: ["png"] }] });
+  if (!path) return;
+  try {
+    const width = selectedWidth();
+    const tape = state.models.find((m) => m.name === selectedModel())?.tapes.find((tp) => tp.width_mm === width);
+    const preview = await api.renderPreview(state.label, selectedModel(), width, 1, numbering(), RENDER_SCALE);
+    const st = parseStyleKey($<HTMLSelectElement>("tape-style").value) ?? TAPE_STYLES[0];
+    const url = await labelPng(
+      { name: base, png: preview.png, tapeMm: width, printableMm: tape?.printable_mm ?? width },
+      // Clear tape: transparent background.
+      TAPE_CSS[st.tape] ?? null,
+      INK_CSS[st.ink] ?? INK_CSS.black,
+    );
+    await api.saveBinaryFile(path, url.replace(/^data:[^,]*,/, ""));
+    setMessage(t("export.saved", { path }));
+  } catch (e) {
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
+  }
+}
+
 /** Renders the chosen sheets (each `copies` times) for A4. */
 async function a4Labels(): Promise<A4Label[]> {
   const model = state.models.find((m) => m.name === selectedModel());
@@ -4498,6 +4523,7 @@ function bindUi(): void {
       changed(true);
     }),
   );
+  $("btn-export-png").addEventListener("click", () => void exportPng());
   langPicker($("lang"), currentLang, (code: Lang) => {
     setLang(code);
     fillTapeStyles();

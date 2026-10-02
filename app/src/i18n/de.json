@@ -569,5 +569,8 @@
   "wizard.codeData": "Inhalt des Codes",
   "wizard.codeDataHint": "leer = Inventarnummer; z. B. https://inventar.example/{{n}}",
   "wizard.assetHint": "{{n:05}} zählt beim Drucken hoch (Nummerierung oder CSV): INV-00001, INV-00002 …",
-  "wizard.lengthMm": "Länge (mm)"
+  "wizard.lengthMm": "Länge (mm)",
+  "export.png": "Als Bild …",
+  "export.pngHint": "Aktuelles Blatt als PNG in Bandfarben speichern (720 dpi), z. B. für Dokumentation oder Angebote",
+  "export.saved": "Bild gespeichert: {path}"
 }

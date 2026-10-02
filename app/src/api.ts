@@ -464,3 +464,5 @@ export const importFrameSet = (path: string) => invoke<string>("import_frame_set
 export const removeFrameSet = (id: string) => invoke<void>("remove_frame_set", { id });
 export const readSvg = (path: string) => invoke<string>("read_svg", { path });
 export const saveTextFile = (path: string, content: string) => invoke<void>("save_text_file", { path, content });
+/** Writes base64 `data` to `path` (binary file, e.g. PNG). */
+export const saveBinaryFile = (path: string, data: string) => invoke<void>("save_binary_file", { path, data });

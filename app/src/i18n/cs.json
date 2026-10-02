@@ -569,5 +569,8 @@
   "wizard.codeData": "Obsah kódu",
   "wizard.codeDataHint": "prázdné = inventární číslo; např. https://inventar.example/{{n}}",
   "wizard.assetHint": "{{n:05}} se při tisku zvyšuje (číslování nebo CSV): INV-00001, INV-00002 …",
-  "wizard.lengthMm": "Délka (mm)"
+  "wizard.lengthMm": "Délka (mm)",
+  "export.png": "Jako obrázek …",
+  "export.pngHint": "Uložit aktuální list jako PNG v barvách pásky (720 dpi), např. pro dokumentaci",
+  "export.saved": "Obrázek uložen: {path}"
 }

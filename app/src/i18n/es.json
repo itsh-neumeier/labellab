@@ -569,5 +569,8 @@
   "wizard.codeData": "Contenido del código",
   "wizard.codeDataHint": "vacío = número de inventario; p. ej. https://inventario.example/{{n}}",
   "wizard.assetHint": "{{n:05}} aumenta al imprimir (numeración o CSV): INV-00001, INV-00002 …",
-  "wizard.lengthMm": "Longitud (mm)"
+  "wizard.lengthMm": "Longitud (mm)",
+  "export.png": "Como imagen …",
+  "export.pngHint": "Guardar la hoja actual como PNG con los colores de la cinta (720 dpi), p. ej. para documentación",
+  "export.saved": "Imagen guardada: {path}"
 }

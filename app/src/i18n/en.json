@@ -569,5 +569,8 @@
   "wizard.codeData": "Code content",
   "wizard.codeDataHint": "empty = asset number; e.g. https://inventory.example/{{n}}",
   "wizard.assetHint": "{{n:05}} counts up when printing (numbering or CSV): INV-00001, INV-00002 …",
-  "wizard.lengthMm": "Length (mm)"
+  "wizard.lengthMm": "Length (mm)",
+  "export.png": "As image …",
+  "export.pngHint": "Save the current sheet as a PNG in tape colours (720 dpi), e.g. for documentation",
+  "export.saved": "Image saved: {path}"
 }

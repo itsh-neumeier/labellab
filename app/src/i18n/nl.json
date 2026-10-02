@@ -569,5 +569,8 @@
   "wizard.codeData": "Inhoud van de code",
   "wizard.codeDataHint": "leeg = inventarisnummer; bijv. https://inventaris.example/{{n}}",
   "wizard.assetHint": "{{n:05}} telt op bij het afdrukken (nummering of CSV): INV-00001, INV-00002 …",
-  "wizard.lengthMm": "Lengte (mm)"
+  "wizard.lengthMm": "Lengte (mm)",
+  "export.png": "Als afbeelding …",
+  "export.pngHint": "Huidig blad als PNG in tapekleuren opslaan (720 dpi), bijv. voor documentatie",
+  "export.saved": "Afbeelding opgeslagen: {path}"
 }

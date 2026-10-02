@@ -569,5 +569,8 @@
   "wizard.codeData": "Zawartość kodu",
   "wizard.codeDataHint": "puste = numer inwentarzowy; np. https://inwentarz.example/{{n}}",
   "wizard.assetHint": "{{n:05}} zwiększa się przy druku (numeracja lub CSV): INV-00001, INV-00002 …",
-  "wizard.lengthMm": "Długość (mm)"
+  "wizard.lengthMm": "Długość (mm)",
+  "export.png": "Jako obraz …",
+  "export.pngHint": "Zapisz bieżący arkusz jako PNG w kolorach taśmy (720 dpi), np. do dokumentacji",
+  "export.saved": "Obraz zapisany: {path}"
 }
