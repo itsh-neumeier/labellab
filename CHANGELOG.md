@@ -156,6 +156,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- „Kein Schnitt“ / „Kettendruck ohne Schnitt“: der Drucker schnitt am Ende trotzdem. Jetzt
+  wird der Vorschub-und-Schnitt nach dem letzten Label ausdrücklich abgeschaltet (am Gerät
+  noch zu bestätigen)
 - Symbole: „Vorschau nicht möglich … missing field `name`“ – der eigene Elementname kollidierte
   mit dem Symbolnamen; der Elementname wird jetzt als `title` gespeichert
 - UPC-A: 11 Ziffern (oder 12 mit Prüfziffer) werden jetzt als UPC-A kodiert; vorher wurde die

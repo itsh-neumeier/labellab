@@ -63,6 +63,20 @@ pub fn various_mode(auto_cut: bool) -> Vec<u8> {
     vec![0x1B, 0x69, 0x4D, flags]
 }
 
+/// `ESC i K n`: Advanced Mode. Bit 3 = "no chain printing": 1 = feed
+/// and cut after the last label, 0 = leave the tape (chain printing).
+/// Half cut (bit 2) is not used on the PT-P710BT. Source: Raster Command
+/// Reference v1.02. Without this command the printer fed and cut after
+/// the last label even with auto-cut off (user report 2026-10-02).
+/// TODO(verify): with bit 3 = 0 the last label stays uncut on hardware.
+pub fn advanced_mode(cut_after_last: bool) -> Vec<u8> {
+    let mut flags = 0u8;
+    if cut_after_last {
+        flags |= 1 << 3;
+    }
+    vec![0x1B, 0x69, 0x4B, flags]
+}
+
 /// `0C`: end of a page that is not the last one in the job (no feed).
 /// Source: Raster Command Reference, "Print command" (documented).
 pub fn print_page() -> Vec<u8> {
@@ -128,6 +142,12 @@ mod tests {
     fn various_mode_sets_bit6_for_autocut() {
         assert_eq!(various_mode(true), vec![0x1B, 0x69, 0x4D, 0b0100_0000]);
         assert_eq!(various_mode(false), vec![0x1B, 0x69, 0x4D, 0x00]);
+    }
+
+    #[test]
+    fn advanced_mode_sets_bit3_for_cut_after_last() {
+        assert_eq!(advanced_mode(true), vec![0x1B, 0x69, 0x4B, 0b0000_1000]);
+        assert_eq!(advanced_mode(false), vec![0x1B, 0x69, 0x4B, 0x00]);
     }
 
     #[test]

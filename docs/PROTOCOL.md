@@ -50,7 +50,7 @@
 | Raster-Modus | `1B 69 61 01` | verifiziert | Hardware-Test 2026-10-01: `labellab print "TEST" --bt` → lesbarer Druck auf 9-mm-Band |
 | Druckinformation | `1B 69 7A n1..n10` | verifiziert (n1-Validitätsflags siehe TODO) | Hardware-Test 2026-10-01, Werte wie in `crates/ll-protocol/src/command.rs` |
 | Various Mode (Auto-Cut Bit 6) | `1B 69 4D n` | verifiziert (nur mit `n=0`, ohne Auto-Cut, getestet) | Hardware-Test 2026-10-01 |
-| Advanced Mode | `1B 69 4B n` | dokumentiert (nicht gesendet) | Raster Command Reference — `print_text()` sendet diesen Befehl aktuell nicht |
+| Advanced Mode | `1B 69 4B n` | dokumentiert, **ab 2026-10-02 je Seite gesendet** (Bit 3 siehe unten) | Raster Command Reference v1.02 |
 | Rand/Vorschub (Punkte, LE16) | `1B 69 64 n1 n2` | verifiziert (nur mit `n1=n2=0` getestet) | Hardware-Test 2026-10-01 |
 | Kompression TIFF/PackBits | `4D 02` | verifiziert | Hardware-Test 2026-10-01 |
 | Rasterzeile (Länge LE16) | `47 n1 n2 <daten>` | verifiziert | Hardware-Test 2026-10-01 |
@@ -61,7 +61,7 @@
 | Mehrseitiger Auftrag | Init einmal; je Seite Steuercodes (Raster-Modus, Various Mode, Rand, Druckinfo mit `n9` = 0 erste / 1 weitere Seite, Kompression), Raster, dann `0C` (weitere Seite folgt) bzw. `1A` (letzte) | dokumentiert | Raster Command Reference PT-E550W/P750W/P710BT v1.02, Kap. 2.1 |
 | „Schnitt nach je n Labels“ `ESC i A n` | vom PT-P710BT **nicht** unterstützt | dokumentiert | Raster Command Reference v1.02 („The PT-P710BT does not support this command“) — daher Kettendruck: Auto-Cut nur in den Steuercodes der letzten Seite (unverifiziert) |
 | Half-Cut (`ESC i K` Bit 2) | beim PT-P710BT nicht verwendet | dokumentiert | Raster Command Reference v1.02 |
-| Advanced Mode Bit 3 „No chain printing“ | 1 = nach dem letzten Label vorschieben und schneiden, 0 = nicht | dokumentiert (nicht gesendet) | Raster Command Reference v1.02 |
+| Advanced Mode Bit 3 „No chain printing“ | 1 = nach dem letzten Label vorschieben und schneiden, 0 = nicht | dokumentiert; gesendet = Auto-Cut der Seite. **Unverifiziert:** dass mit 0 am Ende nicht geschnitten wird | Raster Command Reference v1.02; Nutzer 2026-10-02: ohne den Befehl schnitt der Drucker trotz „Kein Schnitt“ am Ende (Werkseinstellung offenbar „no chain printing“) |
 
 ## Band- und Schriftfarbe (Statusbyte 24/25)
 
