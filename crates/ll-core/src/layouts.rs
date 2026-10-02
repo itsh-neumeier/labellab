@@ -16,6 +16,8 @@ use ll_render::TextAlign;
 
 /// Width of separator lines in patch panel labels, in mm (about 2 dots).
 const SEPARATOR_MM: f32 = 0.3;
+/// Width of the centering hairline: about one print dot (180 dpi).
+const CENTER_MARK_MM: f32 = 0.15;
 
 /// Cable flag: the same text twice, separated by the part that wraps
 /// around the cable (π × diameter), so the flag reads from both sides
@@ -27,6 +29,9 @@ pub struct CableFlag {
     pub diameter_mm: f32,
     /// Length of each flag end in mm.
     pub flag_mm: f32,
+    /// Hairline in the middle of the wrap area (centering aid).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub center_mark: bool,
 }
 
 /// Cable wrap: text repeated along the whole circumference so it can be
@@ -68,6 +73,9 @@ pub struct SingleFlag {
     pub diameter_mm: f32,
     /// Flag length in mm.
     pub flag_mm: f32,
+    /// Hairline in the middle of the wrap area (centering aid).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub center_mark: bool,
 }
 
 /// Terminal / punch-down block: `count` columns of `pitch_mm`, one or two
@@ -187,13 +195,28 @@ pub fn cable_flag(spec: &CableFlag, tape_mm: f32) -> Label {
         w_mm: flag,
         h_mm: tape_mm,
     };
-    fixed_length(
-        vec![
-            text_item(&spec.text, rect(0.0), 0),
-            text_item(&spec.text, rect(flag + wrap), 0),
-        ],
-        2.0 * flag + wrap,
-    )
+    let mut elements = vec![
+        text_item(&spec.text, rect(0.0), 0),
+        text_item(&spec.text, rect(flag + wrap), 0),
+    ];
+    if spec.center_mark {
+        elements.push(center_mark(flag + wrap / 2.0, tape_mm));
+    }
+    fixed_length(elements, 2.0 * flag + wrap)
+}
+
+/// Barely visible hairline across the tape at `x` (centering aid for
+/// sticking the label around a cable).
+fn center_mark(x: f32, tape_mm: f32) -> Item {
+    Item {
+        title: Some("Mittelstrich".into()),
+        ..fill_item(Rect {
+            x_mm: (x - CENTER_MARK_MM / 2.0).max(0.0),
+            y_mm: 0.0,
+            w_mm: CENTER_MARK_MM,
+            h_mm: tape_mm,
+        })
+    }
 }
 
 pub fn cable_wrap(spec: &CableWrap, tape_mm: f32) -> Label {
@@ -293,7 +316,11 @@ pub fn single_flag(spec: &SingleFlag, tape_mm: f32) -> Label {
         },
         0,
     );
-    fixed_length(vec![text], wrap + flag)
+    let mut elements = vec![text];
+    if spec.center_mark {
+        elements.push(center_mark(wrap / 2.0, tape_mm));
+    }
+    fixed_length(elements, wrap + flag)
 }
 
 pub fn terminal_block(spec: &TerminalBlock, tape_mm: f32) -> Label {
@@ -453,13 +480,28 @@ mod tests {
                 text: "LAN 12".into(),
                 diameter_mm: 6.0,
                 flag_mm: 20.0,
+                center_mark: false,
             },
             9.9,
         );
         assert_eq!(texts(&label), ["LAN 12", "LAN 12"]);
+        assert_eq!(label.elements.len(), 2);
         let second = label.elements[1].rect.unwrap();
         assert!((second.x_mm - (20.0 + PI * 6.0)).abs() < 1e-3);
         assert!((label.min_length_mm.unwrap() - (40.0 + PI * 6.0)).abs() < 1e-3);
+        // Centering hairline: one print dot wide, centered on the wrap area.
+        let marked = cable_flag(
+            &CableFlag {
+                text: "LAN 12".into(),
+                diameter_mm: 6.0,
+                flag_mm: 20.0,
+                center_mark: true,
+            },
+            9.9,
+        );
+        let mark = marked.elements[2].rect.unwrap();
+        assert!((mark.x_mm + mark.w_mm / 2.0 - (20.0 + PI * 3.0)).abs() < 1e-3);
+        assert!(mark.w_mm < 0.2 && (mark.h_mm - 9.9).abs() < 1e-3);
     }
 
     #[test]
@@ -513,11 +555,14 @@ mod tests {
                 text: "X1".into(),
                 diameter_mm: 5.0,
                 flag_mm: 25.0,
+                center_mark: true,
             },
             9.9,
         );
         assert_eq!(texts(&label), ["X1"]);
         assert!((label.elements[0].rect.unwrap().x_mm - PI * 5.0).abs() < 1e-3);
+        let mark = label.elements[1].rect.unwrap();
+        assert!((mark.x_mm + mark.w_mm / 2.0 - PI * 2.5).abs() < 1e-3);
         assert!((label.min_length_mm.unwrap() - (25.0 + PI * 5.0)).abs() < 1e-3);
     }
 

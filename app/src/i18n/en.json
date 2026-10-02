@@ -529,5 +529,7 @@
   "a4.summary": "{labels} labels on {pages} page(s).",
   "a4.testHint": "Measure with a ruler: both lines must be exactly 100 mm, the squares 10 mm and 50 mm. Enter different values under \"measured\" in the A4 dialog and click \"Apply measurements\". In the print dialog choose actual size / 100 %, not \"fit to page\".",
   "a4.testHorizontal": "horizontal: 100 mm",
-  "a4.testVertical": "vertical: 100 mm"
+  "a4.testVertical": "vertical: 100 mm",
+  "wizard.centerMark": "Center line (alignment aid)",
+  "wizard.centerMarkHint": "Fine line (1 print dot) in the middle of the wrap area – helps to put the label on the cable centered"
 }

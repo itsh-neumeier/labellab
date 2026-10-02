@@ -158,10 +158,6 @@
 - **Vorgemerkt (Nutzer 2026-10-02):** Patchfeld wie die Verteilerbeschriftung als ein
   bearbeitbares Spezial-Element (Felder, Raster, Texte mehrzeilig/fett/kursiv, Trennzeichen,
   Ausrichtung) – aber **ohne Verbinden** von Feldern (kein ⇔, gleiche Feldbreiten).
-- **Vorgemerkt (Nutzer 2026-10-02, bei der nächsten größeren Anpassung):** Kabelfahne /
-  Einzelfähnchen: Häkchen „Mittelstrich (Zentrierhilfe)“ – eine kaum sichtbare Linie in der
-  Mitte des Wickelbereichs, damit man das Label beim Anlegen am Kabel mittig ausrichten kann
-  (z. B. feine gepunktete Linie, 1 Druckpunkt).
 - Offene Nutzerwünsche (Stand 2026-10-02 abends): `.lbx`-Import (Plan `docs/IMPORT-LBX.md`),
   Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
   Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel,

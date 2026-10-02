@@ -101,7 +101,7 @@ export interface Numbering {
 }
 
 export type Layout =
-  | { kind: "cable_flag"; text: string; diameter_mm: number; flag_mm: number }
+  | { kind: "cable_flag"; text: string; diameter_mm: number; flag_mm: number; center_mark?: boolean }
   | { kind: "cable_wrap"; text: string; diameter_mm: number; repeats: number | null; vertical: boolean }
   | {
       kind: "patch_panel";
@@ -114,7 +114,7 @@ export type Layout =
       separators: boolean;
       margin_mm: number;
     }
-  | { kind: "single_flag"; text: string; diameter_mm: number; flag_mm: number }
+  | { kind: "single_flag"; text: string; diameter_mm: number; flag_mm: number; center_mark?: boolean }
   | ({ kind: "terminal_block"; rows: number } & FieldSpec)
   | ({
       kind: "fuse_box";

@@ -356,6 +356,9 @@ enum GenerateKind {
         /// Länge jedes Fahnenendes in mm.
         #[arg(long, default_value_t = 25.0)]
         flag: f32,
+        /// Feiner Mittelstrich im Wickelbereich (Zentrierhilfe).
+        #[arg(long)]
+        center_mark: bool,
     },
     /// Kabelwickel: Text wiederholt über den ganzen Umfang.
     CableWrap {
@@ -404,6 +407,9 @@ enum GenerateKind {
         /// Länge des Fähnchens in mm.
         #[arg(long, default_value_t = 25.0)]
         flag: f32,
+        /// Feiner Mittelstrich im Wickelbereich (Zentrierhilfe).
+        #[arg(long)]
+        center_mark: bool,
     },
     /// Klemmblock/LSA-Leiste: Felder im Raster, ein- oder zweireihig nummeriert.
     TerminalBlock {
@@ -1153,10 +1159,12 @@ fn generate(
             text,
             diameter,
             flag,
+            center_mark,
         } => Layout::CableFlag(CableFlag {
             text,
             diameter_mm: diameter,
             flag_mm: flag,
+            center_mark,
         }),
         GenerateKind::CableWrap {
             text,
@@ -1192,10 +1200,12 @@ fn generate(
             text,
             diameter,
             flag,
+            center_mark,
         } => Layout::SingleFlag(SingleFlag {
             text,
             diameter_mm: diameter,
             flag_mm: flag,
+            center_mark,
         }),
         GenerateKind::TerminalBlock { fields: f, rows } => Layout::TerminalBlock(TerminalBlock {
             count: f.count,

@@ -529,5 +529,7 @@
   "a4.summary": "{labels} Labels auf {pages} Seite(n).",
   "a4.testHint": "Mit einem Lineal nachmessen: Beide Linien müssen genau 100 mm lang sein, die Quadrate 10 mm bzw. 50 mm. Abweichende Werte im A4-Dialog unter „gemessen“ eintragen und „Messwerte übernehmen“ klicken. Im Druckdialog „Tatsächliche Größe“ / 100 % wählen, nicht „An Seite anpassen“.",
   "a4.testHorizontal": "waagerecht: 100 mm",
-  "a4.testVertical": "senkrecht: 100 mm"
+  "a4.testVertical": "senkrecht: 100 mm",
+  "wizard.centerMark": "Mittelstrich (Zentrierhilfe)",
+  "wizard.centerMarkHint": "Feine Linie (1 Druckpunkt) in der Mitte des Wickelbereichs – hilft, das Label mittig am Kabel anzulegen"
 }

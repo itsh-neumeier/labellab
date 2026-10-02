@@ -3408,6 +3408,7 @@ function fillWizard(layout: api.Layout): void {
   if ("text" in layout) set("wz-text", layout.text);
   if ("diameter_mm" in layout) set("wz-diameter", layout.diameter_mm);
   if ("flag_mm" in layout) set("wz-flag", layout.flag_mm);
+  if ("flag_mm" in layout) $<HTMLInputElement>("wz-center-mark").checked = !!layout.center_mark;
   if (layout.kind === "cable_wrap") {
     set("wz-repeats", layout.repeats ?? 0);
     check("wz-vertical", layout.vertical);
@@ -3441,7 +3442,13 @@ function wizardLayout(): api.Layout {
   switch (kind) {
     case "cable_flag":
     case "single_flag":
-      return { kind, text, diameter_mm, flag_mm: Math.max(5, num("wz-flag")) };
+      return {
+        kind,
+        text,
+        diameter_mm,
+        flag_mm: Math.max(5, num("wz-flag")),
+        center_mark: $<HTMLInputElement>("wz-center-mark").checked,
+      };
     case "cable_wrap": {
       const repeats = Math.trunc(num("wz-repeats"));
       return { kind, text, diameter_mm, repeats: repeats > 0 ? repeats : null, vertical: $<HTMLInputElement>("wz-vertical").checked };
