@@ -15,6 +15,9 @@ pub enum CoreError {
     #[error("invalid label template: {0}")]
     Template(String),
 
+    #[error("icon set: {0}")]
+    IconSet(String),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
@@ -52,6 +55,7 @@ impl CoreError {
             CoreError::Render(R::Barcode(_)) => "barcode",
             CoreError::Render(_) => "render",
             CoreError::Template(_) => "template",
+            CoreError::IconSet(_) => "iconset",
             CoreError::Io(e) if e.kind() == std::io::ErrorKind::NotFound => "file_not_found",
             CoreError::Io(_) => "io",
             CoreError::Unsupported(_) => "unsupported",

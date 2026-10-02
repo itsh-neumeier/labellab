@@ -298,8 +298,21 @@ enum Command {
         #[arg(long, default_value = DEFAULT_MODEL)]
         model: String,
     },
-    /// Mitgelieferte Symbole auflisten (für `print --symbol`/`render --symbol`).
-    Symbols,
+    /// Symbole aller Icon-Sets auflisten (für `print --symbol`/`render --symbol`),
+    /// nach Set und Kategorie gruppiert.
+    Symbols {
+        /// Nur dieses Icon-Set (z. B. `iso7010`).
+        #[arg(long)]
+        set: Option<String>,
+        /// Nur Symbole, deren Name/ID diesen Text enthält.
+        #[arg(long)]
+        search: Option<String>,
+    },
+    /// Icon-Sets (`.llabel-iconset`) verwalten.
+    Iconset {
+        #[command(subcommand)]
+        action: IconsetAction,
+    },
     /// Bluetooth-Drucker koppeln. Ohne Angabe: Geräte in der Nähe auflisten,
     /// die gekoppelt werden können (Drucker zuerst).
     Pair {
@@ -377,6 +390,9 @@ enum GenerateKind {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    for warning in ll_core::iconsets::load_installed() {
+        eprintln!("Warnung: Icon-Set nicht geladen: {warning}");
+    }
 
     match cli.command {
         Command::Devices { json } => devices(json).await,
@@ -506,14 +522,132 @@ async fn main() -> anyhow::Result<()> {
             model,
         } => generate(kind, &output, width, &model),
         Command::Pair { device } => pair(device).await,
-        Command::Symbols => {
-            println!("Mitgelieferte Symbole:");
-            for name in ll_render::SYMBOL_NAMES {
-                println!("  {name}");
-            }
+        Command::Symbols { set, search } => {
+            list_symbols(set.as_deref(), search.as_deref());
             Ok(())
         }
+        Command::Iconset { action } => iconset_command(action),
     }
+}
+
+#[derive(Debug, Subcommand)]
+enum IconsetAction {
+    /// Installierte Icon-Sets auflisten.
+    List,
+    /// `.llabel-iconset`-Datei importieren (ersetzt ein Set mit gleicher ID).
+    Import { file: String },
+    /// Importiertes Icon-Set entfernen.
+    Remove { id: String },
+    /// Icon-Set aus einem Ordner mit SVG-Dateien erstellen; Unterordner
+    /// werden zu Kategorien.
+    Create {
+        /// Ordner mit `.svg`-Dateien.
+        dir: String,
+        /// Kurze ID (a-z, 0-9, -, _), z. B. `meine-icons`.
+        #[arg(long)]
+        id: String,
+        /// Anzeigename.
+        #[arg(long)]
+        name: String,
+        /// Zieldatei (`.llabel-iconset`).
+        #[arg(short, long)]
+        output: String,
+    },
+}
+
+const LANG: &str = "de";
+
+fn list_symbols(set_filter: Option<&str>, search: Option<&str>) {
+    let needle = search.map(str::to_lowercase);
+    for set in ll_render::iconset::sets() {
+        if set_filter.is_some_and(|id| id != set.id) {
+            continue;
+        }
+        let matches = |icon: &&ll_render::iconset::Icon| {
+            needle.as_ref().is_none_or(|n| {
+                icon.id.to_lowercase().contains(n)
+                    || icon.name.get(LANG).to_lowercase().contains(n)
+                    || icon.tags.iter().any(|t| t.to_lowercase().contains(n))
+            })
+        };
+        let icons: Vec<_> = set.icons.iter().filter(matches).collect();
+        if icons.is_empty() {
+            continue;
+        }
+        println!("{} ({}):", set.name.get(LANG), set.id);
+        let groups = set
+            .categories
+            .iter()
+            .map(|c| (Some(c.id.as_str()), c.name.get(LANG)))
+            .chain(std::iter::once((None, "Ohne Kategorie")));
+        for (cat, cat_name) in groups {
+            let in_cat: Vec<_> = icons
+                .iter()
+                .filter(|i| i.category.as_deref() == cat)
+                .collect();
+            if in_cat.is_empty() {
+                continue;
+            }
+            println!("  {cat_name}:");
+            for icon in in_cat {
+                println!("    {}:{}  {}", set.id, icon.id, icon.name.get(LANG));
+            }
+        }
+    }
+}
+
+fn iconset_command(action: IconsetAction) -> anyhow::Result<()> {
+    match action {
+        IconsetAction::List => {
+            for set in ll_render::iconset::sets() {
+                let kind = if ll_render::iconset::is_builtin(&set.id) {
+                    "mitgeliefert"
+                } else {
+                    "importiert"
+                };
+                println!(
+                    "{:<16} {} – {} Symbole, {} Kategorien ({kind})",
+                    set.id,
+                    set.name.get(LANG),
+                    set.icons.len(),
+                    set.categories.len()
+                );
+            }
+            println!(
+                "Ordner für importierte Sets: {}",
+                ll_core::iconsets::iconset_dir()?.display()
+            );
+        }
+        IconsetAction::Import { file } => {
+            let set = ll_core::iconsets::import(Path::new(&file))?;
+            println!(
+                "Importiert: {} ({}) mit {} Symbolen – verwenden mit --symbol {}:<ID>",
+                set.name.get(LANG),
+                set.id,
+                set.icons.len(),
+                set.id
+            );
+        }
+        IconsetAction::Remove { id } => {
+            ll_core::iconsets::remove(&id)?;
+            println!("Entfernt: {id}");
+        }
+        IconsetAction::Create {
+            dir,
+            id,
+            name,
+            output,
+        } => {
+            let set = ll_core::iconsets::from_dir(Path::new(&dir), &id, &name)?;
+            std::fs::write(&output, set.to_json()?)?;
+            println!(
+                "Geschrieben: {output} ({} Symbole, {} Kategorien)",
+                set.icons.len(),
+                set.categories.len()
+            );
+        }
+    }
+    Ok(())
 }
 
 /// `--device`/`--bt`/`--usb`/`--baud`, grouped so `print`/`status` don't need a
