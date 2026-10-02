@@ -250,6 +250,25 @@ mod tests {
     }
 
     #[test]
+    fn raster_segments_from_the_paint_editor_render() {
+        // A 4x10 black PNG embedded the way the frame editor stores drawings.
+        let png = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAKCAYAAACT+/8OAAAAEUlEQVR4nGNgYGD4j4YHpwAAAGEn2cKAeeIAAAAASUVORK5CYII=";
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="10" viewBox="0 0 4 10"><image width="4" height="10" image-rendering="optimizeSpeed" href="data:image/png;base64,{png}"/></svg>"#
+        );
+        let normalized = crate::iconset::normalize_svg(svg.as_bytes()).unwrap();
+        let frame = FrameDef {
+            id: "r".into(),
+            name: Text::Plain("R".into()),
+            start: normalized.clone(),
+            middle: normalized.clone(),
+            end: normalized,
+        };
+        let b = render_frame(&frame, 200, 50).unwrap();
+        assert!(b.pixel(25, 2) && b.pixel(25, 100) && b.pixel(25, 197));
+    }
+
+    #[test]
     fn rejects_bad_sets() {
         let bad = br#"{"format":"x","version":1,"id":"a","name":"A","frames":[]}"#;
         assert!(FrameSet::from_json(bad).is_err());

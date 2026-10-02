@@ -143,6 +143,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   EAN-13, EAN-8, UPC-A, Code 39, ITF), für QR-Codes Inhalte wie WLAN-Zugang, Kontakt (vCard),
   E-Mail, Telefon oder Link ausfüllen, Live-Vorschau mit Prüfung; bestehende Codes über
   „Assistent …“ in den Eigenschaften bearbeiten (auch QR ⇄ Barcode umstellen)
+- Rahmen-Editor mit Zeichenfläche („kleines Paint“): Anfang, Mitte und Ende pixelgenau
+  zeichnen (Stift, Radierer, Linie, Rechteck, Ellipse, Füllen, Strichstärke, Rückgängig,
+  Spiegeln, „Ende = Anfang gespiegelt“, Breite, Zuschneiden), Bilder aus Datei oder
+  Zwischenablage einfügen (mit Bild-Editor zuschneiden/freistellen, dann platzieren mit
+  Größe, Schwelle, Raster); SVG-Code bleibt als Alternative
+- „Vorlagen / Spezial-Elemente“: der Sicherungskasten wird dort angelegt (nicht mehr unter
+  Hinzufügen); neues Ziel „Ins aktuelle Blatt einfügen“ (Standard beim Sicherungskasten)
 - Knopf „✂ Schnitt“ neben „Drucken“: Band vorschieben und abschneiden, ohne zu drucken
   (z. B. nach „Kein Schnitt“)
 - Neues Element „Sicherungskasten“ (wie im Hersteller-Editor): ein Element mit Feldern und

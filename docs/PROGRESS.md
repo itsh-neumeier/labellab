@@ -325,6 +325,18 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Rahmen-Paint (ADR-035), „Vorlagen / Spezial-Elemente“
+- Rahmen-Editor: Zeichenfläche je Teil (`app/src/framePaint.ts`), Werkzeuge, Bild einfügen
+  über den Bild-Editor + Platzieren (Größe/Schwelle/Raster), Breite wächst mit; SVG-Code
+  als Alternative. Speicherung als SVG mit eingebettetem PNG (Render-Test in `decor.rs`).
+- Sicherungskasten nur noch über „Vorlagen / Spezial-Elemente“ (Knopf umbenannt, Sprache
+  als „DE/EN“, damit die Werkzeugleiste bei 1280 px in eine Zeile passt); Ziel „Ins aktuelle
+  Blatt einfügen“ (Standard für Sicherungskasten, nur Querformat).
+- Geprüft: fmt/clippy/Tests, Build; GUI unter Xvfb (zeichnen, speichern, wieder öffnen,
+  Bild aus Zwischenablage einfügen, Sicherungskasten einfügen).
+- Offen: Bild-Editor zeigt beim Rahmen-Einfügen seine „Druckumsetzung“-Auswahl (dort
+  ohne Wirkung).
+
 ### 2026-10-02 – Claude Code, Knopf „✂ Schnitt“ (Vorschub + Schnitt ohne Druck)
 - Nutzerfrage: Schnitt ohne Druck. Kein eigener Befehl im Protokoll → `print::feed_and_cut`
   sendet einen Auftrag mit einer leeren Rasterzeile und Auto-Cut. App-Befehl `feed_cut`,
