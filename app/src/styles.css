@@ -577,3 +577,4 @@ dialog#a4-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
   #a4-print .a4-page:last-child { page-break-after: auto; break-after: auto; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.fuse-row.fixed { grid-template-columns: 1.6em 1fr 2.8em; }

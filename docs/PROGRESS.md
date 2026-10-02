@@ -155,13 +155,6 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-- **Vorgemerkt (Nutzer 2026-10-02):** Patchfeld wie die Verteilerbeschriftung als ein
-  bearbeitbares Spezial-Element (Felder, Raster, Texte mehrzeilig/fett/kursiv, Trennzeichen,
-  Ausrichtung) – aber **ohne Verbinden** von Feldern (kein ⇔, gleiche Feldbreiten).
-- **Vorgemerkt (Nutzer 2026-10-02, bei der nächsten größeren Anpassung):** Kabelfahne /
-  Einzelfähnchen: Häkchen „Mittelstrich (Zentrierhilfe)“ – eine kaum sichtbare Linie in der
-  Mitte des Wickelbereichs, damit man das Label beim Anlegen am Kabel mittig ausrichten kann
-  (z. B. feine gepunktete Linie, 1 Druckpunkt).
 - Offene Nutzerwünsche (Stand 2026-10-02 abends): `.lbx`-Import (Plan `docs/IMPORT-LBX.md`),
   Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
   Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel,
@@ -335,6 +328,16 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Mausrad-Zoom, Mittelstrich Kabelfahne, Patchfeld als Element
+- Vorschau: Mausrad zoomt um den Zeiger (Umschalt+Rad scrollt), Zoom 0,5–12 in 0,25-Schritten.
+- Kabelfahne/Einzelfähnchen: `center_mark` → Haarlinie (0,15 mm ≈ 1 Druckpunkt) in der Mitte
+  des Wickelbereichs, Element „Mittelstrich“; CLI `--center-mark`; Tests.
+- Patchfeld: `layouts::patch_panel` liefert ein `Element::FuseBox` mit `fixed: true`
+  (gleiche Breiten, Trennzeichen „Linie“); Eigenschaften ohne Breite/⇔; Typname „Patchfeld“.
+- Geprüft: Tests, fmt/clippy, Build; GUI unter Xvfb.
+- Offen: Hardware-Tests (A4 unter Windows, Schnitt-Knopf, Kein Schnitt), `.lbx`-Import,
+  Akkuanzeige.
+
 ### 2026-10-02 – Claude Code, Einstellungen bei der exe (ADR-036)
 - `ll_core::paths` (exe-Ordner wenn beschreibbar, `llappdata/`, Übernahme aus %APPDATA%),
   `ll_core::settings` (ChaCha20-Poly1305, Tests: Rundweg, Manipulation, atomar), App-Befehle

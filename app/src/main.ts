@@ -427,8 +427,42 @@ function repositionBoxes(): void {
   });
 }
 
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 12;
+const ZOOM_WHEEL_FACTOR = 1.15;
+
+/** Mouse wheel over the preview zooms around the pointer; Shift+wheel scrolls. */
+function bindWheelZoom(): void {
+  const wrap = $("tape-wrap");
+  wrap.addEventListener(
+    "wheel",
+    (e) => {
+      if (e.shiftKey || e.deltaY === 0) return;
+      e.preventDefault();
+      const input = $<HTMLInputElement>("zoom");
+      const before = zoom();
+      const raw = e.deltaY < 0 ? before * ZOOM_WHEEL_FACTOR : before / ZOOM_WHEEL_FACTOR;
+      const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(raw * 4) / 4 || ZOOM_MIN));
+      const step = next === before ? (e.deltaY < 0 ? 0.25 : -0.25) : 0;
+      const target = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next + step));
+      if (target === before) return;
+      // Keep the point under the pointer where it is.
+      const r = wrap.getBoundingClientRect();
+      const px = e.clientX - r.left;
+      const py = e.clientY - r.top;
+      const cx = (wrap.scrollLeft + px) / before;
+      const cy = (wrap.scrollTop + py) / before;
+      input.value = String(target);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      wrap.scrollLeft = cx * target - px;
+      wrap.scrollTop = cy * target - py;
+    },
+    { passive: false },
+  );
+}
+
 function fitZoom(): void {
-  const z = Math.min(10, Math.max(1, Math.round(FIT_TAPE_PX / (labelHeightMm() * DOTS_PER_MM))));
+  const z = Math.min(ZOOM_MAX, Math.max(1, Math.round(FIT_TAPE_PX / (labelHeightMm() * DOTS_PER_MM))));
   $<HTMLInputElement>("zoom").value = String(z);
 }
 
@@ -502,6 +536,7 @@ function applyTapeStyle(): void {
 // ---------------------------------------------------------------- boxes (canvas)
 
 function elementTitle(el: Element): string {
+  if (el.type === "fuse_box" && el.fixed) return t("elements.patch_panel");
   return t(`elements.${el.type}`);
 }
 
@@ -949,8 +984,12 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
         if (f.vertical == null) delete f.vertical;
         changed();
       });
-      row.append(num, text, ratio, dir);
-      if (i < item.fields.length - 1) {
+      row.append(num, text);
+      if (!item.fixed) row.append(ratio);
+      row.append(dir);
+      if (item.fixed) {
+        row.classList.add("fixed");
+      } else if (i < item.fields.length - 1) {
         const merge = makeButton("⇔", t("fuse.merge"), () => {
           const next = item.fields[i + 1];
           f.ratio = fuseRatio(f) + fuseRatio(next);
@@ -3209,10 +3248,10 @@ const TEMPLATES: { id: string; kind: api.Layout["kind"]; name: string; cat: stri
     svg: '<rect x="4" y="13" width="14" height="6"/><rect x="20" y="8" width="48" height="16" rx="2"/>' },
   { id: "cable_wrap", kind: "cable_wrap", name: "wizard.cableWrap", cat: "wizard.catCable",
     svg: '<rect x="6" y="6" width="60" height="20" rx="10"/><path d="M20 6v20M36 6v20M52 6v20"/>' },
-  { id: "patch_panel", kind: "patch_panel", name: "wizard.patchPanel", cat: "wizard.catPanel",
-    svg: '<rect x="2" y="8" width="68" height="16"/><path d="M19 8v16M36 8v16M53 8v16"/>' },
   { id: "terminal_block", kind: "terminal_block", name: "wizard.terminalBlock", cat: "wizard.catPanel",
     svg: '<rect x="2" y="4" width="68" height="24"/><path d="M2 16h68M19 4v24M36 4v24M53 4v24"/>' },
+  { id: "patch_panel", kind: "patch_panel", name: "wizard.patchPanel", cat: "wizard.catSpecial",
+    svg: '<rect x="2" y="8" width="68" height="16"/><path d="M19 8v16M36 8v16M53 8v16"/>' },
   { id: "fuse_box", kind: "fuse_box", name: "wizard.fuseBox", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="6" width="68" height="20"/><path d="M22 6v20M34 6v20M46 6v20M58 6v20"/><path d="M28 10v12M40 10v12M52 10v12M64 10v12" stroke-width="2"/>' },
   { id: "terminal_strip", kind: "fuse_box", name: "wizard.terminalStrip", cat: "wizard.catSpecial",
@@ -3374,6 +3413,7 @@ function fillWizard(layout: api.Layout): void {
   if ("text" in layout) set("wz-text", layout.text);
   if ("diameter_mm" in layout) set("wz-diameter", layout.diameter_mm);
   if ("flag_mm" in layout) set("wz-flag", layout.flag_mm);
+  if ("flag_mm" in layout) $<HTMLInputElement>("wz-center-mark").checked = !!layout.center_mark;
   if (layout.kind === "cable_wrap") {
     set("wz-repeats", layout.repeats ?? 0);
     check("wz-vertical", layout.vertical);
@@ -3407,7 +3447,13 @@ function wizardLayout(): api.Layout {
   switch (kind) {
     case "cable_flag":
     case "single_flag":
-      return { kind, text, diameter_mm, flag_mm: Math.max(5, num("wz-flag")) };
+      return {
+        kind,
+        text,
+        diameter_mm,
+        flag_mm: Math.max(5, num("wz-flag")),
+        center_mark: $<HTMLInputElement>("wz-center-mark").checked,
+      };
     case "cable_wrap": {
       const repeats = Math.trunc(num("wz-repeats"));
       return { kind, text, diameter_mm, repeats: repeats > 0 ? repeats : null, vertical: $<HTMLInputElement>("wz-vertical").checked };
@@ -3618,7 +3664,7 @@ let wizardSeq = 0;
  */
 function defaultWizardTarget(kind: string, editing: boolean): string {
   if (editing || state.label.elements.length === 0) return "replace";
-  return kind === "fuse_box" ? "insert" : "sheet";
+  return kind === "fuse_box" || kind === "patch_panel" ? "insert" : "sheet";
 }
 
 function updateWizard(): void {
@@ -4131,6 +4177,7 @@ function bindUi(): void {
     tapeChanged();
   });
   $("zoom").addEventListener("input", layoutStage);
+  bindWheelZoom();
   $("tape-style").addEventListener("change", applyTapeStyle);
   $("quality").addEventListener("change", schedulePreview);
   $("strips").addEventListener("change", () => {

@@ -16,6 +16,8 @@ use ll_render::TextAlign;
 
 /// Width of separator lines in patch panel labels, in mm (about 2 dots).
 const SEPARATOR_MM: f32 = 0.3;
+/// Width of the centering hairline: about one print dot (180 dpi).
+const CENTER_MARK_MM: f32 = 0.15;
 
 /// Cable flag: the same text twice, separated by the part that wraps
 /// around the cable (π × diameter), so the flag reads from both sides
@@ -27,6 +29,9 @@ pub struct CableFlag {
     pub diameter_mm: f32,
     /// Length of each flag end in mm.
     pub flag_mm: f32,
+    /// Hairline in the middle of the wrap area (centering aid).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub center_mark: bool,
 }
 
 /// Cable wrap: text repeated along the whole circumference so it can be
@@ -68,6 +73,9 @@ pub struct SingleFlag {
     pub diameter_mm: f32,
     /// Flag length in mm.
     pub flag_mm: f32,
+    /// Hairline in the middle of the wrap area (centering aid).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub center_mark: bool,
 }
 
 /// Terminal / punch-down block: `count` columns of `pitch_mm`, one or two
@@ -187,13 +195,28 @@ pub fn cable_flag(spec: &CableFlag, tape_mm: f32) -> Label {
         w_mm: flag,
         h_mm: tape_mm,
     };
-    fixed_length(
-        vec![
-            text_item(&spec.text, rect(0.0), 0),
-            text_item(&spec.text, rect(flag + wrap), 0),
-        ],
-        2.0 * flag + wrap,
-    )
+    let mut elements = vec![
+        text_item(&spec.text, rect(0.0), 0),
+        text_item(&spec.text, rect(flag + wrap), 0),
+    ];
+    if spec.center_mark {
+        elements.push(center_mark(flag + wrap / 2.0, tape_mm));
+    }
+    fixed_length(elements, 2.0 * flag + wrap)
+}
+
+/// Barely visible hairline across the tape at `x` (centering aid for
+/// sticking the label around a cable).
+fn center_mark(x: f32, tape_mm: f32) -> Item {
+    Item {
+        title: Some("Mittelstrich".into()),
+        ..fill_item(Rect {
+            x_mm: (x - CENTER_MARK_MM / 2.0).max(0.0),
+            y_mm: 0.0,
+            w_mm: CENTER_MARK_MM,
+            h_mm: tape_mm,
+        })
+    }
 }
 
 pub fn cable_wrap(spec: &CableWrap, tape_mm: f32) -> Label {
@@ -252,32 +275,48 @@ fn fill_item(rect: Rect) -> Item {
     }
 }
 
+/// One fixed-width [`Element::FuseBox`] (no merging): a field per port,
+/// numbered, separated by lines; editable afterwards like the
+/// distribution board label.
 pub fn patch_panel(spec: &PatchPanel, tape_mm: f32) -> Label {
     let count = spec.count.max(1);
     let pitch = spec.pitch_mm.max(1.0);
     let margin = spec.margin_mm.max(0.0);
-    let mut elements = Vec::new();
-    for i in 0..count {
-        let number = spec.start + i as i64 * spec.step;
-        let text = numbered(&spec.prefix, number, spec.digits);
-        let x = margin + i as f32 * pitch;
-        elements.push(text_item(
-            &text,
-            Rect {
-                x_mm: x,
-                y_mm: 0.0,
-                w_mm: pitch,
-                h_mm: tape_mm,
+    let fields = (0..count)
+        .map(|i| {
+            let number = spec.start + i as i64 * spec.step;
+            FuseField::new(numbered(&spec.prefix, number, spec.digits), 1.0)
+        })
+        .collect();
+    let length = count as f32 * pitch;
+    let item = Item {
+        rect: Some(Rect {
+            x_mm: margin,
+            y_mm: 0.0,
+            w_mm: length,
+            h_mm: tape_mm,
+        }),
+        ..Element::FuseBox {
+            fields,
+            pitch_mm: pitch,
+            separator: if spec.separators {
+                FuseSeparator::Line
+            } else {
+                FuseSeparator::None
             },
-            0,
-        ));
-    }
-    if spec.separators {
-        for i in 0..=count {
-            elements.push(separator(margin + i as f32 * pitch, 0.0, tape_mm));
+            vertical: false,
+            reverse: false,
+            fixed: true,
+            size_pt: None,
+            align: TextAlign::Center,
+            line_spacing: None,
+            font: None,
+            bold: false,
+            italic: false,
         }
-    }
-    fixed_length(elements, 2.0 * margin + count as f32 * pitch)
+        .into()
+    };
+    fixed_length(vec![item], 2.0 * margin + length)
 }
 
 pub fn single_flag(spec: &SingleFlag, tape_mm: f32) -> Label {
@@ -293,7 +332,11 @@ pub fn single_flag(spec: &SingleFlag, tape_mm: f32) -> Label {
         },
         0,
     );
-    fixed_length(vec![text], wrap + flag)
+    let mut elements = vec![text];
+    if spec.center_mark {
+        elements.push(center_mark(wrap / 2.0, tape_mm));
+    }
+    fixed_length(elements, wrap + flag)
 }
 
 pub fn terminal_block(spec: &TerminalBlock, tape_mm: f32) -> Label {
@@ -393,6 +436,7 @@ pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
             },
             vertical: spec.vertical,
             reverse: false,
+            fixed: false,
             size_pt: None,
             align: TextAlign::Center,
             line_spacing: None,
@@ -453,13 +497,28 @@ mod tests {
                 text: "LAN 12".into(),
                 diameter_mm: 6.0,
                 flag_mm: 20.0,
+                center_mark: false,
             },
             9.9,
         );
         assert_eq!(texts(&label), ["LAN 12", "LAN 12"]);
+        assert_eq!(label.elements.len(), 2);
         let second = label.elements[1].rect.unwrap();
         assert!((second.x_mm - (20.0 + PI * 6.0)).abs() < 1e-3);
         assert!((label.min_length_mm.unwrap() - (40.0 + PI * 6.0)).abs() < 1e-3);
+        // Centering hairline: one print dot wide, centered on the wrap area.
+        let marked = cable_flag(
+            &CableFlag {
+                text: "LAN 12".into(),
+                diameter_mm: 6.0,
+                flag_mm: 20.0,
+                center_mark: true,
+            },
+            9.9,
+        );
+        let mark = marked.elements[2].rect.unwrap();
+        assert!((mark.x_mm + mark.w_mm / 2.0 - (20.0 + PI * 3.0)).abs() < 1e-3);
+        assert!(mark.w_mm < 0.2 && (mark.h_mm - 9.9).abs() < 1e-3);
     }
 
     #[test]
@@ -491,11 +550,18 @@ mod tests {
             margin_mm: 2.0,
         };
         let label = patch_panel(&spec, 9.9);
-        let t = texts(&label);
-        assert_eq!(t.first().map(String::as_str), Some("P01"));
-        assert_eq!(t.last().map(String::as_str), Some("P24"));
-        // 24 fields + 25 separators.
-        assert_eq!(label.elements.len(), 49);
+        // One fixed-width field-row element, 24 equal fields.
+        assert_eq!(label.elements.len(), 1);
+        let Element::FuseBox { fields, fixed, .. } = &label.elements[0].element else {
+            panic!("not a field row");
+        };
+        assert!(*fixed);
+        assert_eq!(fields.len(), 24);
+        assert_eq!(fields[0].text, "P01");
+        assert_eq!(fields[23].text, "P24");
+        assert!(fields.iter().all(|f| f.ratio == 1.0));
+        let rect = label.elements[0].rect.unwrap();
+        assert!((rect.x_mm - 2.0).abs() < 1e-3 && (rect.w_mm - 24.0 * 12.7).abs() < 1e-3);
 
         // Rendered length matches margins + 24 × pitch within a dot.
         let model = p710();
@@ -513,11 +579,14 @@ mod tests {
                 text: "X1".into(),
                 diameter_mm: 5.0,
                 flag_mm: 25.0,
+                center_mark: true,
             },
             9.9,
         );
         assert_eq!(texts(&label), ["X1"]);
         assert!((label.elements[0].rect.unwrap().x_mm - PI * 5.0).abs() < 1e-3);
+        let mark = label.elements[1].rect.unwrap();
+        assert!((mark.x_mm + mark.w_mm / 2.0 - PI * 2.5).abs() < 1e-3);
         assert!((label.min_length_mm.unwrap() - (25.0 + PI * 5.0)).abs() < 1e-3);
     }
 
