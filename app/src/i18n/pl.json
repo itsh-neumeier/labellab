@@ -557,5 +557,6 @@
   "table.colRatio": "Względna szerokość kolumny {n} (1 = normalna)",
   "table.rowRatio": "Względna wysokość wiersza {n} (1 = normalna)",
   "table.hint": "Liczby u góry: szerokości kolumn, po lewej: wysokości wierszy (względne). Wiele linii klawiszem Enter, możliwe pola jak {{n}}.",
-  "lbx.warn.table_merge": "Scalone komórki – tekst jest w pierwszej komórce, linie pozostają"
+  "lbx.warn.table_merge": "Scalone komórki – tekst jest w pierwszej komórce, linie pozostają",
+  "elements.reorderHint": "Przeciągnij, aby zmienić kolejność – niżej na liście = na wierzchu (PgUp/PgDn, z Shift na sam przód/tył)"
 }

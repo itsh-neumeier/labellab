@@ -557,5 +557,6 @@
   "table.colRatio": "Relative Breite von Spalte {n} (1 = normal)",
   "table.rowRatio": "Relative Höhe von Zeile {n} (1 = normal)",
   "table.hint": "Obere Zahlen: Spaltenbreiten, linke Zahlen: Zeilenhöhen (relativ). Zellen mehrzeilig mit Enter, Platzhalter wie {{n}} möglich.",
-  "lbx.warn.table_merge": "Verbundene Tabellenzellen – Text steht in der ersten Zelle, die Linien bleiben"
+  "lbx.warn.table_merge": "Verbundene Tabellenzellen – Text steht in der ersten Zelle, die Linien bleiben",
+  "elements.reorderHint": "Ziehen zum Umsortieren – weiter unten liegt im Vordergrund (Bild↑/Bild↓, mit Umschalt ganz nach vorne/hinten)"
 }

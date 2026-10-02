@@ -557,5 +557,6 @@
   "table.colRatio": "Relativní šířka sloupce {n} (1 = normální)",
   "table.rowRatio": "Relativní výška řádku {n} (1 = normální)",
   "table.hint": "Čísla nahoře: šířky sloupců, vlevo: výšky řádků (relativní). Více řádků klávesou Enter, zástupné symboly jako {{n}} fungují.",
-  "lbx.warn.table_merge": "Sloučené buňky – text je v první buňce, čáry zůstávají"
+  "lbx.warn.table_merge": "Sloučené buňky – text je v první buňce, čáry zůstávají",
+  "elements.reorderHint": "Přetažením změníte pořadí – níže v seznamu = v popředí (PgUp/PgDn, se Shiftem úplně dopředu/dozadu)"
 }

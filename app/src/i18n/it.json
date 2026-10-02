@@ -557,5 +557,6 @@
   "table.colRatio": "Larghezza relativa della colonna {n} (1 = normale)",
   "table.rowRatio": "Altezza relativa della riga {n} (1 = normale)",
   "table.hint": "Numeri in alto: larghezze delle colonne, a sinistra: altezze delle righe (relative). Più righe con Invio, segnaposto come {{n}} possibili.",
-  "lbx.warn.table_merge": "Celle unite – il testo è nella prima cella, le linee restano"
+  "lbx.warn.table_merge": "Celle unite – il testo è nella prima cella, le linee restano",
+  "elements.reorderHint": "Trascina per riordinare – più in basso = in primo piano (Pag↑/Pag↓, con Maiusc fino in cima/in fondo)"
 }

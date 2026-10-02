@@ -1610,6 +1610,13 @@ function layerRow(item: Item, index: number): HTMLLIElement {
     input.addEventListener("blur", () => finish(true));
   });
   name.append(kind, caption);
+  // Grip: drag to change the drawing order (lower in the list = in front).
+  const grip = document.createElement("span");
+  grip.className = "layer-grip";
+  grip.textContent = "⠿";
+  grip.title = t("elements.reorderHint");
+  grip.addEventListener("pointerdown", (e) => startLayerDrag(e, li, index));
+  li.prepend(grip);
   const eye = makeButton(item.hidden ? "◌" : "👁", t(item.hidden ? "elements.show" : "elements.hide"), () => {
     item.hidden = !item.hidden || undefined;
     changed(true);
@@ -1622,6 +1629,51 @@ function layerRow(item: Item, index: number): HTMLLIElement {
     makeButton("✕", t("elements.remove"), () => removeItem(index)),
   );
   return li;
+}
+
+/** Moves element `from` to position `to` (drawing order), keeping it selected. */
+function moveItem(from: number, to: number): void {
+  const items = state.label.elements;
+  to = Math.max(0, Math.min(items.length - 1, to));
+  if (from === to || !items[from]) return;
+  const [item] = items.splice(from, 1);
+  items.splice(to, 0, item);
+  state.selected = to;
+  changed(true);
+}
+
+/** Pointer drag of a layer row by its grip; drops between the rows. */
+function startLayerDrag(e: PointerEvent, li: HTMLLIElement, from: number): void {
+  e.preventDefault();
+  e.stopPropagation();
+  const list = $("elements");
+  const rows = Array.from(list.querySelectorAll<HTMLLIElement>("li.layer"));
+  li.classList.add("dragging");
+  let target = from;
+  const marker = document.createElement("li");
+  marker.className = "layer-drop";
+  const move = (ev: PointerEvent) => {
+    // Index of the first row whose middle is below the pointer.
+    const i = rows.findIndex((r) => {
+      const box = r.getBoundingClientRect();
+      return ev.clientY < box.top + box.height / 2;
+    });
+    const slot = i < 0 ? rows.length : i;
+    target = slot > from ? slot - 1 : slot;
+    if (slot < rows.length) rows[slot].before(marker);
+    else rows[rows.length - 1]?.after(marker);
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    marker.remove();
+    li.classList.remove("dragging");
+    if (target !== from) moveItem(from, target);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
 }
 
 function renderElements(): void {
@@ -4465,6 +4517,11 @@ function bindUi(): void {
     if (moves[e.key]) {
       e.preventDefault();
       nudge(...moves[e.key]);
+    } else if (e.key === "PageUp" || e.key === "PageDown") {
+      // Drawing order: a step forward/back, with Shift all the way.
+      e.preventDefault();
+      const up = e.key === "PageUp";
+      moveItem(state.selected, e.shiftKey ? (up ? Infinity : 0) : state.selected + (up ? 1 : -1));
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       removeItem(state.selected);

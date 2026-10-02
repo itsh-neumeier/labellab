@@ -557,5 +557,6 @@
   "table.colRatio": "Relative width of column {n} (1 = normal)",
   "table.rowRatio": "Relative height of row {n} (1 = normal)",
   "table.hint": "Numbers on top: column widths, on the left: row heights (relative). Several lines with Enter, placeholders like {{n}} work.",
-  "lbx.warn.table_merge": "Merged table cells – the text is in the first cell, the lines remain"
+  "lbx.warn.table_merge": "Merged table cells – the text is in the first cell, the lines remain",
+  "elements.reorderHint": "Drag to reorder – lower in the list is in front (Page Up/Down, with Shift all the way)"
 }

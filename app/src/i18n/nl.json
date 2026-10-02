@@ -557,5 +557,6 @@
   "table.colRatio": "Relatieve breedte van kolom {n} (1 = normaal)",
   "table.rowRatio": "Relatieve hoogte van rij {n} (1 = normaal)",
   "table.hint": "Getallen boven: kolombreedtes, links: rijhoogtes (relatief). Meerdere regels met Enter, plaatshouders zoals {{n}} mogelijk.",
-  "lbx.warn.table_merge": "Samengevoegde cellen – de tekst staat in de eerste cel, de lijnen blijven"
+  "lbx.warn.table_merge": "Samengevoegde cellen – de tekst staat in de eerste cel, de lijnen blijven",
+  "elements.reorderHint": "Sleep om te herschikken – lager in de lijst = vooraan (Page Up/Down, met Shift helemaal)"
 }

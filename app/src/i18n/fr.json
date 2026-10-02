@@ -557,5 +557,6 @@
   "table.colRatio": "Largeur relative de la colonne {n} (1 = normale)",
   "table.rowRatio": "Hauteur relative de la ligne {n} (1 = normale)",
   "table.hint": "Nombres en haut : largeurs des colonnes, à gauche : hauteurs des lignes (relatives). Plusieurs lignes avec Entrée, champs comme {{n}} possibles.",
-  "lbx.warn.table_merge": "Cellules fusionnées – le texte est dans la première cellule, les traits restent"
+  "lbx.warn.table_merge": "Cellules fusionnées – le texte est dans la première cellule, les traits restent",
+  "elements.reorderHint": "Glisser pour réordonner – plus bas = au premier plan (Page préc./suiv., avec Maj tout en avant/arrière)"
 }
