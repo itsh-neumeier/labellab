@@ -558,6 +558,8 @@ function boxCaption(item: Item): string {
       return `${elementTitle(item)}: ${t(`shape.${item.shape}`)}`;
     case "fuse_box":
       return item.fields.map((f) => stripMarkup(f.text).replace(/\n/g, " ")).join(" | ") || elementTitle(item);
+    case "table":
+      return `${elementTitle(item)}: ${(item.cells[0] ?? []).map((c) => stripMarkup(c).replace(/\n/g, " ")).join(" | ")}`;
   }
 }
 
@@ -697,11 +699,11 @@ function newRect(type: Element["type"]): Rect {
   if (portrait()) {
     // Tape-wide boxes stacked down the label.
     const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
-    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h, fuse_box: fuse }[type];
+    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h, fuse_box: fuse, table: 20 }[type];
     return roundRect({ x_mm: 0, y_mm: start, w_mm: h, h_mm: len });
   }
   const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
-  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5, fuse_box: fuse }[type];
+  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5, fuse_box: fuse, table: 40 }[type];
   return roundRect({ x_mm: start, y_mm: 0, w_mm: w, h_mm: h });
 }
 
@@ -1013,10 +1015,165 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
   return [sizeRow, sepRow, optRow, style, sizeField, list];
 }
 
+type TableItem = Extract<Item, { type: "table" }>;
+
+const TABLE_MAX = 50;
+
+/** Properties of a table: size, grid lines, text style and the cells. */
+function tableFields(item: TableItem): HTMLElement[] {
+  const cols = () => Math.max(1, ...item.cells.map((r) => r.length));
+  /** Every row as long as the widest one. */
+  const normalize = () => {
+    const n = cols();
+    for (const r of item.cells) while (r.length < n) r.push("");
+  };
+  normalize();
+  const grid = document.createElement("div");
+  grid.className = "table-grid";
+  const rowsInput = numberInput(item.cells.length, 1, "", (v) => {
+    const n = Math.max(1, Math.min(TABLE_MAX, Math.round(v ?? 1)));
+    while (item.cells.length < n) item.cells.push(Array.from({ length: cols() }, () => ""));
+    item.cells.length = n;
+    if (item.row_ratios) item.row_ratios.length = Math.min(item.row_ratios.length, n);
+    renderGrid();
+  });
+  rowsInput.min = "1";
+  const colsInput = numberInput(cols(), 1, "", (v) => {
+    const n = Math.max(1, Math.min(TABLE_MAX, Math.round(v ?? 1)));
+    for (const r of item.cells) {
+      while (r.length < n) r.push("");
+      r.length = n;
+    }
+    if (item.col_ratios) item.col_ratios.length = Math.min(item.col_ratios.length, n);
+    renderGrid();
+  });
+  colsInput.min = "1";
+  const sizeRow = document.createElement("div");
+  sizeRow.className = "row";
+  sizeRow.append(field("table.rows", rowsInput), field("table.cols", colsInput));
+
+  const check = (label: string, get: () => boolean, set: (v: boolean) => void) => {
+    const wrap = document.createElement("label");
+    wrap.className = "check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = get();
+    box.addEventListener("change", () => {
+      set(box.checked);
+      changed();
+    });
+    wrap.append(box, ` ${t(label)}`);
+    return wrap;
+  };
+  const line = numberInput(item.line_mm ?? 0.2, 0.05, "0.2", (v) => {
+    item.line_mm = v != null && v >= 0 ? Math.min(3, v) : 0.2;
+  });
+  line.min = "0";
+  line.title = t("table.lineHint");
+  sizeRow.append(field("table.line", line));
+  const lineRow = document.createElement("div");
+  lineRow.className = "row";
+  lineRow.append(
+    check("table.frame", () => item.frame !== false, (v) => (item.frame = v ? undefined : false)),
+    check("table.header", () => !!item.header, (v) => (item.header = v || undefined)),
+  );
+
+  const size = numberInput(item.size_pt, 0.5, t("layout.auto"), (v) => {
+    item.size_pt = v && v > 0 ? v : null;
+  });
+  const spacing = numberInput(item.line_spacing, 0.1, "1.0", (v) => {
+    item.line_spacing = v && v > 0 ? Math.min(3, Math.max(0.5, v)) : null;
+  });
+  spacing.min = "0.5";
+  spacing.max = "3";
+  spacing.title = t("elements.lineSpacingHint");
+  const sizeField = document.createElement("div");
+  sizeField.className = "row";
+  sizeField.append(field("elements.size", size), field("elements.lineSpacing", spacing));
+  const font = fontPicker(item.font ?? null, (family) => {
+    item.font = family;
+    changed(true);
+  });
+  // Cell last edited: with a selection there, F/K style just that part.
+  let lastArea: HTMLTextAreaElement | null = null;
+  const toggle = (label: string, title: string, key: "bold" | "italic") => {
+    const b = makeButton(label, title, () => {
+      if (lastArea?.isConnected && toggleMark(lastArea, key === "bold" ? BOLD_MARK : ITALIC_MARK)) return;
+      item[key] = !item[key];
+      b.classList.toggle("on", !!item[key]);
+      changed();
+    });
+    b.className = `toggle${item[key] ? " on" : ""}`;
+    b.style.fontWeight = key === "bold" ? "700" : "";
+    b.style.fontStyle = key === "italic" ? "italic" : "";
+    return b;
+  };
+  const boldButton = toggle("F", t("elements.boldHint"), "bold");
+  const italicButton = toggle("K", t("elements.italicHint"), "italic");
+  const style = document.createElement("div");
+  style.className = "row font-row";
+  style.append(field("elements.font", font), boldButton, italicButton);
+
+  /** Relative size input for column/row `i` (empty = 1). */
+  const ratioInput = (list: "col_ratios" | "row_ratios", i: number, title: string) => {
+    const input = numberInput(item[list]?.[i] ?? null, 0.5, "1", (v) => {
+      const ratios = item[list] ?? [];
+      while (ratios.length <= i) ratios.push(1);
+      ratios[i] = v && v > 0 ? Math.min(20, Math.max(0.1, v)) : 1;
+      item[list] = ratios.every((r) => r === 1) ? undefined : ratios;
+    });
+    input.className = "ratio";
+    input.min = "0.1";
+    input.title = title;
+    return input;
+  };
+  function renderGrid(): void {
+    normalize();
+    const n = cols();
+    rowsInput.value = String(item.cells.length);
+    colsInput.value = String(n);
+    grid.replaceChildren();
+    grid.style.gridTemplateColumns = `3.6em repeat(${n}, minmax(4.5em, 1fr))`;
+    grid.append(document.createElement("span"));
+    for (let c = 0; c < n; c++) grid.append(ratioInput("col_ratios", c, t("table.colRatio", { n: c + 1 })));
+    item.cells.forEach((row, r) => {
+      grid.append(ratioInput("row_ratios", r, t("table.rowRatio", { n: r + 1 })));
+      row.forEach((cell, c) => {
+        const area = document.createElement("textarea");
+        area.rows = Math.min(3, Math.max(1, cell.split("\n").length));
+        area.value = cell;
+        area.addEventListener("input", () => {
+          row[c] = area.value;
+          area.rows = Math.min(3, Math.max(1, area.value.split("\n").length));
+          syncBoxCaption();
+          changed();
+        });
+        area.addEventListener("focus", () => (lastArea = area));
+        area.addEventListener("keydown", (e) => {
+          if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+          const key = e.key.toLowerCase();
+          if (key !== "b" && key !== "i") return;
+          e.preventDefault();
+          (key === "b" ? boldButton : italicButton).click();
+        });
+        trackField(area, (v) => (row[c] = v));
+        grid.append(area);
+      });
+    });
+  }
+  renderGrid();
+  const hint = document.createElement("p");
+  hint.className = "muted hint";
+  hint.textContent = t("table.hint");
+  return [sizeRow, lineRow, style, sizeField, grid, hint];
+}
+
 function contentFields(item: Item): HTMLElement[] {
   switch (item.type) {
     case "fuse_box":
       return fuseBoxFields(item);
+    case "table":
+      return tableFields(item);
     case "text": {
       const area = document.createElement("textarea");
       area.rows = Math.min(4, Math.max(2, item.text.split("\n").length));
@@ -1310,7 +1467,7 @@ function alignRow(index: number): HTMLElement {
 
 /** Content alignment inside the box: horizontal and vertical, three each. */
 function contentAlignRow(item: Item): HTMLElement | null {
-  const aligned = ["text", "qr", "barcode", "image", "symbol", "fuse_box"];
+  const aligned = ["text", "qr", "barcode", "image", "symbol", "fuse_box", "table"];
   if (!aligned.includes(item.type)) return null;
   const row = document.createElement("div");
   row.className = "align-row";
@@ -1318,7 +1475,11 @@ function contentAlignRow(item: Item): HTMLElement | null {
   label.textContent = t("content.title");
   row.append(label);
   const h = (): api.TextAlign =>
-    item.type === "text" ? item.align : item.type === "fuse_box" ? (item.align ?? "center") : (item.halign ?? "center");
+    item.type === "text"
+      ? item.align
+      : item.type === "fuse_box" || item.type === "table"
+        ? (item.align ?? "center")
+        : (item.halign ?? "center");
   const v = (): api.VAlign => item.valign ?? "middle";
   const buttons: [string, string, () => boolean, () => void][] = [
     ["⇤", "content.left", () => h() === "left", () => setH("left")],
@@ -1329,7 +1490,7 @@ function contentAlignRow(item: Item): HTMLElement | null {
     ["⤓", "content.bottom", () => v() === "bottom", () => (item.valign = "bottom")],
   ];
   function setH(a: api.TextAlign): void {
-    if (item.type === "text" || item.type === "fuse_box") item.align = a;
+    if (item.type === "text" || item.type === "fuse_box" || item.type === "table") item.align = a;
     else item.halign = a === "center" ? null : a;
   }
   for (const [icon, key, on, apply] of buttons) {
@@ -1513,6 +1674,14 @@ function defaultElement(type: Element["type"]): Element {
         fields: Array.from({ length: FUSE_DEFAULT_COUNT }, (_, i) => ({ text: `F${i + 1}` })),
         pitch_mm: FUSE_DEFAULT_PITCH_MM,
         separator: "frame",
+      };
+    case "table":
+      return {
+        type,
+        cells: [
+          ["A1", "B1", "C1"],
+          ["A2", "B2", "C2"],
+        ],
       };
   }
 }

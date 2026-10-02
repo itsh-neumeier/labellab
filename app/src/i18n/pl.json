@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Tekst pionowy przejęty jako poziomy",
   "lbx.warn.barcode": "Nieobsługiwany typ kodu – przejęty jako kod QR",
   "lbx.warn.image": "Brak obrazu lub jest nieczytelny",
-  "lbx.warn.crop": "Nie przejęto przycięcia obrazu – wstawiono cały obraz"
+  "lbx.warn.crop": "Nie przejęto przycięcia obrazu – wstawiono cały obraz",
+  "elements.table": "Tabela",
+  "table.rows": "Wiersze",
+  "table.cols": "Kolumny",
+  "table.line": "Linia (mm)",
+  "table.lineHint": "Grubość linii siatki, 0 = bez linii",
+  "table.frame": "Ramka zewnętrzna",
+  "table.header": "Nagłówek pogrubiony",
+  "table.colRatio": "Względna szerokość kolumny {n} (1 = normalna)",
+  "table.rowRatio": "Względna wysokość wiersza {n} (1 = normalna)",
+  "table.hint": "Liczby u góry: szerokości kolumn, po lewej: wysokości wierszy (względne). Wiele linii klawiszem Enter, możliwe pola jak {{n}}.",
+  "lbx.warn.table_merge": "Scalone komórki – tekst jest w pierwszej komórce, linie pozostają"
 }

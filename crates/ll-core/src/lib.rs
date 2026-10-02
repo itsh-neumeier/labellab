@@ -20,5 +20,6 @@ pub mod paths;
 pub mod print;
 pub mod series;
 pub mod settings;
+pub mod table;
 
 pub use error::CoreError;

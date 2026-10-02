@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Testo verticale ripreso come testo orizzontale",
   "lbx.warn.barcode": "Tipo di codice non supportato – ripreso come codice QR",
   "lbx.warn.image": "Immagine mancante o non leggibile",
-  "lbx.warn.crop": "Ritaglio dell'immagine non ripreso – inserita l'immagine intera"
+  "lbx.warn.crop": "Ritaglio dell'immagine non ripreso – inserita l'immagine intera",
+  "elements.table": "Tabella",
+  "table.rows": "Righe",
+  "table.cols": "Colonne",
+  "table.line": "Linea (mm)",
+  "table.lineHint": "Spessore delle linee della griglia, 0 = senza linee",
+  "table.frame": "Cornice esterna",
+  "table.header": "Intestazione in grassetto",
+  "table.colRatio": "Larghezza relativa della colonna {n} (1 = normale)",
+  "table.rowRatio": "Altezza relativa della riga {n} (1 = normale)",
+  "table.hint": "Numeri in alto: larghezze delle colonne, a sinistra: altezze delle righe (relative). Più righe con Invio, segnaposto come {{n}} possibili.",
+  "lbx.warn.table_merge": "Celle unite – il testo è nella prima cella, le linee restano"
 }

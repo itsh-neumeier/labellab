@@ -61,6 +61,26 @@ export type Element =
       font?: string | null;
       bold?: boolean;
       italic?: boolean;
+    }
+  | {
+      type: "table";
+      /** Rows from the top edge, each a list of cell texts. */
+      cells: string[][];
+      /** Relative column widths / row heights; missing = 1. */
+      col_ratios?: number[];
+      row_ratios?: number[];
+      /** Grid line width in mm; 0 = no lines. */
+      line_mm?: number;
+      /** Line around the table; absent = true. */
+      frame?: boolean;
+      /** First row bold. */
+      header?: boolean;
+      size_pt?: number | null;
+      align?: TextAlign;
+      line_spacing?: number | null;
+      font?: string | null;
+      bold?: boolean;
+      italic?: boolean;
     };
 
 /** One field of a fuse box (`ll_core::fusebox::FuseField`). */

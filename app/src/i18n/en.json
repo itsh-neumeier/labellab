@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Vertical text taken over as horizontal text",
   "lbx.warn.barcode": "Code type not supported – taken over as QR code",
   "lbx.warn.image": "Image missing or unreadable",
-  "lbx.warn.crop": "Image crop not taken over – whole image inserted"
+  "lbx.warn.crop": "Image crop not taken over – whole image inserted",
+  "elements.table": "Table",
+  "table.rows": "Rows",
+  "table.cols": "Columns",
+  "table.line": "Line (mm)",
+  "table.lineHint": "Grid line width, 0 = no lines",
+  "table.frame": "Outer frame",
+  "table.header": "Bold header row",
+  "table.colRatio": "Relative width of column {n} (1 = normal)",
+  "table.rowRatio": "Relative height of row {n} (1 = normal)",
+  "table.hint": "Numbers on top: column widths, on the left: row heights (relative). Several lines with Enter, placeholders like {{n}} work.",
+  "lbx.warn.table_merge": "Merged table cells – the text is in the first cell, the lines remain"
 }

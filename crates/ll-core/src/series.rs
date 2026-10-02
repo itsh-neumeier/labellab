@@ -291,6 +291,11 @@ pub fn apply(label: &Label, data: Option<&DataSet>, number: usize, numbering: Nu
                     field.text = f(&field.text);
                 }
             }
+            Element::Table { table, .. } => {
+                for cell in table.cells.iter_mut().flatten() {
+                    *cell = f(cell);
+                }
+            }
             Element::Fill | Element::Shape { .. } => {}
         }
     }
@@ -321,6 +326,7 @@ pub fn placeholders(label: &Label) -> Vec<String> {
             Element::Image { path, .. } => scan(&path.to_string_lossy()),
             Element::Symbol { name, .. } => scan(name),
             Element::FuseBox { fields, .. } => fields.iter().for_each(|f| scan(&f.text)),
+            Element::Table { table, .. } => table.cells.iter().flatten().for_each(|c| scan(c)),
             Element::Fill | Element::Shape { .. } => {}
         }
     }

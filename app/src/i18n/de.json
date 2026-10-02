@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Senkrechter Text als waagerechter Text übernommen",
   "lbx.warn.barcode": "Code-Typ nicht unterstützt – als QR-Code übernommen",
   "lbx.warn.image": "Bild fehlt oder ist nicht lesbar",
-  "lbx.warn.crop": "Bildzuschnitt nicht übernommen – ganzes Bild eingefügt"
+  "lbx.warn.crop": "Bildzuschnitt nicht übernommen – ganzes Bild eingefügt",
+  "elements.table": "Tabelle",
+  "table.rows": "Zeilen",
+  "table.cols": "Spalten",
+  "table.line": "Linie (mm)",
+  "table.lineHint": "Linienstärke des Rasters, 0 = ohne Linien",
+  "table.frame": "Außenrahmen",
+  "table.header": "Kopfzeile fett",
+  "table.colRatio": "Relative Breite von Spalte {n} (1 = normal)",
+  "table.rowRatio": "Relative Höhe von Zeile {n} (1 = normal)",
+  "table.hint": "Obere Zahlen: Spaltenbreiten, linke Zahlen: Zeilenhöhen (relativ). Zellen mehrzeilig mit Enter, Platzhalter wie {{n}} möglich.",
+  "lbx.warn.table_merge": "Verbundene Tabellenzellen – Text steht in der ersten Zelle, die Linien bleiben"
 }

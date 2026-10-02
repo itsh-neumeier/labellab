@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Texte vertical repris en texte horizontal",
   "lbx.warn.barcode": "Type de code non pris en charge – repris comme code QR",
   "lbx.warn.image": "Image manquante ou illisible",
-  "lbx.warn.crop": "Recadrage de l'image non repris – image entière insérée"
+  "lbx.warn.crop": "Recadrage de l'image non repris – image entière insérée",
+  "elements.table": "Tableau",
+  "table.rows": "Lignes",
+  "table.cols": "Colonnes",
+  "table.line": "Trait (mm)",
+  "table.lineHint": "Épaisseur des traits de la grille, 0 = sans traits",
+  "table.frame": "Cadre extérieur",
+  "table.header": "En-tête en gras",
+  "table.colRatio": "Largeur relative de la colonne {n} (1 = normale)",
+  "table.rowRatio": "Hauteur relative de la ligne {n} (1 = normale)",
+  "table.hint": "Nombres en haut : largeurs des colonnes, à gauche : hauteurs des lignes (relatives). Plusieurs lignes avec Entrée, champs comme {{n}} possibles.",
+  "lbx.warn.table_merge": "Cellules fusionnées – le texte est dans la première cellule, les traits restent"
 }

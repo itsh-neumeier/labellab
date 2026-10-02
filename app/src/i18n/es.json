@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Texto vertical adoptado como texto horizontal",
   "lbx.warn.barcode": "Tipo de código no compatible – adoptado como código QR",
   "lbx.warn.image": "Imagen ausente o ilegible",
-  "lbx.warn.crop": "Recorte de imagen no adoptado – se insertó la imagen completa"
+  "lbx.warn.crop": "Recorte de imagen no adoptado – se insertó la imagen completa",
+  "elements.table": "Tabla",
+  "table.rows": "Filas",
+  "table.cols": "Columnas",
+  "table.line": "Línea (mm)",
+  "table.lineHint": "Grosor de las líneas de la cuadrícula, 0 = sin líneas",
+  "table.frame": "Marco exterior",
+  "table.header": "Encabezado en negrita",
+  "table.colRatio": "Ancho relativo de la columna {n} (1 = normal)",
+  "table.rowRatio": "Alto relativo de la fila {n} (1 = normal)",
+  "table.hint": "Números arriba: anchos de columna; a la izquierda: altos de fila (relativos). Varias líneas con Intro; se admiten marcadores como {{n}}.",
+  "lbx.warn.table_merge": "Celdas combinadas: el texto queda en la primera celda y se mantienen las líneas"
 }

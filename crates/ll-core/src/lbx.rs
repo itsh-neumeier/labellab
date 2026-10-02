@@ -22,7 +22,7 @@ use quick_xml::Reader;
 use serde::Serialize;
 
 use crate::document::{Document, Sheet, DOCUMENT_FORMAT_VERSION};
-use crate::label::{Element, Item, Label, Rect};
+use crate::label::{Element, Item, Label, Rect, Table};
 use crate::CoreError;
 
 /// Millimeters per point.
@@ -709,80 +709,87 @@ impl<R: Read + std::io::Seek> Context<'_, R> {
                 .unwrap_or_default()
         };
         let (xs, ys) = (positions("x"), positions("y"));
+        let count = |v: &[f32], attr: &str| {
+            let from_style = node
+                .child("table:tableStyle")
+                .and_then(|t| t.attr(attr))
+                .and_then(|n| n.parse::<usize>().ok());
+            v.len()
+                .checked_sub(1)
+                .filter(|&n| n > 0)
+                .or(from_style)
+                .unwrap_or(1)
+                .clamp(1, crate::table::MAX_CELLS_PER_SIDE)
+        };
+        let (cols, rows) = (count(&xs, "column"), count(&ys, "row"));
+        // Grid steps as relative sizes (equal if the file has none).
+        let ratios = |v: &[f32], n: usize| -> Vec<f32> {
+            if v.len() != n + 1 {
+                return Vec::new();
+            }
+            v.windows(2).map(|w| (w[1] - w[0]).max(0.01)).collect()
+        };
+        let mut table = Table {
+            col_ratios: ratios(&xs, cols),
+            row_ratios: ratios(&ys, rows),
+            line_mm: round_mm(line),
+            ..Table::new(rows, cols)
+        };
+        let mut base: Option<FontStyle> = None;
+        let mut merged = false;
+        if let Some(cells) = node.child("table:cells") {
+            for cell in cells.children_named("table:cell") {
+                let num = |k: &str| cell.attr(k).and_then(|v| v.parse::<usize>().ok());
+                let (cx, cy) = (num("addressX").unwrap_or(1), num("addressY").unwrap_or(1));
+                merged |= num("spanX").unwrap_or(1) > 1 || num("spanY").unwrap_or(1) > 1;
+                let Some(data) = cell.find("pt:data").map(|d| d.text.trim().to_owned()) else {
+                    continue;
+                };
+                if data.is_empty() || cx == 0 || cy == 0 || cx > cols || cy > rows {
+                    continue;
+                }
+                let font = font_style(cell.find("text:ptFontInfo"));
+                let text = if font.bold && !base.as_ref().is_some_and(|b| b.bold) {
+                    format!("{BOLD_MARK}{data}{BOLD_MARK}")
+                } else {
+                    data
+                };
+                table.cells[cy - 1][cx - 1] = text;
+                // The first cell with text gives the font of the table.
+                if base.is_none() {
+                    base = Some(font);
+                }
+            }
+        }
+        if merged {
+            // Merged cells: the text stays in the first cell, the lines between remain.
+            self.warn("table_merge", "");
+        }
+        let base = base.unwrap_or(FontStyle {
+            family: None,
+            bold: false,
+            italic: false,
+            size_pt: None,
+        });
+        if let Some(family) = &base.family {
+            if !self.fonts.iter().any(|f| f.eq_ignore_ascii_case(family)) {
+                let family = family.clone();
+                self.warn("font", family);
+            }
+        }
         out.push(Self::item(
-            Element::Shape {
-                shape: ShapeKind::Rectangle,
-                stroke_mm: line,
-                filled: false,
+            Element::Table {
+                table,
+                size_pt: base.size_pt,
+                align: TextAlign::Center,
+                line_spacing: None,
+                font: base.family,
+                bold: base.bold,
+                italic: base.italic,
             },
             rect,
             style,
         ));
-        let fill = |r: Rect| -> Item {
-            Item {
-                rect: Some(r),
-                ..Element::Fill.into()
-            }
-        };
-        let inner = |v: &[f32]| v.len().saturating_sub(1).max(1);
-        for x in xs.iter().skip(1).take(inner(&xs) - 1) {
-            out.push(fill(Rect {
-                x_mm: rect.x_mm + x - line / 2.0,
-                y_mm: rect.y_mm,
-                w_mm: line,
-                h_mm: rect.h_mm,
-            }));
-        }
-        for y in ys.iter().skip(1).take(inner(&ys) - 1) {
-            out.push(fill(Rect {
-                x_mm: rect.x_mm,
-                y_mm: rect.y_mm + y - line / 2.0,
-                w_mm: rect.w_mm,
-                h_mm: line,
-            }));
-        }
-        // Cell texts: cells are numbered from 1; spans cover several grid steps.
-        let at = |v: &[f32], i: usize| v.get(i).copied();
-        if let Some(cells) = node.child("table:cells") {
-            for cell in cells.children_named("table:cell") {
-                let Some(data) = cell.find("pt:data").map(|d| d.text.trim().to_owned()) else {
-                    continue;
-                };
-                if data.is_empty() {
-                    continue;
-                }
-                let num = |k: &str| cell.attr(k).and_then(|v| v.parse::<usize>().ok());
-                let (cx, cy) = (num("addressX").unwrap_or(1), num("addressY").unwrap_or(1));
-                let (sx, sy) = (num("spanX").unwrap_or(1), num("spanY").unwrap_or(1));
-                let (Some(x0), Some(x1), Some(y0), Some(y1)) = (
-                    at(&xs, cx - 1),
-                    at(&xs, cx - 1 + sx),
-                    at(&ys, cy - 1),
-                    at(&ys, cy - 1 + sy),
-                ) else {
-                    continue;
-                };
-                let font = font_style(cell.find("text:ptFontInfo"));
-                out.push(Item {
-                    rect: Some(Rect {
-                        x_mm: rect.x_mm + x0,
-                        y_mm: rect.y_mm + y0,
-                        w_mm: x1 - x0,
-                        h_mm: y1 - y0,
-                    }),
-                    ..Element::Text {
-                        text: data,
-                        size_pt: font.size_pt,
-                        align: TextAlign::Center,
-                        font: font.family,
-                        bold: font.bold,
-                        italic: font.italic,
-                        line_spacing: None,
-                    }
-                    .into()
-                });
-            }
-        }
     }
 }
 
@@ -933,18 +940,16 @@ mod tests {
             panic!("datetime → text");
         };
         assert_eq!(text, "{{zeit}}");
-        // Table: outline + one inner line each way + one cell text.
-        assert!(matches!(
-            zwei.label.elements[1].element,
-            Element::Shape { .. }
-        ));
-        assert_eq!(zwei.label.elements.len(), 6);
-        let Element::Text { text, .. } = &zwei.label.elements[4].element else {
-            panic!("cell text expected");
+        // Table: one table element, grid steps as ratios, cell text in place.
+        let Element::Table { table, .. } = &zwei.label.elements[1].element else {
+            panic!("table expected");
         };
-        assert_eq!(text, "A1");
+        assert_eq!((table.rows(), table.cols()), (2, 2));
+        assert_eq!(table.cell(0, 1), "A1");
+        assert_eq!(table.col_ratios.len(), 2);
+        assert_eq!(zwei.label.elements.len(), 3);
         // "Shrink to fit": made smaller until it fits its frame.
-        let Element::Text { size_pt, .. } = &zwei.label.elements[5].element else {
+        let Element::Text { size_pt, .. } = &zwei.label.elements[2].element else {
             panic!("text expected");
         };
         assert!(size_pt.unwrap() < 18.0);

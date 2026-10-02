@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Verticale tekst overgenomen als horizontale tekst",
   "lbx.warn.barcode": "Codetype niet ondersteund – als QR-code overgenomen",
   "lbx.warn.image": "Afbeelding ontbreekt of is onleesbaar",
-  "lbx.warn.crop": "Bijsnijden van afbeelding niet overgenomen – hele afbeelding ingevoegd"
+  "lbx.warn.crop": "Bijsnijden van afbeelding niet overgenomen – hele afbeelding ingevoegd",
+  "elements.table": "Tabel",
+  "table.rows": "Rijen",
+  "table.cols": "Kolommen",
+  "table.line": "Lijn (mm)",
+  "table.lineHint": "Lijndikte van het raster, 0 = geen lijnen",
+  "table.frame": "Buitenrand",
+  "table.header": "Kopregel vet",
+  "table.colRatio": "Relatieve breedte van kolom {n} (1 = normaal)",
+  "table.rowRatio": "Relatieve hoogte van rij {n} (1 = normaal)",
+  "table.hint": "Getallen boven: kolombreedtes, links: rijhoogtes (relatief). Meerdere regels met Enter, plaatshouders zoals {{n}} mogelijk.",
+  "lbx.warn.table_merge": "Samengevoegde cellen – de tekst staat in de eerste cel, de lijnen blijven"
 }

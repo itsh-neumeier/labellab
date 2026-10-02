@@ -546,5 +546,16 @@
   "lbx.warn.vertical_text": "Svislý text převzat jako vodorovný",
   "lbx.warn.barcode": "Typ kódu není podporován – převzat jako QR kód",
   "lbx.warn.image": "Obrázek chybí nebo je nečitelný",
-  "lbx.warn.crop": "Oříznutí obrázku nepřevzato – vložen celý obrázek"
+  "lbx.warn.crop": "Oříznutí obrázku nepřevzato – vložen celý obrázek",
+  "elements.table": "Tabulka",
+  "table.rows": "Řádky",
+  "table.cols": "Sloupce",
+  "table.line": "Čára (mm)",
+  "table.lineHint": "Tloušťka čar mřížky, 0 = bez čar",
+  "table.frame": "Vnější rámeček",
+  "table.header": "Záhlaví tučně",
+  "table.colRatio": "Relativní šířka sloupce {n} (1 = normální)",
+  "table.rowRatio": "Relativní výška řádku {n} (1 = normální)",
+  "table.hint": "Čísla nahoře: šířky sloupců, vlevo: výšky řádků (relativní). Více řádků klávesou Enter, zástupné symboly jako {{n}} fungují.",
+  "lbx.warn.table_merge": "Sloučené buňky – text je v první buňce, čáry zůstávají"
 }
