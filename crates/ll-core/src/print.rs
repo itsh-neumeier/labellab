@@ -25,13 +25,13 @@ use crate::CoreError;
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Default feed margin in dots before the cut (`PrintOptions::margin_dots`
-/// default). Brother's own driver leaves some blank tape before cutting;
-/// `margin(0)` cuts right at the last printed dot, which clips content
-/// right at the edge (confirmed on real hardware, see `docs/PROGRESS.md`).
-/// TODO(verify): exact minimum the cutter needs — this is a conservative
-/// guess, not a manufacturer spec.
-const DEFAULT_MARGIN_DOTS: u16 = 28;
+/// Default printer feed margin (`ESC i d`) in dots. 0: the distance
+/// between cut and content comes from the label's own margins
+/// (`Label::padding_start_mm`/`padding_mm`), which the preview shows. The
+/// printer adds this feed before *and* after a page (one measurement,
+/// TODO(verify) in `docs/PROTOCOL.md`); a larger value is taken out of the
+/// label's blank ends (`trim_for_margin`), so it never changes the length.
+const DEFAULT_MARGIN_DOTS: u16 = 0;
 
 /// Options shared by every `print_*` function (what differs between them
 /// is only the rendered content).

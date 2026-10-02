@@ -283,7 +283,7 @@
 - Fix `ll_core::print::trim_for_margin`: je Seite höchstens den Nachlauf von beiden leeren
   Enden des gerenderten Labels abschneiden und genau diesen Wert als Rand senden; nie Tinte
   abschneiden (Rand = kleineres leeres Ende). Gedruckte Länge = Vorschau-Länge; der Abstand
-  zum Schnitt kommt jetzt aus „Rand links/rechts“.
+  zum Schnitt kommt jetzt aus „Rand links/rechts“. Standard-Nachlauf jetzt 0 (Nutzerwunsch).
 - Geprüft: Tests (1 neuer, 2 angepasst). Hardware-Test eingetragen.
 
 ### 2026-10-02 – Claude Code, Größe an allen Seiten ändern

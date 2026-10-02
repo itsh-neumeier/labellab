@@ -130,7 +130,8 @@ Referenz und Hardware zu prüfen — siehe `crates/ll-protocol/src/model.rs`):
   (Label mit fester Länge 100 mm und Rand 28 Punkte ≈ 3,95 mm kam ~107 mm lang heraus,
   Nutzer 2026-10-02). Status: **unverifiziert** (eine Messung). Darum zieht `print.rs`
   (`trim_for_margin`) den Rand von den leeren Enden des Labels ab. TODO(verify): Label
-  100 mm fest, Rand links/rechts 4 mm → gedruckte Länge 100 mm?
+  100 mm fest, Rand links/rechts 4 mm → gedruckte Länge 100 mm? Standard-Rand seitdem
+  0 Punkte (Abstand zum Schnitt nur über die Label-Ränder).
 - TODO(verify): Half-Cut am PT-P710BT unterstützt? (vermutlich nein)
 - TODO(verify): Setzt eine Statusabfrage (`00×100, 1B 40, 1B 69 53`) den Timer der
   automatischen Abschaltung zurück? Annahme für „Wach halten“ in der App (alle 2 min,
