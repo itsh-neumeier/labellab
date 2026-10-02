@@ -124,9 +124,9 @@
   - [x] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
     Ein-/Ausblenden, Duplizieren, Löschen), rechts Eigenschaften-Leiste für das gewählte
     Element (Nutzerwunsch 2026-10-02; Ausblenden braucht Feld `hidden` am Item)
-  - [ ] Import von Dateien des Hersteller-Editors (`.lbx`, ZIP mit `label.xml`) in `.llabel`
-    (Nutzerwunsch 2026-10-02; Beispieldateien des Nutzers nicht ins Repo). Analyse und Plan:
-    `docs/IMPORT-LBX.md`
+  - [x] Import von Dateien des Hersteller-Editors (`.lbx`, ZIP mit `label.xml`) in `.llabel`
+    (Nutzerwunsch 2026-10-02; Beispieldateien des Nutzers nicht ins Repo). `ll_core::lbx`,
+    „Öffnen …“, CLI `import-lbx`; Doku `docs/IMPORT-LBX.md`, ADR-038
   - [ ] Akkustand: Statusbyte per Rohdaten-Vergleich (Ladekabel/Akku) ermitteln, dann anzeigen
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
@@ -155,8 +155,8 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-- Offene Nutzerwünsche (Stand 2026-10-02 abends): `.lbx`-Import (Plan `docs/IMPORT-LBX.md`),
-  Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
+- Offene Nutzerwünsche (Stand 2026-10-02 abends): weitere Sprachen mit Flaggen-Auswahl,
+  allgemeines Review, Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
   Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel,
   Code-Assistent, Sicherungskasten-Felder verbinden + „Vorlage bearbeiten“, Vorlagen-Ziel.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
@@ -328,6 +328,17 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, `.lbx`-Import (ADR-038)
+- `ll_core::lbx` (zip + quick-xml), Tauri-Befehl `import_lbx`, „Öffnen …“ nimmt `.lbx`
+  (Hinweisliste per Dialog, Speichern schlägt `.llabel` vor), CLI `import-lbx`.
+- „Verkleinern“-Texte werden nach dem Import mit dem Renderer passend gemacht; Ränder/Längen
+  auf 1/100 mm gerundet; doppelte Hinweise entfernt.
+- Stolperstein: `zip` 2.4 mit nur `deflate-flate2` kompiliert nicht (flate2 ohne Backend) →
+  Feature `deflate`.
+- Geprüft: fmt/clippy/Tests (synthetische `.lbx` im Test), CLI und GUI (Xvfb) mit den
+  Beispieldateien des Nutzers (nicht eingecheckt).
+- Offen: weitere Sprachen + Flaggen, Review, Akkuanzeige, Hardware-Tests.
+
 ### 2026-10-02 – Claude Code, Mausrad-Zoom, Mittelstrich Kabelfahne, Patchfeld als Element
 - Vorschau: Mausrad zoomt um den Zeiger (Umschalt+Rad scrollt), Zoom 0,5–12 in 0,25-Schritten.
 - Kabelfahne/Einzelfähnchen: `center_mark` → Haarlinie (0,15 mm ≈ 1 Druckpunkt) in der Mitte

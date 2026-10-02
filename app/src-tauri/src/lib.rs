@@ -817,6 +817,13 @@ fn load_document(path: PathBuf) -> Result<ll_core::document::Document, AppError>
     ll_core::document::Document::load(&path).map_err(err)
 }
 
+/// Imports an `.lbx` file of the manufacturer editor: the document plus
+/// notes on what could only be approximated (images go to `llappdata`).
+#[tauri::command]
+fn import_lbx(path: PathBuf) -> Result<ll_core::lbx::LbxImport, AppError> {
+    ll_core::lbx::import(&path).map_err(err)
+}
+
 /// Saves a document (a single sheet is written as a plain label).
 #[tauri::command]
 fn save_document(path: PathBuf, document: ll_core::document::Document) -> Result<(), AppError> {
@@ -865,6 +872,7 @@ pub fn run() {
             record_history,
             load_history,
             import_iconset,
+            import_lbx,
             remove_iconset,
             generate_layout,
             discover_bluetooth,

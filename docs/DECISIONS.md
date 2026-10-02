@@ -686,3 +686,18 @@ Vorlage:
   ca. 94 % (eigene Seitenränder, gemessen per „In Datei drucken“), WebView2 (Windows) sollte
   100 % liefern – unverifiziert, daher Testseite und Korrekturwert. Seitenhöhe im Druck 287 mm,
   damit kein leeres Zusatzblatt entsteht. Serien/CSV werden auf A4 noch nicht ausgegeben.
+
+## ADR-038: `.lbx`-Import mit `zip` und `quick-xml`
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzer wollen vorhandene Labels aus dem Hersteller-Editor weiterverwenden. `.lbx` ist
+  ein ZIP-Archiv mit `label.xml` und eingebetteten Bildern (Analyse: `docs/IMPORT-LBX.md`).
+- Entscheidung: `ll_core::lbx` liest das Archiv mit `zip` (MIT, Feature `deflate`; das kleinere
+  `deflate-flate2` allein kompiliert in zip 2.4 nicht, weil es kein flate2-Backend aktiviert –
+  `deflate` zieht zusätzlich `zopfli`, Apache-2.0) und das XML mit `quick-xml` (MIT) in einen
+  kleinen eigenen Knotenbaum. `image` ist in `ll-core` jetzt normale Abhängigkeit (BMP → PNG
+  der eingebetteten Bilder). Ergebnis: `Document` plus Hinweisliste (`LbxWarning{kind, detail}`,
+  `kind` als stabiler i18n-Schlüssel `lbx.warn.<kind>`). Texte mit „Verkleinern“ (`shrink`)
+  werden nach dem Import mit dem echten Renderer schrittweise verkleinert, bis sie passen.
+- Konsequenzen: Kein Export nach `.lbx` (nur Import). Nicht Übertragbares (Zierrahmen,
+  Cliparts aus Hersteller-Schriften, Aztec, senkrechter Text, Bildzuschnitt) wird angenähert und
+  gemeldet. Das Format ist aus Beispieldateien abgeleitet, nicht aus einer Spezifikation.

@@ -532,5 +532,19 @@
   "a4.testVertical": "senkrecht: 100 mm",
   "wizard.centerMark": "Mittelstrich (Zentrierhilfe)",
   "wizard.centerMarkHint": "Feine Linie (1 Druckpunkt) in der Mitte des Wickelbereichs – hilft, das Label mittig am Kabel anzulegen",
-  "elements.patch_panel": "Patchfeld"
+  "elements.patch_panel": "Patchfeld",
+  "file.openFilter": "LabelLab-Vorlagen und .lbx-Dateien",
+  "lbx.filter": ".lbx-Dateien (P-touch Editor)",
+  "lbx.title": ".lbx-Import",
+  "lbx.imported": "Importiert: {name} – bitte prüfen und als .llabel speichern",
+  "lbx.warnIntro": "Die Datei wurde importiert. Folgendes ließ sich nicht genau übernehmen und wurde angenähert:",
+  "lbx.warn.portrait": "Hochformat-Layout – als Querformat übernommen",
+  "lbx.warn.unknown": "Unbekanntes Objekt übersprungen",
+  "lbx.warn.frame": "Zierrahmen als einfaches Rechteck übernommen",
+  "lbx.warn.clipart": "Clipart/Symbolschrift übersprungen – bitte durch ein Symbol ersetzen",
+  "lbx.warn.font": "Schriftart nicht installiert – Standardschrift wird verwendet",
+  "lbx.warn.vertical_text": "Senkrechter Text als waagerechter Text übernommen",
+  "lbx.warn.barcode": "Code-Typ nicht unterstützt – als QR-Code übernommen",
+  "lbx.warn.image": "Bild fehlt oder ist nicht lesbar",
+  "lbx.warn.crop": "Bildzuschnitt nicht übernommen – ganzes Bild eingefügt"
 }

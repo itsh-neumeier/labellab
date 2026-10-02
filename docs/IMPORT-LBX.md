@@ -1,4 +1,4 @@
-# Import von `.lbx`-Dateien (Hersteller-Editor) – Analyse und Plan
+# Import von `.lbx`-Dateien (Hersteller-Editor)
 
 Stand: 2026-10-02. Grundlage: zwei Beispieldateien des Nutzers (nicht im Repo, enthalten
 Kundendaten/Bilder). Keine Hersteller-Dokumente verwendet; alles aus dem Dateiaufbau abgeleitet,
@@ -34,8 +34,22 @@ daher **unverifiziert** gegenüber einer Spezifikation.
 | `draw:frame` | `frameStyle category="SPECIAL" style="0"` – Rahmen aus der Hersteller-Bibliothek | Kein Nachbau der Grafik (Hersteller-Material) → einfacher/eigener Rahmenstil + Hinweis |
 | `image:clipart` | `clipartStyle originalName="FONT,<Schriftname>,<Zeichen>,…"` – Symbol aus einer Hersteller-Schrift | Nicht übertragbar → Platzhalter-Symbol + Hinweis |
 
-## Plan
-1. `ll-core::lbx` (neue Abhängigkeiten `zip` und `quick-xml`, beide MIT, per ADR):
-   `import(path) -> (Document, Vec<Warnung>)`; Bilder in `<Datenordner>/imported/<Datei>/`.
-2. App: „Öffnen …“ akzeptiert `.lbx`; Warnungen (nicht übertragene Objekte) als Liste.
-3. Tests mit kleinen, selbst erzeugten `.lbx`-Beispielen (keine Nutzerdateien).
+## Umsetzung (2026-10-02, ADR-038)
+- `ll_core::lbx::import(path)` → `LbxImport { document, warnings }`; Bilder landen in
+  `llappdata/imported/<Dateiname>/` (BMP als PNG, gleiche Datei nur einmal).
+- Oberfläche: „Öffnen …“ nimmt `.llabel` und `.lbx`. Eine importierte Datei ist ein neues,
+  ungespeichertes Dokument; Speichern schlägt `<Name>.llabel` vor. Hinweise erscheinen als Liste.
+- CLI: `labellab import-lbx datei.lbx [-o ziel.llabel]`.
+- Das zuletzt aktive Blatt (`currentSheet`) wird das erste Blatt.
+- `text:textControl shrink="true"`: Text wird verkleinert (Schritte 8 %, min. 4 pt), bis er
+  in seinen Rahmen passt – gemessen mit dem LabelLab-Renderer.
+- Bandbreite: nächste Standardbreite (3/6/9/12/18/24/36 mm).
+- Hinweise (`lbx.warn.<kind>`): `portrait`, `unknown`, `frame`, `clipart`, `font`,
+  `vertical_text`, `barcode`, `image`, `crop`. Gleiche Hinweise werden nur einmal gemeldet.
+- Geprüft mit den beiden Beispieldateien des Nutzers (lokal, nicht im Repo): Werkzeug-Labels
+  (Bild, Logo, Text mit Verkleinern) sehen wie im Original aus; das Layout-Beispiel (Barcodes,
+  QR, Tabelle, Datum/Zeit) ist vollständig, Aztec wird QR, Zierrahmen ein Rechteck.
+
+## Grenzen
+- Kein Export nach `.lbx`. Hochformat-Layouts werden als Querformat übernommen.
+- Schriften, die nicht installiert sind, werden durch die Standardschrift ersetzt (Hinweis).

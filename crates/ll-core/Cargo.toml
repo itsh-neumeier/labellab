@@ -15,10 +15,13 @@ csv.workspace = true
 chrono.workspace = true
 # Encrypted settings file next to the executable (ADR-036).
 chacha20poly1305.workspace = true
+# Import of .lbx files (ADR-038); image converts embedded BMPs to PNG.
+zip.workspace = true
+quick-xml.workspace = true
+image.workspace = true
 ll-protocol = { path = "../ll-protocol" }
 ll-transport = { path = "../ll-transport" }
 ll-render = { path = "../ll-render" }
 
 [dev-dependencies]
 tokio.workspace = true
-image.workspace = true

@@ -232,6 +232,16 @@ export interface LabelDocument {
 }
 
 export const loadDocument = (path: string) => invoke<LabelDocument>("load_document", { path });
+
+/** Something an `.lbx` import could only approximate (`ll_core::lbx::LbxWarning`). */
+export interface LbxWarning {
+  kind: string;
+  detail: string;
+}
+
+/** Imports an `.lbx` file of the manufacturer editor. */
+export const importLbx = (path: string) =>
+  invoke<{ document: LabelDocument; warnings: LbxWarning[] }>("import_lbx", { path });
 export const saveDocument = (path: string, document: LabelDocument) =>
   invoke<void>("save_document", { path, document });
 

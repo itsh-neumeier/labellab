@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- `.lbx`-Dateien des Hersteller-Editors öffnen („Öffnen …“ oder `labellab import-lbx`):
+  Blätter, Texte (Schrift, Größe, fett/kursiv auch abschnittsweise, Ausrichtung, Verkleinern),
+  Bilder (Helligkeit/Kontrast, Schwelle, Hintergrund), Barcodes/QR, Datum/Zeit, Tabellen,
+  Formen, feste Länge und Ränder. Nicht Übertragbares wird angenähert und als Liste gemeldet
 - Patchfeld als Spezial-Element: ein bearbeitbares Element mit gleich breiten Feldern
   (kein Verbinden), Texte mehrzeilig/fett/kursiv, Trennzeichen, Ausrichtung; Standardziel
   „Ins aktuelle Blatt einfügen“

@@ -6,7 +6,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import appIcon from "../src-tauri/icons/128x128.png";
-import { ask, open, save } from "@tauri-apps/plugin-dialog";
+import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { bindImageEditor, openImageEditor } from "./imageEditor";
@@ -2963,7 +2963,11 @@ async function confirmDiscard(): Promise<boolean> {
 }
 
 /** Replaces the whole document (open, new, history) and shows sheet `index`. */
+/** Suggested file name for the first save of an imported document. */
+let saveSuggestion: string | null = null;
+
 async function setDocument(doc: api.LabelDocument, path: string | null): Promise<void> {
+  saveSuggestion = null;
   state.sheets = doc.sheets.length ? doc.sheets : [{ name: t("sheet.default", { n: 1 }), label: newLabel() }];
   state.filePath = path;
   await showSheet(0, false);
@@ -3065,16 +3069,39 @@ async function removeSheet(index: number): Promise<void> {
 }
 
 const LLABEL_FILTER = () => [{ name: t("file.filter"), extensions: ["llabel"] }];
+const OPEN_FILTER = () => [
+  { name: t("file.openFilter"), extensions: ["llabel", "lbx"] },
+  ...LLABEL_FILTER(),
+  { name: t("lbx.filter"), extensions: ["lbx"] },
+];
 
 async function openFile(): Promise<void> {
   if (!(await confirmDiscard())) return;
-  const path = await open({ multiple: false, filters: LLABEL_FILTER() });
+  const path = await open({ multiple: false, filters: OPEN_FILTER() });
   if (typeof path !== "string") return;
   await openPath(path);
 }
 
+/** Imports an `.lbx` file as a new, unsaved document and lists what was approximated. */
+async function importLbx(path: string): Promise<void> {
+  const { document, warnings } = await api.importLbx(path);
+  await setDocument(document, null);
+  saveSuggestion = path.replace(/\.lbx$/i, ".llabel");
+  // Not saved yet: closing asks, saving asks for a `.llabel` name.
+  state.savedSnapshot = "";
+  updateFileName();
+  if (!warnings.length) return;
+  const lines = warnings.map((w) => `• ${t(`lbx.warn.${w.kind}`)}${w.detail ? ` – ${w.detail}` : ""}`);
+  await message(`${t("lbx.warnIntro")}\n\n${lines.join("\n")}`, { title: t("lbx.title"), kind: "info" });
+}
+
 async function openPath(path: string): Promise<void> {
   try {
+    if (/\.lbx$/i.test(path)) {
+      await importLbx(path);
+      setMessage(t("lbx.imported", { name: path.split(/[\\/]/).pop() ?? path }));
+      return;
+    }
     await setDocument(await api.loadDocument(path), path);
     rememberRecent(path);
     setMessage("");
@@ -3125,7 +3152,7 @@ async function saveFile(asNew = false): Promise<void> {
   const path =
     !asNew && state.filePath
       ? state.filePath
-      : await save({ defaultPath: state.filePath ?? "label.llabel", filters: LLABEL_FILTER() });
+      : await save({ defaultPath: state.filePath ?? saveSuggestion ?? "label.llabel", filters: LLABEL_FILTER() });
   if (!path) return;
   try {
     await api.saveDocument(path, currentDocument());

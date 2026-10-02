@@ -532,5 +532,19 @@
   "a4.testVertical": "vertical: 100 mm",
   "wizard.centerMark": "Center line (alignment aid)",
   "wizard.centerMarkHint": "Fine line (1 print dot) in the middle of the wrap area – helps to put the label on the cable centered",
-  "elements.patch_panel": "Patch panel"
+  "elements.patch_panel": "Patch panel",
+  "file.openFilter": "LabelLab templates and .lbx files",
+  "lbx.filter": ".lbx files (P-touch Editor)",
+  "lbx.title": ".lbx import",
+  "lbx.imported": "Imported: {name} – please check and save as .llabel",
+  "lbx.warnIntro": "The file was imported. The following could not be taken over exactly and was approximated:",
+  "lbx.warn.portrait": "Portrait layout – taken over as landscape",
+  "lbx.warn.unknown": "Unknown object skipped",
+  "lbx.warn.frame": "Decorative frame taken over as a plain rectangle",
+  "lbx.warn.clipart": "Clip art/symbol font skipped – please replace with a symbol",
+  "lbx.warn.font": "Font not installed – the default font is used",
+  "lbx.warn.vertical_text": "Vertical text taken over as horizontal text",
+  "lbx.warn.barcode": "Code type not supported – taken over as QR code",
+  "lbx.warn.image": "Image missing or unreadable",
+  "lbx.warn.crop": "Image crop not taken over – whole image inserted"
 }
