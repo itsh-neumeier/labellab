@@ -7,6 +7,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
+import { bindImageEditor, openImageEditor } from "./imageEditor";
 import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
 import { roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
@@ -689,6 +690,7 @@ function contentFields(item: Item): HTMLElement[] {
           });
           if (typeof path === "string") {
             item.path = path;
+            item.edit = undefined; // crop/colors belong to the old image
             changed(true);
           }
         }),
@@ -728,7 +730,19 @@ function contentFields(item: Item): HTMLElement[] {
         wrap.append(name, range, out);
         return wrap;
       };
-      return [row, invert, slider("brightness"), slider("contrast")];
+      const edit = makeButton(t("imgedit.open"), "", async () => {
+        if (!item.path) return;
+        // Preview with only this element, on the current label and tape.
+        const preview = async (e: api.ImageEdit) =>
+          (await api.renderPreview({ ...state.label, elements: [{ ...item, edit: e }] }, selectedModel(), selectedWidth(), null, null, 2)).png;
+        const result = await openImageEditor(item.path, item.edit, preview);
+        if (result === null) return;
+        item.edit = Object.keys(result).length ? result : undefined;
+        changed(true);
+      });
+      edit.disabled = !item.path;
+      edit.classList.toggle("on", !!item.edit);
+      return [row, edit, invert, slider("brightness"), slider("contrast")];
     }
     case "symbol": {
       const select = document.createElement("button");
@@ -2277,6 +2291,7 @@ function bindUi(): void {
     b.addEventListener("click", () => insertPlaceholder(b.dataset.token!)),
   );
   bindWizard();
+  bindImageEditor();
   bindPairing();
   $("btn-csv-clear").addEventListener("click", clearCsvFile);
   $("preview-row").addEventListener("input", schedulePreview);

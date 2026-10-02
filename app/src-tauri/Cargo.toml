@@ -24,3 +24,5 @@ ll-core = { path = "../../crates/ll-core" }
 ll-protocol = { path = "../../crates/ll-protocol" }
 ll-render = { path = "../../crates/ll-render" }
 base64 = "0.22"
+# Same version as ll-render; encodes the image editor previews.
+image = { version = "0.25", default-features = false, features = ["png"] }
