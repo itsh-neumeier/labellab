@@ -108,6 +108,12 @@ Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); 
 | 11 Codes | `0x00` kein Band, `0x01` laminiert, `0x03` nicht laminiert, `0x11`/`0x17` Schrumpfschlauch 2:1/3:1, `0xFF` inkompatibel | dokumentiert (`0x01` am Gerät gesehen) | Raster Command Reference; `media::MEDIA_TYPES` |
 | 22 | Meldung: `0x01` Abdeckung geöffnet, `0x02` geschlossen | dokumentiert, TODO(verify) | Raster Command Reference |
 
+- Rohdaten vom Nutzer (2026-10-02, PT-P710BT, 24-mm-Band, Stromzustand nicht angegeben):
+  `80 20 42 30 76 30 00 00 | 00 00 18 14 01 00 00 00 | 00×8 | 90 08 00 00 00 00 00 00`.
+  Damit **verifiziert**: Byte 1 `0x20` (Größe), 2 `0x42` („B“), 3/4 `0x30`/`0x76` =
+  PT-P710BT, 10 = 24 mm, 25 `0x08` = schwarz. Beobachtet: Medientyp (11) `0x14` — nicht in
+  der dokumentierten Tabelle (unbekannt, evtl. Flex-Band; TODO(verify)), Byte 12 `0x01`,
+  Bandfarbe (24) `0x90` = laut Tabelle „Weiß (Flex)“. Fehlerbytes 0.
 - TODO(verify): Status-Byte für Akkustand vorhanden? Rohdaten im Dialog „Druckerinfo“ am
   Ladekabel und im Akkubetrieb vergleichen. (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
 - TODO(verify): Code-Bedeutung Medientyp `0x01`, Bandfarbe `0x01`, Schriftfarbe `0x08` (vermutlich

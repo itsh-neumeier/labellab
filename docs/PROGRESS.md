@@ -108,7 +108,7 @@
     Endsegment (SVG), mitgelieferte Bibliothek + Editor/Creator (Nutzerwunsch 2026-10-02)
   - [ ] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
     2026-10-02, = Hochformat aus Paket 3b)
-  - [ ] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
+  - [x] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
     an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
   - [ ] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
     Ein-/Ausblenden, Duplizieren, Löschen), rechts Eigenschaften-Leiste für das gewählte
@@ -300,6 +300,17 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Auto-Speichern, Speichern/Speichern unter, Undo/Redo-Symbole
+- „Speichern“ schreibt direkt in die geöffnete Datei (Strg+S), „Speichern unter …“
+  (Strg+Umschalt+S) fragt nach. Schalter „Auto-Speichern“: aktiv, sobald die Datei einen
+  Pfad hat; speichert 1,5 s nach der letzten Änderung (Vorgabe pro Nutzer in localStorage,
+  Standard an). Rückgängig/Wiederholen als SVG-Symbolknöpfe; Werkzeugleiste bricht bei
+  wenig Platz um.
+- Rohdaten des Nutzers in PROTOCOL.md ausgewertet (Modellbytes verifiziert, Medientyp
+  `0x14` unbekannt). Akkutest braucht noch einen zweiten Block im anderen Stromzustand.
+- Geprüft: Frontend-Build, Tests; GUI unter Xvfb (Speichern mit Dialog, Änderung nach 1,5 s
+  in der Datei).
+
 ### 2026-10-02 – Claude Code, Druckerinfo und Startbildschirm
 - `ll_protocol::status`: `series_byte`/`model_byte`/`model()`, `notification`, `ERROR_BITS` +
   `error_ids()` (laut Raster Command Reference, am Gerät nur „kein Fehler“ bestätigt);

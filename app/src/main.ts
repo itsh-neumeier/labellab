@@ -2174,6 +2174,8 @@ function updateFileName(): void {
   const name = (state.filePath?.split(/[\\/]/).pop() ?? t("toolbar.untitled")) + (isDirty() ? " •" : "");
   $("file-name").textContent = name;
   document.title = `${name} – LabelLab`;
+  updateAutosaveToggle();
+  scheduleAutosave();
 }
 
 // ---------------------------------------------------------------- sheets (several labels per file)
@@ -2370,8 +2372,12 @@ function renderRecent(): void {
   select.hidden = list.length === 0;
 }
 
-async function saveFile(): Promise<void> {
-  const path = await save({ defaultPath: state.filePath ?? "label.llabel", filters: LLABEL_FILTER() });
+/** Saves to the open file; asks for a path the first time or with `asNew`. */
+async function saveFile(asNew = false): Promise<void> {
+  const path =
+    !asNew && state.filePath
+      ? state.filePath
+      : await save({ defaultPath: state.filePath ?? "label.llabel", filters: LLABEL_FILTER() });
   if (!path) return;
   try {
     await api.saveDocument(path, currentDocument());
@@ -2382,6 +2388,60 @@ async function saveFile(): Promise<void> {
   } catch (e) {
     setMessage(t("error.prefix", { error: errorText(e) }), true);
   }
+}
+
+// ---------------------------------------------------------------- auto-save
+
+const AUTOSAVE_KEY = "labellab.autosave";
+/** Pause after the last change before an automatic save, ms. */
+const AUTOSAVE_DELAY_MS = 1500;
+let autosaveTimer: number | undefined;
+
+/** Auto-save preference: on unless the user turned it off. */
+function autosaveWanted(): boolean {
+  try {
+    return localStorage.getItem(AUTOSAVE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+/** Auto-save works on a file that was saved once (it has a path). */
+function updateAutosaveToggle(): void {
+  const box = $<HTMLInputElement>("autosave");
+  box.disabled = !state.filePath;
+  box.checked = !!state.filePath && autosaveWanted();
+}
+
+function scheduleAutosave(): void {
+  window.clearTimeout(autosaveTimer);
+  if (!state.filePath || !autosaveWanted() || !isDirty()) return;
+  autosaveTimer = window.setTimeout(() => void autosave(), AUTOSAVE_DELAY_MS);
+}
+
+async function autosave(): Promise<void> {
+  const path = state.filePath;
+  if (!path || !autosaveWanted() || !isDirty()) return;
+  try {
+    await api.saveDocument(path, currentDocument());
+    markSaved();
+    const time = new Date().toLocaleTimeString(currentLang(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    $("file-name").title = t("file.autosaved", { time });
+  } catch (e) {
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
+  }
+}
+
+function bindAutosave(): void {
+  $<HTMLInputElement>("autosave").addEventListener("change", (e) => {
+    const on = (e.target as HTMLInputElement).checked;
+    try {
+      localStorage.setItem(AUTOSAVE_KEY, on ? "on" : "off");
+    } catch {
+      // not remembered
+    }
+    if (on) scheduleAutosave();
+  });
 }
 
 // ---------------------------------------------------------------- Bluetooth pairing
@@ -2783,7 +2843,9 @@ function bindUi(): void {
   $("btn-series").addEventListener("click", () => void showSeries());
   $("btn-history").addEventListener("click", () => void showHistory());
   bindSymbolPicker();
-  $("btn-save").addEventListener("click", saveFile);
+  $("btn-save").addEventListener("click", () => void saveFile());
+  $("btn-save-as").addEventListener("click", () => void saveFile(true));
+  bindAutosave();
   $("btn-undo").addEventListener("click", () => stepHistory(-1));
   $("btn-redo").addEventListener("click", () => stepHistory(1));
   $("btn-refresh").addEventListener("click", () => void refreshDevices());
@@ -2850,7 +2912,7 @@ function bindUi(): void {
       const actions: Record<string, () => void> = {
         z: () => stepHistory(e.shiftKey ? 1 : -1),
         y: () => stepHistory(1),
-        s: () => void saveFile(),
+        s: () => void saveFile(e.shiftKey),
         o: () => void openFile(),
         p: () => void print(),
         d: () => state.selected >= 0 && duplicateItem(state.selected),
