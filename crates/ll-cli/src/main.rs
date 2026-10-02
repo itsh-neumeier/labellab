@@ -206,6 +206,10 @@ enum Command {
         /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
         template: Option<String>,
+        /// Arbeitsblatt einer `.llabel`-Datei mit mehreren Blättern: Nummer (1, 2 …)
+        /// oder Name. Standard: das erste.
+        #[arg(long, requires = "template")]
+        sheet: Option<String>,
         /// CSV-Datei für Serien: Platzhalter `{{Spalte}}` und `{{#}}` (Nummer)
         /// in der Vorlage werden je Datensatz ersetzt, ein Label pro Datensatz.
         #[arg(long, requires = "template")]
@@ -279,6 +283,10 @@ enum Command {
         /// `.llabel`-Vorlage (JSON) statt Einzelinhalt.
         #[arg(long, conflicts_with_all = ["text", "qr", "barcode", "image", "symbol"])]
         template: Option<String>,
+        /// Arbeitsblatt einer `.llabel`-Datei mit mehreren Blättern: Nummer (1, 2 …)
+        /// oder Name. Standard: das erste.
+        #[arg(long, requires = "template")]
+        sheet: Option<String>,
         /// CSV-Datei: Platzhalter mit Datensatz `--row` füllen.
         #[arg(long, requires = "template")]
         csv: Option<String>,
@@ -490,6 +498,7 @@ async fn main() -> anyhow::Result<()> {
             border_args,
             margin,
             template,
+            sheet,
             csv,
             rows,
             count,
@@ -514,6 +523,7 @@ async fn main() -> anyhow::Result<()> {
                     symbol,
                     invert,
                     template,
+                    sheet,
                     border: border_args.to_border()?,
                 },
                 ll_core::print::PrintOptions {
@@ -545,6 +555,7 @@ async fn main() -> anyhow::Result<()> {
             frame,
             border_args,
             template,
+            sheet,
             csv,
             row,
             start,
@@ -562,6 +573,7 @@ async fn main() -> anyhow::Result<()> {
                 symbol,
                 invert,
                 template,
+                sheet,
                 border: border_args.to_border()?,
             },
             frame,
@@ -864,6 +876,8 @@ struct ContentArgs {
     symbol: Option<String>,
     invert: bool,
     template: Option<String>,
+    /// Sheet of a multi-sheet template (number or name).
+    sheet: Option<String>,
     /// Overrides the template's border if set.
     border: Option<ll_core::label::LabelBorder>,
 }
@@ -920,7 +934,14 @@ impl ContentArgs {
                     &name,
                 ),
                 (None, None, None, None, None, Some(t)) => {
-                    Some((Label::load(std::path::Path::new(&t))?, t))
+                    let doc = ll_core::document::Document::load(std::path::Path::new(&t))?;
+                    let sheet = doc.sheet(self.sheet.as_deref())?;
+                    let desc = if doc.sheets.len() > 1 {
+                        format!("{t} / {}", sheet.name)
+                    } else {
+                        t
+                    };
+                    Some((sheet.label.clone(), desc))
                 }
                 _ => None,
             },

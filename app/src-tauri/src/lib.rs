@@ -519,14 +519,16 @@ fn default_margin_dots() -> u16 {
     PrintOptions::default().margin_dots
 }
 
+/// Opens a `.llabel` file (one or more sheets).
 #[tauri::command]
-fn load_label(path: PathBuf) -> Result<Label, AppError> {
-    Label::load(&path).map_err(err)
+fn load_document(path: PathBuf) -> Result<ll_core::document::Document, AppError> {
+    ll_core::document::Document::load(&path).map_err(err)
 }
 
+/// Saves a document (a single sheet is written as a plain label).
 #[tauri::command]
-fn save_label(path: PathBuf, label: Label) -> Result<(), AppError> {
-    label.save(&path).map_err(err)
+fn save_document(path: PathBuf, document: ll_core::document::Document) -> Result<(), AppError> {
+    document.save(&path).map_err(err)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -557,8 +559,8 @@ pub fn run() {
             discover_bluetooth,
             pair_bluetooth,
             default_margin_dots,
-            load_label,
-            save_label,
+            load_document,
+            save_document,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

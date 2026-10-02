@@ -100,7 +100,10 @@
     Vorschaubild, Datum, Band, Anzahl; „Verlauf …“ in der Werkzeugleiste, Öffnen stellt die
     Bandbreite wieder ein). „Zuletzt verwendet“ (Pfade) gab es schon.
   Paket 3 – Dokument/Layout:
-  - [ ] Mehrere Labels in einer Datei (Reiter), Hochformat (ganzes Label gedreht)
+  - [x] Mehrere Arbeitsblätter in einer Datei (Reiter über der Vorschau: +, Doppelklick =
+    umbenennen, × = löschen; Bandbreite je Blatt), Warnung bei ungespeicherten Änderungen
+    (Neu, Öffnen, Zuletzt verwendet, Verlauf, Fenster schließen; „•“ im Titel)
+  - [ ] Hochformat (ganzes Label gedreht)
   - [ ] Tabellen (Zellen mit Text), dekorative Rahmen-Bibliothek (als Icon-Set-artige
     Sammlung), Z-Reihenfolge, Objektnamen
 
@@ -150,6 +153,8 @@
 
 - [ ] Sicherheitszeichen auf Band: `labellab print --symbol iso7010:W012 --bt` (und z. B.
   `iso7010:M001`, `iec60417:5017`) — sind Piktogramme auf 9/12 mm noch erkennbar?
+- [ ] Fenster schließen mit ungespeicherten Änderungen → Abfrage erscheint, „Abbrechen“ lässt
+  das Fenster offen (Windows)?
 - [ ] Druckverlauf: nach einem echten Druck erscheint der Eintrag unter „Verlauf …“?
 - [ ] Rahmenstile auf Band: `labellab print "TEST" --border striped --border-sides ou
   --border-width 1 --bt` (und dashed/dotted/double) — Muster sauber, Streifen nicht verwaschen?
@@ -252,6 +257,20 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, M9 Paket 3a – Arbeitsblätter, Warnung bei ungespeicherten Änderungen (ADR-025)
+- `ll_core::document` (`Document`/`Sheet`, Format v3 nur bei >1 Blatt, sonst weiter v2-Label),
+  CLI `--template … --sheet <Nr|Name>`, App-Befehle `load_document`/`save_document` (ersetzen
+  `load_label`/`save_label`).
+- GUI: Reiterleiste, Blatt hinzufügen/umbenennen/löschen, Bandbreite je Blatt; Undo-Verlauf
+  wird beim Blattwechsel zurückgesetzt. Ungespeichert = Dokument-JSON ≠ Stand beim letzten
+  Öffnen/Speichern/Neu; Abfrage per `ask` (Dialog-Plugin; `window.confirm` ersetzt, auch beim
+  Icon-Set-Entfernen). Fenster schließen: `onCloseRequested` (Berechtigungen
+  `dialog:allow-ask`, `core:window:allow-destroy`).
+- Geprüft: Tests (3 neue Dokument-Tests), fmt/clippy, Frontend-Build; GUI unter Xvfb (Blatt
+  „Ports“ anlegen/umbenennen, Wechsel behält Inhalte, „Neu“ fragt bei Änderungen).
+  **Nicht geprüft:** Warnung beim Fenster-Schließen (Xvfb ohne Fenstermanager) — am Gerät testen.
+- Nächster Schritt: Paket 3b Hochformat, Tabellen, Deko-Rahmen.
+
 ### 2026-10-02 – Claude Code, M9 Paket 2b – Druckverlauf
 - `ll_core::history` (`record`/`list`/`load`/`preview`; Tests mit eigenem Ordner statt
   Umgebungsvariable, damit parallele Tests sich nicht stören), App-Befehle `history`,

@@ -493,3 +493,16 @@ Vorlage:
 - Konsequenzen: `.llabel` bleibt Version 2 (alle neuen Felder optional). Z-Reihenfolge ist bei
   reinem Schwarz-Druck (Tinte wird nur hinzugefügt) wirkungslos und entfällt vorerst.
 
+## ADR-025: Mehrere Arbeitsblätter pro `.llabel`-Datei
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: eine Datei soll aus mehreren Arbeitsblättern bestehen (wie Reiter im
+  Hersteller-Editor), dazu Warnung vor dem Verlust ungespeicherter Änderungen.
+- Entscheidung: `ll_core::document::Document { version: 3, sheets: [Sheet { name, width_mm?,
+  label }] }`. Eine Datei mit **einem** Blatt wird weiterhin als normales Label (Version 2)
+  geschrieben, damit sie überall lesbar bleibt; erst ab zwei Blättern entsteht Version 3.
+  Ältere Programmstände lehnen Version 3 mit „neueres Format“ ab statt ein leeres Label zu
+  lesen. Endung bleibt `.llabel`. CLI wählt ein Blatt mit `--sheet` (Nummer oder Name).
+  GUI-Undo gilt je Blatt (Wechsel setzt ihn zurück).
+- Konsequenzen: Die App lädt/speichert nur noch Dokumente (`load_document`/`save_document`).
+  Druck/Serien/CSV wirken auf das aktuelle Blatt.
+
