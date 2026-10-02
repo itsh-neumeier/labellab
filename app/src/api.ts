@@ -315,3 +315,24 @@ export const savePastedImage = (data: string, extension: string) =>
 /** Image from the system clipboard, stored as PNG; `null` without an image. */
 export const pasteClipboardImage = () =>
   invoke<{ path: string; width: number; height: number } | null>("paste_clipboard_image");
+
+/** Decoded status block for the printer info dialog (`printer_info`). */
+export interface PrinterInfo {
+  model: string | null;
+  series_byte: number;
+  model_byte: number;
+  width_mm: number;
+  media_type: number;
+  media_type_id: string | null;
+  tape_color_id: string | null;
+  text_color_id: string | null;
+  errors: string[];
+  error1: number;
+  error2: number;
+  status_type: number;
+  phase: number;
+  notification: number;
+  raw: number[];
+}
+
+export const printerInfo = (connection: Connection) => invoke<PrinterInfo>("printer_info", { connection });

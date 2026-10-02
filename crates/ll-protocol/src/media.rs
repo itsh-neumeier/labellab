@@ -182,6 +182,40 @@ pub const TEXT_COLORS: &[ColorCode] = &[
     },
 ];
 
+/// Media type (status byte 11) ids per Brother's Raster Command Reference
+/// (documented). Hardware-confirmed: `0x01` with a laminated TZe tape.
+pub const MEDIA_TYPES: &[ColorCode] = &[
+    ColorCode {
+        code: 0x00,
+        id: "none",
+    },
+    ColorCode {
+        code: 0x01,
+        id: "laminated",
+    },
+    ColorCode {
+        code: 0x03,
+        id: "non_laminated",
+    },
+    ColorCode {
+        code: 0x11,
+        id: "heat_shrink_2_1",
+    },
+    ColorCode {
+        code: 0x17,
+        id: "heat_shrink_3_1",
+    },
+    ColorCode {
+        code: 0xFF,
+        id: "incompatible",
+    },
+];
+
+/// Id of media type `code`, or `None` if not in the table.
+pub fn media_type_id(code: u8) -> Option<&'static str> {
+    MEDIA_TYPES.iter().find(|c| c.code == code).map(|c| c.id)
+}
+
 /// Id of tape color `code`, or `None` if not in the table.
 pub fn tape_color_id(code: u8) -> Option<&'static str> {
     TAPE_COLORS.iter().find(|c| c.code == code).map(|c| c.id)

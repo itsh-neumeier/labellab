@@ -3,7 +3,9 @@
 // other boxes). Underneath the boxes sits the live preview: the exact
 // 1-bit raster that gets printed, rendered by the Rust backend through the
 // same path as the print job.
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import appIcon from "../src-tauri/icons/128x128.png";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
@@ -1491,6 +1493,158 @@ async function readStatus(): Promise<boolean> {
   }
 }
 
+// ---------------------------------------------------------------- printer info
+
+const hexByte = (b: number) => b.toString(16).padStart(2, "0").toUpperCase();
+
+/** Translation of `prefix.id`, or the raw code when unknown. */
+function codeName(prefix: string, id: string | null, code: number): string {
+  if (!id) return `${t("info.unknownCode")} (0x${hexByte(code)})`;
+  const key = `${prefix}.${id}`;
+  const text = t(key);
+  return text === key ? id : text;
+}
+
+async function showPrinterInfo(): Promise<void> {
+  const dialog = $<HTMLDialogElement>("info-dialog");
+  if (!dialog.open) dialog.showModal();
+  const msg = $("info-msg");
+  const table = $("info-table");
+  const raw = $("info-raw");
+  const connection = selectedConnection();
+  table.replaceChildren();
+  raw.textContent = "";
+  if (!connection) {
+    msg.textContent = t("print.noDevice");
+    return;
+  }
+  msg.textContent = t("device.reading");
+  try {
+    const i = await api.printerInfo(connection);
+    msg.textContent = t("info.unverified");
+    const unverified = ` ${t("info.unverifiedMark")}`;
+    const errors = i.errors.length ? i.errors.map((e) => codeName("printerError", e, 0)).join(", ") : t("info.noErrors");
+    const rows: [string, string][] = [
+      ["info.model", i.model ?? `${t("info.unknownCode")} (0x${hexByte(i.series_byte)} 0x${hexByte(i.model_byte)})`],
+      ["info.width", `${i.width_mm} mm`],
+      ["info.mediaType", codeName("media", i.media_type_id, i.media_type) + unverified],
+      ["info.tapeColor", codeName("color", i.tape_color_id, i.raw[24])],
+      ["info.textColor", codeName("color", i.text_color_id, i.raw[25])],
+      ["info.errors", `${errors} (0x${hexByte(i.error1)} 0x${hexByte(i.error2)})${unverified}`],
+      ["info.statusType", `0x${hexByte(i.status_type)} · ${t("info.phase")} 0x${hexByte(i.phase)}`],
+      ["info.battery", t("info.batteryUnknown")],
+    ];
+    for (const [key, value] of rows) {
+      const tr = document.createElement("tr");
+      const th = document.createElement("th");
+      th.textContent = t(key);
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.append(th, td);
+      table.append(tr);
+    }
+    raw.textContent = [0, 8, 16, 24]
+      .map((o) => `${String(o).padStart(2, "0")}: ${i.raw.slice(o, o + 8).map(hexByte).join(" ")}`)
+      .join("\n");
+  } catch (e) {
+    msg.textContent = t("error.prefix", { error: errorText(e) });
+  }
+}
+
+function bindPrinterInfo(): void {
+  $("btn-info").addEventListener("click", () => void showPrinterInfo());
+  $("info-reload").addEventListener("click", () => void showPrinterInfo());
+  $("info-copy").addEventListener("click", () => {
+    const text = $("info-raw").textContent ?? "";
+    void navigator.clipboard?.writeText(text).then(
+      () => setStatus(t("info.copied"), "ok"),
+      () => undefined,
+    );
+  });
+}
+
+// ---------------------------------------------------------------- collapsible sidebar
+
+const SECTIONS_KEY = "labellab.sections";
+/** Sections open on first start (by title key); the rest starts collapsed. */
+const SECTIONS_OPEN_BY_DEFAULT = ["elements.title", "layout.title"];
+
+/**
+ * Makes every sidebar section (an `h2` and what follows up to the next
+ * one) collapsible by clicking its title. The open/closed state is
+ * remembered per viewer. Runs before the UI is bound; it only moves nodes.
+ */
+function makeSectionsCollapsible(): void {
+  let saved: Record<string, boolean> = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "{}");
+  } catch {
+    // defaults
+  }
+  const panel = document.querySelector<HTMLElement>("aside.panel");
+  if (!panel) return;
+  for (const h2 of Array.from(panel.querySelectorAll<HTMLElement>(":scope > h2"))) {
+    const key = h2.dataset.i18n ?? "";
+    const section = document.createElement("section");
+    section.className = "side-section";
+    const body = document.createElement("div");
+    body.className = "side-body";
+    h2.before(section);
+    let next = h2.nextElementSibling;
+    while (next && next.tagName !== "H2") {
+      const after = next.nextElementSibling;
+      body.append(next);
+      next = after;
+    }
+    section.append(h2, body);
+    const open = saved[key] ?? SECTIONS_OPEN_BY_DEFAULT.includes(key);
+    section.classList.toggle("collapsed", !open);
+    h2.tabIndex = 0;
+    const toggle = () => {
+      section.classList.toggle("collapsed");
+      saved[key] = !section.classList.contains("collapsed");
+      try {
+        localStorage.setItem(SECTIONS_KEY, JSON.stringify(saved));
+      } catch {
+        // not remembered
+      }
+    };
+    h2.addEventListener("click", toggle);
+    h2.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  }
+}
+
+// ---------------------------------------------------------------- splash / about
+
+/** Shortest time the start screen stays up, ms. */
+const SPLASH_MIN_MS = 1800;
+
+function showSplash(): void {
+  $("splash").classList.remove("hidden");
+}
+
+function hideSplash(): void {
+  $("splash").classList.add("hidden");
+}
+
+function bindSplash(): void {
+  $<HTMLImageElement>("splash-icon").src = appIcon;
+  void getVersion().then(
+    (v) => ($("splash-version").textContent = v),
+    () => undefined,
+  );
+  $("splash").addEventListener("click", hideSplash);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideSplash();
+  });
+  $("btn-about").addEventListener("click", showSplash);
+}
+
 // ---------------------------------------------------------------- keep-alive
 
 /**
@@ -2641,6 +2795,7 @@ function bindUi(): void {
   );
   bindWizard();
   bindImageEditor();
+  bindPrinterInfo();
   bindClipboard();
   bindPairing();
   $("btn-csv-clear").addEventListener("click", clearCsvFile);
@@ -2727,7 +2882,10 @@ function bindUi(): void {
 }
 
 async function init(): Promise<void> {
+  const started = Date.now();
+  makeSectionsCollapsible();
   applyLang(currentLang());
+  bindSplash();
   bindUi();
   bindLayout();
 
@@ -2750,6 +2908,7 @@ async function init(): Promise<void> {
     state.fonts = fonts;
     renderElements();
   });
+  window.setTimeout(hideSplash, Math.max(0, SPLASH_MIN_MS - (Date.now() - started)));
   await refreshDevices();
 }
 

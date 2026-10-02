@@ -260,6 +260,56 @@ async fn query_status(connection: Connection) -> Result<StatusDto, AppError> {
     })
 }
 
+/// Everything the status block tells about the printer, for the
+/// "Druckerinfo" dialog. Decoded fields come from Brother's documentation
+/// and are mostly not hardware-verified yet (see `docs/PROTOCOL.md`); the
+/// raw bytes are included for diagnostics (e.g. finding a battery byte).
+#[derive(Serialize)]
+struct PrinterInfoDto {
+    /// Model name if the series/model bytes are in the model table.
+    model: Option<&'static str>,
+    series_byte: u8,
+    model_byte: u8,
+    width_mm: u8,
+    media_type: u8,
+    media_type_id: Option<&'static str>,
+    tape_color_id: Option<&'static str>,
+    text_color_id: Option<&'static str>,
+    /// Ids of documented error bits that are set (`ll_protocol::status::ERROR_BITS`).
+    errors: Vec<&'static str>,
+    error1: u8,
+    error2: u8,
+    status_type: u8,
+    phase: u8,
+    notification: u8,
+    /// All 32 bytes.
+    raw: Vec<u8>,
+}
+
+/// Reads the status block and decodes what is known about it.
+#[tauri::command]
+async fn printer_info(connection: Connection) -> Result<PrinterInfoDto, AppError> {
+    let s = device::query_status_on(&connection).await.map_err(err)?;
+    let raw = s.raw();
+    Ok(PrinterInfoDto {
+        model: s.model().map(|m| m.name),
+        series_byte: s.series_byte(),
+        model_byte: s.model_byte(),
+        width_mm: s.media_width_mm(),
+        media_type: s.media_type(),
+        media_type_id: ll_protocol::media::media_type_id(s.media_type()),
+        tape_color_id: ll_protocol::media::tape_color_id(s.tape_color()),
+        text_color_id: ll_protocol::media::text_color_id(s.text_color()),
+        errors: s.error_ids(),
+        error1: s.error1(),
+        error2: s.error2(),
+        status_type: raw[18],
+        phase: s.phase_type(),
+        notification: s.notification(),
+        raw: raw.to_vec(),
+    })
+}
+
 /// Print job settings from the print bar.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -655,6 +705,7 @@ pub fn run() {
             history,
             image_editor_source,
             save_pasted_image,
+            printer_info,
             paste_clipboard_image,
             record_history,
             load_history,

@@ -100,6 +100,15 @@
   - [x] Boxen an allen vier Seiten und Ecken ziehbar (Nutzerwunsch 2026-10-02)
   - [x] Rahmen innerhalb der Label-Ränder, Abstand je Seite; Inhalt in der Box horizontal/
     vertikal ausrichten; senkrechtes Lineal links (Nutzerwunsch 2026-10-02, ADR-030)
+  - [x] Dialog „Druckerinfo …“ (Modell, Band, Bandtyp, Farben, Fehler im Klartext,
+    Rohdaten zum Kopieren); Startbildschirm/„Über …“ mit Entwickler, Copyright, Lizenz
+  - [x] Linke Leiste: Bereiche auf-/zuklappbar (Elemente/Label offen, Rest zu; Zustand wird
+    gemerkt) (Nutzerwunsch 2026-10-02)
+  - [ ] Dekorative Rahmen wie im Hersteller-Editor: Rahmen aus Start-, Wiederhol- und
+    Endsegment (SVG), mitgelieferte Bibliothek + Editor/Creator (Nutzerwunsch 2026-10-02)
+  - [ ] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
+    2026-10-02, = Hochformat aus Paket 3b)
+  - [ ] Akkustand: Statusbyte per Rohdaten-Vergleich (Ladekabel/Akku) ermitteln, dann anzeigen
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
@@ -127,9 +136,13 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
-   schneidet der Cutter jetzt mit sichtbarem Nachlauf statt direkt am Inhalt (Default-Margin
-   28 statt 0 Druckpunkte)? `--margin <n>` zum Nachjustieren verfügbar.
+- Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
+  Bandausrichtung im Editor, Akkuanzeige nach Rohdaten-Test, macOS-Build (Tauri kann es,
+  braucht macOS-Runner in CI + Bluetooth über CoreBluetooth/IOBluetooth — neuer Transport),
+  Code-Signatur für Windows (braucht gekauftes Zertifikat oder Azure Trusted Signing).
+0. **Hardware-Test Länge/Schnitt:** Label mit fester Länge 100 mm und Rand links/rechts 4 mm
+   drucken → 100 mm lang, 4 mm bis zum Schnitt? (Nachlauf jetzt Standard 0, wird sonst von
+   den leeren Enden abgezogen, siehe Session 2026-10-02 „Fix Labellänge“.)
 1. **Hardware-Test Bildimport (auf dem Gerät mit dem Drucker):** erster Versuch scheiterte an
    einem falschen/nicht gefundenen Dateipfad (`labellab print --image ...` →
    „Datei nicht gefunden“, vermutlich OneDrive-Pictures-Redirect) — Pfad mit `Test-Path`
@@ -279,6 +292,17 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Druckerinfo und Startbildschirm
+- `ll_protocol::status`: `series_byte`/`model_byte`/`model()`, `notification`, `ERROR_BITS` +
+  `error_ids()` (laut Raster Command Reference, am Gerät nur „kein Fehler“ bestätigt);
+  `media::MEDIA_TYPES`/`media_type_id`. App-Befehl `printer_info`, Dialog „Druckerinfo …“
+  mit Klartext, Kennzeichnung „(unbestätigt)“ und Rohdaten (kopierbar) für den Akkutest.
+- Startbildschirm (min. 1,8 s, Klick/Esc schließt) und „Über …“: Entwickler ITSH Neumeier –
+  Timo Neumeier, © 2026, MIT, Drittkomponenten, Markenhinweis. `tauri.conf.json`:
+  `bundle.publisher`/`copyright` (Datei-Eigenschaften der exe).
+- Geprüft: Tests (1 neuer), fmt/clippy, Frontend-Build; GUI unter Xvfb (Dialog ohne Drucker
+  → Fehlermeldung, Startbildschirm/Über).
+
 ### 2026-10-02 – Claude Code, Rahmenabstände, Inhaltsausrichtung, senkrechtes Lineal (ADR-030)
 - `LabelBorder::insets_mm` (oben/unten/links/rechts, sonst `inset_mm`); links/rechts zählen
   ab den Label-Rändern (`ll_render::Insets`, `border_reserve` je Seite).

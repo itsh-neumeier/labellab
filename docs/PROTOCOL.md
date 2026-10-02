@@ -103,7 +103,13 @@ Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); 
 | 24 | Bandfarbe | verifiziert (Feld existiert, Code-Bedeutung offen) | Hardware-Test 2026-10-01: `0x01` |
 | 25 | Schriftfarbe | verifiziert (Feld existiert, Code-Bedeutung offen) | Hardware-Test 2026-10-01: `0x08` |
 
-- TODO(verify): Status-Byte für Akkustand vorhanden? (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
+| 3 / 4 | Serien-/Modellcode (`0x30`/`0x76` = PT-P710BT) | dokumentiert | Treiber-INI, `model.rs` |
+| 8/9 Bits | Fehler: 8: `0x01` kein Band, `0x04` Messer, `0x08` Akku schwach, `0x40` Netzteil; 9: `0x01` falsches Band, `0x10` Abdeckung offen, `0x20` Überhitzung | dokumentiert, TODO(verify) | Raster Command Reference; `status::ERROR_BITS` |
+| 11 Codes | `0x00` kein Band, `0x01` laminiert, `0x03` nicht laminiert, `0x11`/`0x17` Schrumpfschlauch 2:1/3:1, `0xFF` inkompatibel | dokumentiert (`0x01` am Gerät gesehen) | Raster Command Reference; `media::MEDIA_TYPES` |
+| 22 | Meldung: `0x01` Abdeckung geöffnet, `0x02` geschlossen | dokumentiert, TODO(verify) | Raster Command Reference |
+
+- TODO(verify): Status-Byte für Akkustand vorhanden? Rohdaten im Dialog „Druckerinfo“ am
+  Ladekabel und im Akkubetrieb vergleichen. (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
 - TODO(verify): Code-Bedeutung Medientyp `0x01`, Bandfarbe `0x01`, Schriftfarbe `0x08` (vermutlich
   laminiert/schwarz auf weiß, gegen Brothers Farbcode-Tabelle prüfen)
 

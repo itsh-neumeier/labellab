@@ -44,6 +44,8 @@ Editor
   Obergrenze fuer den Vorschub des Druckers.
 - Rand links / Rand rechts: Abstand zwischen Schnitt und Inhalt, in der Vorschau
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
+- "Druckerinfo ...": zeigt, was der Drucker meldet (Modell, Band, Fehler) und die
+  Rohdaten. "(unbestaetigt)" = laut Doku, am Geraet noch nicht geprueft.
 - "Wach halten" (neben "Status lesen"): fragt alle 2 Minuten den Status ab, damit
   sich der Drucker nicht abschaltet. Beim Start immer aus.
 - Vorschau: grau schraffiert = Rand des Bandes, den der Drucker nicht bedrucken kann.
