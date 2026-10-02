@@ -98,8 +98,7 @@ export function langPicker(host: HTMLElement, current: () => Lang, onPick: (code
     const code2 = document.createElement("span");
     code2.textContent = code.toUpperCase();
     button.replaceChildren(flagSvg(code), code2);
-    button.title = `${langInfo(code).name} – Sprache / Language`;
-    button.setAttribute("aria-label", button.title);
+    button.setAttribute("aria-label", `${langInfo(code).name} – Sprache / Language`);
     for (const li of options) li.setAttribute("aria-selected", String(li.dataset.code === code));
   };
   const close = (focus = false) => {
