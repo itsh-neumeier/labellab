@@ -701,3 +701,15 @@ Vorlage:
 - Konsequenzen: Kein Export nach `.lbx` (nur Import). Nicht Übertragbares (Zierrahmen,
   Cliparts aus Hersteller-Schriften, Aztec, senkrechter Text, Bildzuschnitt) wird angenähert und
   gemeldet. Das Format ist aus Beispieldateien abgeleitet, nicht aus einer Spezifikation.
+
+## ADR-039: Weitere UI-Sprachen, Flaggen als SVG
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: die wichtigsten Sprachen, Auswahl mit Flaggen.
+- Entscheidung: Acht Sprachen (de, en, fr, es, it, nl, pl, cs) als JSON-Wörterbücher, alle
+  statisch eingebunden (klein, keine Ladezeit). Fehlende Texte: Sprache → Englisch → Deutsch.
+  Auswahl als eigene Aufklappliste (`app/src/langs.ts`), weil ein `<select>` keine Bilder
+  zeigt; Flaggen als kleine Inline-SVGs, da Windows keine Flaggen-Emojis darstellt (Englisch =
+  britische Flagge). `app/scripts/check-i18n.mjs` prüft bei `npm run build` Schlüssel und
+  Platzhalter gegen `de.json`.
+- Konsequenzen: Übersetzungen fr/es/it/nl/pl/cs sind maschinell erstellt und sollten von
+  Muttersprachlern gegengelesen werden. Die CLI bleibt deutsch.

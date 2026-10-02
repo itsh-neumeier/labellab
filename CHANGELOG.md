@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Oberfläche zusätzlich auf Französisch, Spanisch, Italienisch, Niederländisch, Polnisch und
+  Tschechisch; Sprachauswahl mit Flaggen. Datum/Uhrzeit im Format der gewählten Sprache
 - `.lbx`-Dateien des Hersteller-Editors öffnen („Öffnen …“ oder `labellab import-lbx`):
   Blätter, Texte (Schrift, Größe, fett/kursiv auch abschnittsweise, Ausrichtung, Verkleinern),
   Bilder (Helligkeit/Kontrast, Schwelle, Hintergrund), Barcodes/QR, Datum/Zeit, Tabellen,

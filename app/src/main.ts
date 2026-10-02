@@ -14,6 +14,7 @@ import { bindPaint, loadPaint, newPaint, segmentSvg } from "./framePaint";
 import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
 import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
+import { langInfo, langPicker } from "./langs";
 import { getSetting, initSettings, setSetting } from "./settings";
 import { buildPages, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
@@ -2358,7 +2359,7 @@ async function keepAlivePing(): Promise<void> {
   if (!connection || state.printing) return;
   try {
     await api.queryStatus(connection);
-    const time = new Date().toLocaleTimeString(currentLang(), { hour: "2-digit", minute: "2-digit" });
+    const time = new Date().toLocaleTimeString(langInfo(currentLang()).locale, { hour: "2-digit", minute: "2-digit" });
     $("btn-keepalive").title = `${t("device.keepAliveHint")}\n${t("device.keepAliveLast", { time })}`;
   } catch (e) {
     setStatus(t("device.keepAliveFailed", { error: errorText(e) }), "error");
@@ -2625,7 +2626,7 @@ async function clearCsvFile(): Promise<void> {
 function textOf(text: api.I18nText | null | undefined): string {
   if (!text) return "";
   if (typeof text === "string") return text;
-  return text[currentLang()] ?? text.de ?? text.en ?? Object.values(text)[0] ?? "";
+  return text[currentLang()] ?? text.en ?? text.de ?? Object.values(text)[0] ?? "";
 }
 
 function svgUrl(svg: string): string {
@@ -3200,7 +3201,7 @@ async function autosave(): Promise<void> {
   try {
     await api.saveDocument(path, currentDocument());
     markSaved();
-    const time = new Date().toLocaleTimeString(currentLang(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const time = new Date().toLocaleTimeString(langInfo(currentLang()).locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     $("file-name").title = t("file.autosaved", { time });
   } catch (e) {
     setMessage(t("error.prefix", { error: errorText(e) }), true);
@@ -3821,7 +3822,7 @@ function a4Options(): A4Options {
   const ink = colors === "custom" ? $<HTMLInputElement>("a4-ink").value : colors === "tape" ? (INK_CSS[st.ink] ?? INK_CSS.black) : "#000";
   const percent = (id: string) => Math.min(150, Math.max(50, Number($<HTMLInputElement>(id).value) || 100)) / 100;
   const doc = state.filePath?.split(/[\\/]/).pop() ?? t("toolbar.untitled");
-  const date = new Date().toLocaleDateString(currentLang() === "de" ? "de-DE" : "en-GB");
+  const date = new Date().toLocaleDateString(langInfo(currentLang()).locale);
   return {
     title: doc,
     header: $<HTMLInputElement>("a4-header").checked,
@@ -4225,10 +4226,8 @@ function bindUi(): void {
       changed(true);
     }),
   );
-  const lang = $<HTMLSelectElement>("lang");
-  lang.value = currentLang();
-  lang.addEventListener("change", () => {
-    setLang(lang.value as Lang);
+  langPicker($("lang"), currentLang, (code: Lang) => {
+    setLang(code);
     fillTapeStyles();
     renderAll();
     renderCsv();

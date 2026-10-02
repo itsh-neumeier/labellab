@@ -578,3 +578,16 @@ dialog#a4-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 .fuse-row.fixed { grid-template-columns: 1.6em 1fr 2.8em; }
+
+/* Language picker with flags (langs.ts). */
+.lang-picker { position: relative; }
+.lang-picker > button { display: flex; align-items: center; gap: 6px; }
+.lang-picker .flag { width: 21px; height: 14px; flex: none; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2); }
+.lang-picker ul {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; margin: 0; padding: 4px; list-style: none;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18); min-width: 170px;
+}
+.lang-picker li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.lang-picker li:hover, .lang-picker li:focus { background: rgba(31, 111, 235, 0.1); outline: none; }
+.lang-picker li[aria-selected="true"] { font-weight: 600; }
