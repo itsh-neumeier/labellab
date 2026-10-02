@@ -8,6 +8,7 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { bindImageEditor, openImageEditor } from "./imageEditor";
+import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
 import { roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
@@ -391,7 +392,7 @@ function elementTitle(el: Element): string {
 function boxCaption(item: Item): string {
   switch (item.type) {
     case "text":
-      return item.text.split("\n")[0] || elementTitle(item);
+      return stripMarkup(item.text).split("\n")[0] || elementTitle(item);
     case "qr":
     case "barcode":
       return `${elementTitle(item)}: ${item.data}`;
@@ -680,8 +681,11 @@ function contentFields(item: Item): HTMLElement[] {
         item.font = family;
         changed(true);
       });
+      // With text selected in the field: style just that part (inline
+      // markers); otherwise the whole element.
       const toggle = (label: string, title: string, key: "bold" | "italic") => {
         const b = makeButton(label, title, () => {
+          if (toggleMark(area, key === "bold" ? BOLD_MARK : ITALIC_MARK)) return;
           item[key] = !item[key];
           b.classList.toggle("on", !!item[key]);
           changed(true);
@@ -691,13 +695,18 @@ function contentFields(item: Item): HTMLElement[] {
         b.style.fontStyle = key === "italic" ? "italic" : "";
         return b;
       };
+      const boldButton = toggle("F", t("elements.boldHint"), "bold");
+      const italicButton = toggle("K", t("elements.italicHint"), "italic");
+      area.addEventListener("keydown", (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+        const key = e.key.toLowerCase();
+        if (key !== "b" && key !== "i") return;
+        e.preventDefault();
+        (key === "b" ? boldButton : italicButton).click();
+      });
       const style = document.createElement("div");
       style.className = "row font-row";
-      style.append(
-        field("elements.font", font),
-        toggle("F", t("elements.bold"), "bold"),
-        toggle("K", t("elements.italic"), "italic"),
-      );
+      style.append(field("elements.font", font), boldButton, italicButton);
       return [area, style, row];
     }
     case "qr":
@@ -1436,7 +1445,7 @@ function historyName(): string {
   const file = state.filePath?.split(/[\\/]/).pop();
   if (file) return file;
   const text = state.label.elements.find((i) => i.type === "text");
-  const first = text && text.type === "text" ? text.text.split("\n")[0].trim() : "";
+  const first = text && text.type === "text" ? stripMarkup(text.text).split("\n")[0].trim() : "";
   return first.slice(0, 60) || t("history.untitled");
 }
 

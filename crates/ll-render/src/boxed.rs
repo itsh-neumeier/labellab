@@ -13,15 +13,16 @@ use std::sync::{Mutex, OnceLock};
 use fontdue::layout::{
     CoordinateSystem, HorizontalAlign, Layout, LayoutSettings, TextStyle, VerticalAlign,
 };
-use fontdue::Font;
 use serde::{Deserialize, Serialize};
 
+use crate::fonts::FaceSet;
 use crate::iconset::Halftone;
 use crate::image_edit::ImageEdit;
 use crate::linear_barcode::encode_modules;
 use crate::picture::{
     halftone_bits_at, load_gray_edited, render_svg_to_gray, ImageAdjust, ICON_THRESHOLD,
 };
+use crate::richtext;
 use crate::{render_qr, Bitmap, Face, QrErrorCorrection, RenderError, Symbology};
 
 /// Alpha threshold (0-255) above which a rasterized pixel counts as ink.
@@ -89,10 +90,27 @@ fn settings(
     }
 }
 
-fn layout(font: &Font, text: &str, px: f32, settings: &LayoutSettings) -> Layout {
+/// Text split into styled runs; the second value indexes [`FaceSet`]'s
+/// fonts (bit 0 = bold, bit 1 = italic).
+type Runs = Vec<(String, usize)>;
+
+fn runs(text: &str) -> Runs {
+    if !richtext::has_markup(text) {
+        return vec![(text.to_string(), 0)];
+    }
+    richtext::parse(text, false, false)
+        .into_iter()
+        .map(|r| (r.text, usize::from(r.bold) | usize::from(r.italic) << 1))
+        .collect()
+}
+
+fn layout(faces: &FaceSet, runs: &Runs, px: f32, settings: &LayoutSettings) -> Layout {
+    let fonts = faces.fonts();
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
     layout.reset(settings);
-    layout.append(&[font], &TextStyle::new(text, px, 0));
+    for (text, index) in runs {
+        layout.append(&fonts, &TextStyle::new(text, px, *index));
+    }
     layout
 }
 
@@ -106,40 +124,49 @@ fn ink_width(layout: &Layout) -> f32 {
 }
 
 /// Number of lines `text` has from explicit line breaks alone.
-fn hard_lines(text: &str) -> usize {
-    text.split('\n').count()
+fn hard_lines(runs: &Runs) -> usize {
+    1 + runs
+        .iter()
+        .map(|(t, _)| t.matches('\n').count())
+        .sum::<usize>()
 }
 
-/// Whether `text` at `px` fits `max_w` x `max_h` without any automatic
+/// Whether `runs` at `px` fit `max_w` x `max_h` without any automatic
 /// word wrap (`max_w = None`: height only).
 fn fits(
-    font: &Font,
-    text: &str,
+    faces: &FaceSet,
+    runs: &Runs,
     px: f32,
     max_w: Option<f32>,
     max_h: f32,
     line_spacing: f32,
 ) -> bool {
     let l = layout(
-        font,
-        text,
+        faces,
+        runs,
         px,
         &settings(max_w, None, TextAlign::Left, line_spacing),
     );
     let lines = l.lines().map_or(0, Vec::len);
-    l.height() <= max_h && lines <= hard_lines(text) && max_w.is_none_or(|w| ink_width(&l) <= w)
+    l.height() <= max_h && lines <= hard_lines(runs) && max_w.is_none_or(|w| ink_width(&l) <= w)
 }
 
-/// Largest font size at which `text` (explicit line breaks only) fits
+/// Largest font size at which `runs` (explicit line breaks only) fit
 /// `max_w` x `max_h` dots. `max_w = None` fits the height only.
-fn auto_font_px(font: &Font, text: &str, max_w: Option<f32>, max_h: f32, line_spacing: f32) -> f32 {
+fn auto_font_px(
+    faces: &FaceSet,
+    runs: &Runs,
+    max_w: Option<f32>,
+    max_h: f32,
+    line_spacing: f32,
+) -> f32 {
     let (mut lo, mut hi) = (MIN_AUTO_FONT_PX, max_h.max(MIN_AUTO_FONT_PX) * 1.5);
-    if !fits(font, text, lo, max_w, max_h, line_spacing) {
+    if !fits(faces, runs, lo, max_w, max_h, line_spacing) {
         return lo;
     }
     for _ in 0..14 {
         let mid = (lo + hi) / 2.0;
-        if fits(font, text, mid, max_w, max_h, line_spacing) {
+        if fits(faces, runs, mid, max_w, max_h, line_spacing) {
             lo = mid;
         } else {
             hi = mid;
@@ -150,19 +177,20 @@ fn auto_font_px(font: &Font, text: &str, max_w: Option<f32>, max_h: f32, line_sp
 
 /// Width in dots `text` needs at `size_px` (or, if `None`, at the largest
 /// size fitting `box_h`), without wrapping. Used to give flow-layout text
-/// its natural length.
+/// its natural length. `text` may contain `**bold**`/`__italic__`.
 pub fn text_natural_width(
     text: &str,
-    face: &Face,
+    faces: &FaceSet,
     box_h: u16,
     size_px: Option<f32>,
     line_spacing: f32,
 ) -> Result<u32, RenderError> {
-    let font = &face.font;
-    let px = size_px.unwrap_or_else(|| auto_font_px(font, text, None, box_h as f32, line_spacing));
+    let runs = runs(text);
+    let px =
+        size_px.unwrap_or_else(|| auto_font_px(faces, &runs, None, box_h as f32, line_spacing));
     let l = layout(
-        font,
-        text,
+        faces,
+        &runs,
         px,
         &settings(None, None, TextAlign::Left, line_spacing),
     );
@@ -181,18 +209,20 @@ pub fn text_in_box(
     size_px: Option<f32>,
     align: TextAlign,
 ) -> Result<Bitmap, RenderError> {
-    Ok(text_in_box_checked(text, face, box_w, box_h, size_px, align, 1.0)?.0)
+    let faces = FaceSet::single(face);
+    Ok(text_in_box_checked(text, &faces, box_w, box_h, size_px, align, 1.0)?.0)
 }
 
 /// Ink this many dots outside the box still counts as fitting (glyph
 /// position rounding), see [`text_in_box_checked`].
 const CLIP_TOLERANCE_DOTS: i64 = 1;
 
-/// Like [`text_in_box`], additionally reporting whether any ink was
-/// clipped because the text does not fit the box.
+/// Like [`text_in_box`] with inline styles (`**bold**`, `__italic__`, see
+/// [`richtext`]) and line spacing, additionally reporting whether any ink
+/// was clipped because the text does not fit the box.
 pub fn text_in_box_checked(
     text: &str,
-    face: &Face,
+    faces: &FaceSet,
     box_w: u32,
     box_h: u16,
     size_px: Option<f32>,
@@ -202,30 +232,33 @@ pub fn text_in_box_checked(
     let line_spacing = clamp_line_spacing(line_spacing);
     let mut bitmap = Bitmap::new(box_h, box_w);
     let mut clipped = false;
-    if text.trim().is_empty() || box_w == 0 || box_h == 0 {
+    let runs = runs(text);
+    if runs.iter().all(|(t, _)| t.trim().is_empty()) || box_w == 0 || box_h == 0 {
         return Ok((bitmap, clipped));
     }
-    let font = &face.font;
     let px = size_px.unwrap_or_else(|| {
-        auto_font_px(font, text, Some(box_w as f32), box_h as f32, line_spacing)
+        auto_font_px(faces, &runs, Some(box_w as f32), box_h as f32, line_spacing)
     });
     // Synthetic italic: shear glyph pixels right by this fraction of their
     // height above the baseline. Synthetic bold: one extra dot of stroke
     // width per this many dots of font size (at least one).
-    let shear = if face.synthetic_italic {
-        SYNTHETIC_ITALIC_SLANT
-    } else {
-        0.0
-    };
-    let embolden = if face.synthetic_bold {
-        ((px / SYNTHETIC_BOLD_PX_PER_DOT).round() as i32).max(1)
-    } else {
-        0
+    let synthetic = |face: &Face| {
+        let shear = if face.synthetic_italic {
+            SYNTHETIC_ITALIC_SLANT
+        } else {
+            0.0
+        };
+        let embolden = if face.synthetic_bold {
+            ((px / SYNTHETIC_BOLD_PX_PER_DOT).round() as i32).max(1)
+        } else {
+            0
+        };
+        (shear, embolden)
     };
 
     let layout = layout(
-        font,
-        text,
+        faces,
+        &runs,
         px,
         &settings(Some(box_w as f32), Some(box_h as f32), align, line_spacing),
     );
@@ -238,12 +271,14 @@ pub fn text_in_box_checked(
         if glyph.width == 0 || glyph.height == 0 {
             continue;
         }
+        let face = faces.get(glyph.font_index);
+        let (shear, embolden) = synthetic(face);
         let baseline = baselines
             .iter()
             .copied()
             .find(|b| *b >= glyph.y)
             .unwrap_or(glyph.y + glyph.height as f32);
-        let (_, coverage) = font.rasterize_config(glyph.key);
+        let (_, coverage) = face.font.rasterize_config(glyph.key);
         for gy in 0..glyph.height {
             let pin = glyph.y.round() as i32 + gy as i32;
             let slant = ((baseline - pin as f32) * shear).round() as i32;
@@ -522,12 +557,36 @@ mod tests {
     #[test]
     fn reports_clipped_text() {
         let font = require_font!();
-        let fits = text_in_box_checked("Hi", &font, 300, 60, Some(20.0), TextAlign::Left, 1.0);
+        let fits = text_in_box_checked(
+            "Hi",
+            &FaceSet::single(&font),
+            300,
+            60,
+            Some(20.0),
+            TextAlign::Left,
+            1.0,
+        );
         assert!(!fits.unwrap().1);
-        let auto = text_in_box_checked("Hallo Welt", &font, 300, 60, None, TextAlign::Left, 1.0);
+        let auto = text_in_box_checked(
+            "Hallo Welt",
+            &FaceSet::single(&font),
+            300,
+            60,
+            None,
+            TextAlign::Left,
+            1.0,
+        );
         assert!(!auto.unwrap().1);
         // 80 px text in a 40-dot-high box cannot fit.
-        let tall = text_in_box_checked("Hallo", &font, 300, 40, Some(80.0), TextAlign::Left, 1.0);
+        let tall = text_in_box_checked(
+            "Hallo",
+            &FaceSet::single(&font),
+            300,
+            40,
+            Some(80.0),
+            TextAlign::Left,
+            1.0,
+        );
         assert!(tall.unwrap().1);
     }
 
@@ -550,12 +609,36 @@ mod tests {
     }
 
     #[test]
+    fn inline_bold_uses_the_bold_face() {
+        let font = require_font!();
+        let Ok(bold) = Face::load(None, true, false) else {
+            return;
+        };
+        let faces = FaceSet::new(&font, &bold, &font, &bold);
+        let ink = |text: &str| {
+            let (b, _) =
+                text_in_box_checked(text, &faces, 400, 60, Some(40.0), TextAlign::Left, 1.0)
+                    .unwrap();
+            (0..b.height_dots())
+                .flat_map(|l| (0..60).map(move |p| (p, l)))
+                .filter(|&(p, l)| b.pixel(p, l))
+                .count()
+        };
+        assert!(ink("**HHH**") > ink("HHH"));
+        // Markers themselves are not drawn.
+        let w_plain = text_natural_width("HHH", &faces, 60, Some(40.0), 1.0).unwrap();
+        let w_marked =
+            text_natural_width("__HHH__", &FaceSet::single(&font), 60, Some(40.0), 1.0).unwrap();
+        assert_eq!(w_plain, w_marked);
+    }
+
+    #[test]
     fn line_spacing_spreads_lines() {
         let font = require_font!();
         let at = |spacing: f32| {
             let (b, _) = text_in_box_checked(
                 "AB\nAB",
-                &font,
+                &FaceSet::single(&font),
                 300,
                 200,
                 Some(30.0),
@@ -591,7 +674,7 @@ mod tests {
         let font = require_font!();
         // Box exactly as wide as the natural text: must stay one line and
         // keep ink away from the top/bottom edges.
-        let w = text_natural_width("LabelLab", &font, 70, None, 1.0).unwrap();
+        let w = text_natural_width("LabelLab", &FaceSet::single(&font), 70, None, 1.0).unwrap();
         let bmp = text_in_box("LabelLab", &font, w, 70, None, TextAlign::Center).unwrap();
         let (top, bottom) = pin_extent(&bmp).unwrap();
         assert!(top > 0 && bottom < 69, "clipped: {top}..{bottom}");

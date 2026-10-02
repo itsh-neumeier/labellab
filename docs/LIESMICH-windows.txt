@@ -34,6 +34,9 @@ Editor
   Element ein. Strg+C / Strg+X / Strg+V kopieren das gewaehlte Element. Eingefuegte Bilder
   liegen unter %APPDATA%\LabelLab\pasted.
 - Vorschau: grau schraffiert = Rand des Bandes, den der Drucker nicht bedrucken kann.
+- Text: Teil markieren und F oder K (Strg+B / Strg+I) = nur dieser Teil fett/kursiv.
+  Im Textfeld erscheint das als **fett** und __kursiv__. Ohne Markierung gilt F/K fuer
+  den ganzen Text.
 - Text: "Zeilenabstand" (1,0 = normal) fuer mehrzeilige Texte.
 - Bild bearbeiten ...: Rahmen ziehen zum Zuschneiden, drehen/spiegeln, Hintergrund
   entfernen (Randfarbe automatisch oder "Farbe im Bild waehlen"), Raster fuer Fotos oder

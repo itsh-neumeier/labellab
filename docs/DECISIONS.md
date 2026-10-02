@@ -555,3 +555,15 @@ Vorlage:
 - Konsequenzen: Speicherbedarf für bis zu 64 Bildboxen (Bitmaps, je Box wenige hundert KB
   bei hoher Vorschauauflösung). Der Rand entlang der Länge (Vorlauf vor dem Schnitt) wird
   nicht gezeigt, da unverifiziert.
+
+## ADR-029: Fett/kursiv für Textteile als Auszeichnung im Text
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: in mehrzeiligem Text einzelne Bereiche fett oder kursiv.
+- Entscheidung: Auszeichnung direkt im Textstring, `**fett**` und `__kursiv__`
+  (Markdown-ähnlich, doppelte Zeichen, selten in Labeltexten). Kein neues Datenfeld, das
+  `.llabel`-Format bleibt gleich, CSV-Platzhalter und CLI funktionieren unverändert.
+  Ein Marker ohne Partner bleibt wörtlicher Text. Der Stil des Elements (F/K ohne
+  Markierung) gilt als Grundstil, Marker schalten zusätzlich ein. Gerendert mit vier
+  Schnitten derselben Familie in einem fontdue-Layout.
+- Konsequenzen: Ältere Programmstände drucken die Marker als Zeichen. Die Marker sind im
+  Textfeld sichtbar (kein WYSIWYG-Editor); dafür gibt es die Knöpfe/Tastenkürzel.

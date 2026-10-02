@@ -53,6 +53,8 @@
   "elements.duplicate": "Duplizieren (Strg+D)",
   "elements.lineSpacing": "Zeilenabstand",
   "elements.lineSpacingHint": "Abstand zwischen den Zeilen als Vielfaches (1,0 = normal, 0,5–3)",
+  "elements.boldHint": "Fett: markierten Textteil (Strg+B) oder ganzen Text",
+  "elements.italicHint": "Kursiv: markierten Textteil (Strg+I) oder ganzen Text",
   "elements.size": "Größe (pt)",
   "elements.align": "Ausrichtung",
   "align.left": "Links",
