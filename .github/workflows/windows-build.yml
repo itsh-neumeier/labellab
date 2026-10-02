@@ -4,7 +4,8 @@ name: Windows build
 # demand:
 # - LabelLab.exe   GUI, standalone (needs only the WebView2 runtime,
 #                  preinstalled on Windows 11 / current Windows 10)
-# - labellab.exe   command-line tool
+# - labellab-cli.exe   command-line tool (own name: Windows file names
+#   ignore case, so labellab.exe would overwrite LabelLab.exe)
 # Download them from the run's "Artifacts" section. Tags `v*` also attach
 # them to a GitHub release.
 on:
@@ -49,9 +50,11 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist-windows | Out-Null
           Copy-Item app/src-tauri/target/release/LabelLab.exe dist-windows/
-          Copy-Item target/release/labellab.exe dist-windows/
+          Copy-Item target/release/labellab.exe dist-windows/labellab-cli.exe
           Copy-Item docs/LIESMICH-windows.txt dist-windows/LIESMICH.txt
           Get-ChildItem dist-windows
+          # Guard against name clashes overwriting one exe with the other.
+          if ((Get-ChildItem dist-windows -Filter *.exe).Count -ne 2) { throw "expected LabelLab.exe and labellab-cli.exe" }
       - uses: actions/upload-artifact@v4
         with:
           name: LabelLab-windows-x64-portable

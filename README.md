@@ -13,7 +13,7 @@ Jeder Push baut automatisch die portable Windows-Version (GitHub → **Actions**
 | Datei | Zweck |
 |---|---|
 | `LabelLab.exe` | Oberfläche, Doppelklick genügt |
-| `labellab.exe` | Kommandozeile (`labellab devices`, `labellab print …`) |
+| `labellab-cli.exe` | Kommandozeile (`labellab-cli devices`, `labellab-cli print …`) |
 
 Voraussetzungen: Windows 10/11 (64 Bit) mit WebView2-Laufzeit (bei Windows 11 und aktuellem
 Windows 10 vorinstalliert). Den Drucker in den Windows-Bluetooth-Einstellungen oder direkt in LabelLab („Koppeln …“ bzw.

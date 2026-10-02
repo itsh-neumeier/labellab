@@ -86,6 +86,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Schriftauswahl zeigt jede Schrift in ihrem eigenen Schriftbild, mit Suchfeld
 
 ### Behoben
+- Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb
+  `labellab.exe` beim Packen die Oberfläche `LabelLab.exe` (Windows unterscheidet keine
+  Groß-/Kleinschreibung), das Artefakt enthielt nur die CLI.
 - `labellab` brach nach dem Zusammenführen mit der Symbolbibliothek beim Start ab
   (`--symbol` widersprach sich selbst)
 - Vorschau blieb in der Windows-Oberfläche leer
