@@ -139,10 +139,15 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Einzelne Textteile fett oder kursiv: Text markieren und F/K (Strg+B/Strg+I) drücken;
   gespeichert als `**fett**` und `__kursiv__` im Text
 - Zeilenabstand für Text einstellbar (Feld „Zeilenabstand“, 0,5–3)
-- „Code-Assistent …“ ersetzt die Knöpfe QR-Code und Barcode: Code-Typ wählen (QR, Code 128,
+- Knopf „Code“ (Code-Assistent) ersetzt die Knöpfe QR-Code und Barcode: Code-Typ wählen (QR, Code 128,
   EAN-13, EAN-8, UPC-A, Code 39, ITF), für QR-Codes Inhalte wie WLAN-Zugang, Kontakt (vCard),
   E-Mail, Telefon oder Link ausfüllen, Live-Vorschau mit Prüfung; bestehende Codes über
   „Assistent …“ in den Eigenschaften bearbeiten (auch QR ⇄ Barcode umstellen)
+- Neues Element „Sicherungskasten“ (wie im Hersteller-Editor): ein Element mit Feldern und
+  Trennzeichen (Rahmen, Linie, Fett, Gestrichelt, Markierungen, keine), alles nachträglich in
+  den Eigenschaften änderbar: Anzahl Felder, Raster, Breite je Feld (0,5×–8×), Text je Feld,
+  Felder verbinden, Text senkrecht (auch je Feld), Umkehren, Schrift/Größe/Fett/Kursiv. Die
+  Vorlage „Sicherungskasten / Verteiler“ erzeugt jetzt dieses Element
 - Vorlage Sicherungskasten/Verteiler: Teileinheiten zu einem Feld verbinden (⇔) und wieder
   trennen (✂), eigener Text je Feld; das Label merkt sich die Vorlage und lässt sich über
   „Vorlage bearbeiten …“ jederzeit anpassen
@@ -156,6 +161,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- „Kein Schnitt“ / „Kettendruck ohne Schnitt“: der Drucker schnitt am Ende trotzdem. Jetzt
+  wird der Vorschub-und-Schnitt nach dem letzten Label ausdrücklich abgeschaltet (am Gerät
+  noch zu bestätigen)
+- Symbole: „Vorschau nicht möglich … missing field `name`“ – der eigene Elementname kollidierte
+  mit dem Symbolnamen; der Elementname wird jetzt als `title` gespeichert
 - UPC-A: 11 Ziffern (oder 12 mit Prüfziffer) werden jetzt als UPC-A kodiert; vorher wurde die
   Eingabe als EAN-13 ohne führende 0 gelesen
 - USB unter Windows: Der Drucker wird jetzt über den Windows-Druckertreiber angesprochen

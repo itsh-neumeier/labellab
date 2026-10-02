@@ -10,7 +10,9 @@ use std::f32::consts::PI;
 
 use serde::{Deserialize, Serialize};
 
+use crate::fusebox::{FuseField, FuseSeparator};
 use crate::label::{Element, Item, Label, Rect};
+use ll_render::TextAlign;
 
 /// Width of separator lines in patch panel labels, in mm (about 2 dots).
 const SEPARATOR_MM: f32 = 0.3;
@@ -156,7 +158,7 @@ fn text_item(text: &str, rect: Rect, rotation: u16) -> Item {
         halign: None,
         valign: None,
         hidden: false,
-        name: None,
+        title: None,
     }
 }
 
@@ -246,7 +248,7 @@ fn fill_item(rect: Rect) -> Item {
         halign: None,
         valign: None,
         hidden: false,
-        name: None,
+        title: None,
     }
 }
 
@@ -335,81 +337,71 @@ pub fn terminal_block(spec: &TerminalBlock, tape_mm: f32) -> Label {
     fixed_length(elements, 2.0 * margin + count as f32 * pitch)
 }
 
+/// One [`Element::FuseBox`] spanning the label: the main switch (if any)
+/// as a horizontal field of `main_switch_mm`, then one field per entry of
+/// [`FuseBox::field_spans`]. Everything stays editable on the element.
 pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
-    let spans = spec.field_spans();
-    let modules: u32 = spans.iter().sum();
     let pitch = spec.pitch_mm.max(1.0);
     let margin = spec.margin_mm.max(0.0);
-    let main = !spec.main_switch.trim().is_empty();
-    let main_w = if main {
-        spec.main_switch_mm.max(1.0)
-    } else {
-        0.0
-    };
-    let fields_x = margin
-        + if main && !spec.main_switch_right {
-            main_w
-        } else {
-            0.0
+    let mut fields: Vec<FuseField> = spec
+        .field_spans()
+        .iter()
+        .enumerate()
+        .map(|(i, span)| {
+            let text = spec
+                .texts
+                .get(i)
+                .filter(|t| !t.trim().is_empty())
+                .cloned()
+                .unwrap_or_else(|| {
+                    numbered(&spec.prefix, spec.start + i as i64 * spec.step, spec.digits)
+                });
+            FuseField::new(text, *span as f32)
+        })
+        .collect();
+    if !spec.main_switch.trim().is_empty() {
+        let main = FuseField {
+            // A long name reads along the tape even with vertical numbers.
+            vertical: spec.vertical.then_some(false),
+            ..FuseField::new(
+                spec.main_switch.clone(),
+                spec.main_switch_mm.max(1.0) / pitch,
+            )
         };
-    // Vertical text reads bottom to top, as usual on distribution boards.
-    let rotation = if spec.vertical { 270 } else { 0 };
-    let mut elements = Vec::new();
-    // Field edges in modules from the first field.
-    let mut edges = vec![0u32];
-    for (i, span) in spans.iter().enumerate() {
-        let start = *edges.last().unwrap_or(&0);
-        edges.push(start + span);
-        let number = spec.start + i as i64 * spec.step;
-        let text = spec
-            .texts
-            .get(i)
-            .filter(|t| !t.trim().is_empty())
-            .cloned()
-            .unwrap_or_else(|| numbered(&spec.prefix, number, spec.digits));
-        elements.push(text_item(
-            &text,
-            Rect {
-                x_mm: fields_x + start as f32 * pitch,
-                y_mm: 0.0,
-                w_mm: *span as f32 * pitch,
-                h_mm: tape_mm,
-            },
-            rotation,
-        ));
-    }
-    let fields_end = fields_x + modules as f32 * pitch;
-    if main {
-        let x = if spec.main_switch_right {
-            fields_end
+        if spec.main_switch_right {
+            fields.push(main);
         } else {
-            margin
-        };
-        elements.push(text_item(
-            &spec.main_switch,
-            Rect {
-                x_mm: x,
-                y_mm: 0.0,
-                w_mm: main_w,
-                h_mm: tape_mm,
-            },
-            0,
-        ));
+            fields.insert(0, main);
+        }
     }
-    if spec.separators {
-        let mut edges: Vec<f32> = edges.iter().map(|e| fields_x + *e as f32 * pitch).collect();
-        if main {
-            edges.push(if spec.main_switch_right {
-                fields_end + main_w
+    let units: f32 = fields.iter().map(FuseField::ratio).sum();
+    let length = units * pitch;
+    let item = Item {
+        rect: Some(Rect {
+            x_mm: margin,
+            y_mm: 0.0,
+            w_mm: length,
+            h_mm: tape_mm,
+        }),
+        ..Element::FuseBox {
+            fields,
+            pitch_mm: pitch,
+            separator: if spec.separators {
+                FuseSeparator::Frame
             } else {
-                margin
-            });
+                FuseSeparator::None
+            },
+            vertical: spec.vertical,
+            reverse: false,
+            size_pt: None,
+            align: TextAlign::Center,
+            font: None,
+            bold: false,
+            italic: false,
         }
-        for x in edges {
-            elements.push(separator(x, 0.0, tape_mm));
-        }
-    }
-    fixed_length(elements, 2.0 * margin + modules as f32 * pitch + main_w)
+        .into()
+    };
+    fixed_length(vec![item], 2.0 * margin + length)
 }
 
 /// Runs the generator selected by `layout`.
@@ -553,7 +545,7 @@ mod tests {
     }
 
     #[test]
-    fn fuse_box_has_vertical_fields_and_main_switch() {
+    fn fuse_box_is_one_editable_element() {
         let spec = FuseBox {
             count: 4,
             pitch_mm: 17.5,
@@ -570,8 +562,18 @@ mod tests {
             spans: Vec::new(),
             texts: Vec::new(),
         };
+        let fields_of = |label: &Label| match &label.elements[0].element {
+            Element::FuseBox { fields, .. } => fields.clone(),
+            other => panic!("not a fuse box: {other:?}"),
+        };
         let label = fuse_box(&spec, 9.9);
-        assert_eq!(texts(&label), ["F1", "F2", "F3", "F4", "HAUPTSCHALTER"]);
+        assert_eq!(label.elements.len(), 1);
+        let f = fields_of(&label);
+        let t: Vec<_> = f.iter().map(|f| f.text.as_str()).collect();
+        assert_eq!(t, ["HAUPTSCHALTER", "F1", "F2", "F3", "F4"]);
+        assert_eq!(f[0].ratio, 2.0);
+        assert_eq!(f[0].vertical, Some(false));
+        assert!((label.min_length_mm.unwrap() - (35.0 + 4.0 * 17.5)).abs() < 1e-3);
         assert!(generate(&Layout::FuseBox(spec.clone()), 9.9)
             .source
             .is_some());
@@ -582,25 +584,17 @@ mod tests {
             main_switch: String::new(),
             ..spec.clone()
         };
-        let m = fuse_box(&merged, 9.9);
-        assert_eq!(texts(&m), ["F1", "FI", "F3"]);
-        let w: Vec<f32> = m.elements[..3]
-            .iter()
-            .map(|i| i.rect.unwrap().w_mm)
-            .collect();
-        assert_eq!(w, [17.5, 52.5, 35.0]);
-        assert!((m.min_length_mm.unwrap() - 6.0 * 17.5).abs() < 1e-3);
-        assert_eq!(label.elements[0].rotation, 270);
-        assert!((label.elements[0].rect.unwrap().x_mm - 35.0).abs() < 1e-3);
-        assert!((label.min_length_mm.unwrap() - (35.0 + 4.0 * 17.5)).abs() < 1e-3);
-        let right = fuse_box(
+        let m = fields_of(&fuse_box(&merged, 9.9));
+        let t: Vec<_> = m.iter().map(|f| (f.text.as_str(), f.ratio)).collect();
+        assert_eq!(t, [("F1", 1.0), ("FI", 3.0), ("F3", 2.0)]);
+        let right = fields_of(&fuse_box(
             &FuseBox {
                 main_switch_right: true,
                 ..spec
             },
             9.9,
-        );
-        assert!(right.elements[0].rect.unwrap().x_mm.abs() < 1e-3);
+        ));
+        assert_eq!(right.last().unwrap().text, "HAUPTSCHALTER");
     }
 
     #[test]

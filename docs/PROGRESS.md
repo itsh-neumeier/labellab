@@ -199,6 +199,10 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- **Kein Schnitt (2026-10-02):** Schnitt „Kein Schnitt“ und „Kettendruck ohne Schnitt“
+  drucken → darf am Ende **nicht** schneiden (neu: `ESC i K` Bit 3 = 0). Gegenprobe „Jedes
+  Etikett“ → schneidet weiter wie bisher. Bleibt das Band nach „Kein Schnitt“ im Drucker,
+  ist das erwartet (kein Vorschub); nächstes Label oder Vorschubtaste schiebt es heraus.
 - Schnittoptionen: „Alle N Etiketten“ (Schnitt-Flag je Seite im Kettenauftrag), Schnittmarken,
   Spiegeln, „Kettendruck (kein Schnitt)“ am Gerät prüfen.
 - USB unter Windows ohne Treibertausch: Status lesen und Drucken über `usbprint.sys`
@@ -319,6 +323,31 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Sicherungskasten als Element (ADR-034)
+- Nutzer-Screenshots aus dem Hersteller-Editor: Sicherungskasten ist ein Element mit
+  Eigenschaften. Neu: `Element::FuseBox` (`ll-core/src/fusebox.rs` Modell + Trennlinien,
+  `label::render_fuse_box` Text), `boxed::text_fit_px` für eine gemeinsame Größe; CSV-
+  Platzhalter in Feldtexten. GUI: Knopf „Sicherungskasten“, Eigenschaften mit Feldliste
+  (Text, Faktor, Richtung, ⇔). Generator `layouts::fuse_box` liefert ein Element.
+- Geprüft: Tests (Trennstile, Spannen, Rendern, Generator), fmt/clippy, Build; GUI unter Xvfb.
+- Offen/Ideen: Feldtext direkt im Label anklicken (wie im Hersteller-Editor), Hochformat.
+
+### 2026-10-02 – Claude Code, Fix „Kein Schnitt“ schneidet trotzdem
+- Nutzer-Bug: „Kein Schnitt (Spezialband)“ schnitt am Ende. Ursache: `ESC i K` (Advanced
+  Mode) wurde nie gesendet; Bit 3 „no chain printing“ steht im Drucker offenbar auf 1
+  (vorschieben + schneiden nach dem letzten Label). Jetzt je Seite `advanced_mode(auto_cut)`.
+  Tests (Befehlsbytes, Kettenauftrag). Hardware-Test eingetragen.
+
+### 2026-10-02 – Claude Code, Fix Symbol-Vorschau („missing field `name`“)
+- Nutzer-Bug: Symbole ließen sich nicht rendern. Ursache: `Item::name` (eigener Elementname,
+  ADR-031) wird ins Element-JSON geflacht und schluckte den `name` des Symbols. Elementname
+  heißt jetzt `title` (Rust + TS), Regressionstest. Vor heute gespeicherte eigene Namen
+  (Schlüssel `name`) bei Nicht-Symbol-Elementen gehen verloren (nur kurz veröffentlicht).
+
+### 2026-10-02 – Claude Code, Knopf „Code“
+- Nutzerwunsch: Code-Assistent als normaler Hinzufügen-Knopf wie Text/Bild → Beschriftung
+  „Code“ (Tooltip erklärt den Assistenten). Geprüft: Build, GUI unter Xvfb.
+
 ### 2026-10-02 – Claude Code, Code-Assistent, Verteiler-Felder verbinden, Vorlagen-Ziel (ADR-033)
 - „Code-Assistent …“ statt der Knöpfe QR-Code/Barcode: Dialog mit Code-Typ, für QR Inhaltsarten
   (Text, Link, WLAN, vCard, E-Mail, Telefon; `app/src/codes.ts` baut/erkennt den Inhalt),

@@ -28,6 +28,7 @@ use ll_render::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::fusebox::{self, FuseField, FuseSeparator};
 use crate::CoreError;
 
 /// Current `.llabel` format version, written by [`Label::to_json`].
@@ -308,9 +309,11 @@ pub struct Item {
     /// Hidden in the editor's layer list: not rendered or printed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hidden: bool,
-    /// User-given name in the layer list (no effect on rendering).
+    /// User-given name in the layer list (no effect on rendering). Stored
+    /// as `title`: the item is flattened into the element's JSON and
+    /// `name` is the symbol element's icon id.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub title: Option<String>,
 }
 
 fn is_zero(v: &u16) -> bool {
@@ -327,7 +330,7 @@ impl From<Element> for Item {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         }
     }
 }
@@ -396,6 +399,40 @@ pub enum Element {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         filled: bool,
     },
+    /// Row of fields with separators (fuse box / distribution board),
+    /// spread over its box by [`FuseField::ratio`].
+    FuseBox {
+        fields: Vec<FuseField>,
+        /// Width of one ratio unit in mm (one module); gives the natural
+        /// length, the editor sizes the box with it.
+        #[serde(default = "default_pitch_mm")]
+        pitch_mm: f32,
+        #[serde(default)]
+        separator: FuseSeparator,
+        /// Text across the tape (reading bottom to top).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        vertical: bool,
+        /// Fields in reverse order (last field at the label start).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        reverse: bool,
+        /// One size for all fields; `None` = largest size fitting every
+        /// field.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        size_pt: Option<f32>,
+        #[serde(default)]
+        align: TextAlign,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        font: Option<String>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        bold: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        italic: bool,
+    },
+}
+
+/// Default module width (DIN rail, 17.5 mm).
+fn default_pitch_mm() -> f32 {
+    17.5
 }
 
 fn is_zero_i8(v: &i8) -> bool {
@@ -755,6 +792,17 @@ fn render_flow_element(
             out.blit(&local, offset as i32, 0, offset..offset + pins);
             out
         }
+        Element::FuseBox {
+            fields, pitch_mm, ..
+        } => {
+            // Natural length: the ratios in modules of `pitch_mm`.
+            let units: f32 = fields.iter().map(FuseField::ratio).sum();
+            let len = canvas.mm(units * pitch_mm.max(1.0)).max(1);
+            let local = render_fuse_box(element, len, pins, canvas, fonts, overflow)?;
+            let mut out = Bitmap::new(head, len);
+            out.blit(&local, offset as i32, 0, offset..offset + pins);
+            out
+        }
         Element::Fill => {
             // A flow-layout fill is a 1 mm bar across the tape.
             let mut out = Bitmap::new(head, canvas.mm(1.0));
@@ -828,12 +876,121 @@ fn render_boxed_element(
             filled,
         } => ll_render::shape::shape_in_box(*shape, w, h, canvas.mm(*stroke_mm) as f32, *filled)?,
         Element::Symbol { name, invert } => boxed::symbol_in_box(name, w, h, *invert)?,
+        Element::FuseBox { .. } => render_fuse_box(element, w, h, canvas, fonts, overflow)?,
         Element::Fill => {
             let mut b = Bitmap::new(h, w);
             b.fill();
             b
         }
     })
+}
+
+/// Renders a [`Element::FuseBox`] into a `w` x `h` dot box: fields by
+/// ratio, one common text size, separators on top. Sets `overflow` if a
+/// field's text was clipped.
+fn render_fuse_box(
+    element: &Element,
+    w: u32,
+    h: u16,
+    canvas: &Canvas,
+    fonts: &mut FontCache,
+    overflow: &mut bool,
+) -> Result<Bitmap, CoreError> {
+    let mut out = Bitmap::new(h, w);
+    let Element::FuseBox {
+        fields,
+        separator,
+        vertical,
+        reverse,
+        size_pt,
+        align,
+        font,
+        bold,
+        italic,
+        ..
+    } = element
+    else {
+        return Ok(out);
+    };
+    let spans = fusebox::field_spans(fields, w, *reverse);
+    let line = fusebox::line_dots(
+        *separator,
+        canvas.mm(fusebox::LINE_MM).max(1),
+        canvas.mm(fusebox::BOLD_MM).max(2),
+    );
+    // Text keeps clear of the separators.
+    let pad = line + canvas.mm(0.4);
+    let frame = if *separator == FuseSeparator::Frame {
+        line
+    } else {
+        0
+    };
+    let top = (frame + canvas.mm(0.3)).min(h as u32 / 2) as u16;
+    let inner_h = h.saturating_sub(2 * top);
+    // Per field: index, start along the box, length, text across the tape.
+    let boxes: Vec<(usize, u32, u32, bool)> = spans
+        .iter()
+        .filter_map(|&(i, start, end)| {
+            let len = (end - start).saturating_sub(2 * pad);
+            (len > 0 && inner_h > 0 && !fields[i].text.trim().is_empty())
+                .then(|| (i, start + pad, len, fields[i].vertical.unwrap_or(*vertical)))
+        })
+        .collect();
+    // Text box in text coordinates (rotated for vertical fields).
+    let dims = |len: u32, vertical: bool| -> (u32, u16) {
+        if vertical {
+            (inner_h as u32, len.min(u16::MAX as u32) as u16)
+        } else {
+            (len, inner_h)
+        }
+    };
+    if !boxes.is_empty() {
+        let all: Vec<&str> = fields.iter().map(|f| f.text.as_str()).collect();
+        let faces = fonts.faces(font, *bold, *italic, &all.join("\n"))?;
+        let faces = face_set(&faces);
+        let px = match size_pt {
+            Some(pt) => canvas.pt(*pt),
+            None => boxes
+                .iter()
+                .map(|&(i, _, len, v)| {
+                    let (tw, th) = dims(len, v);
+                    boxed::text_fit_px(&fields[i].text, &faces, tw, th, 1.0)
+                })
+                .fold(f32::INFINITY, f32::min),
+        };
+        for &(i, start, len, v) in &boxes {
+            let (tw, th) = dims(len, v);
+            let (text, clipped) = boxed::text_in_box_checked(
+                &fields[i].text,
+                &faces,
+                tw,
+                th,
+                &TextLayout {
+                    size_px: Some(px),
+                    align: *align,
+                    valign: VAlign::Middle,
+                    line_spacing: 1.0,
+                },
+            )?;
+            *overflow |= clipped;
+            // Vertical text reads bottom to top, as usual on distribution boards.
+            let text = if v { text.rotated(3) } else { text };
+            out.blit(&text, top as i32, start as i32, 0..h);
+        }
+    }
+    let mut edges: Vec<u32> = spans.iter().map(|s| s.1).collect();
+    edges.extend(spans.last().map(|s| s.2));
+    fusebox::draw_separators(
+        &mut out,
+        &edges,
+        *separator,
+        fusebox::SeparatorDots {
+            line,
+            dash: canvas.mm(fusebox::DASH_MM).max(1),
+            gap: canvas.mm(fusebox::DASH_GAP_MM).max(1),
+        },
+    );
+    Ok(out)
 }
 
 /// The rendered label plus, per element, its resolved box in canvas dots
@@ -1257,7 +1414,7 @@ mod tests {
                     halign: None,
                     valign: None,
                     hidden: false,
-                    name: None,
+                    title: None,
                 },
                 Element::Qr {
                     data: "https://example.org".into(),
@@ -1286,6 +1443,20 @@ mod tests {
         assert!(json.contains(r#""symbology": "ean13""#));
         assert!(json.contains(r#""x_mm": 1.0"#));
         assert_eq!(Label::from_json(&json).unwrap(), label);
+    }
+
+    #[test]
+    fn symbol_keeps_its_name_next_to_the_item_title() {
+        let mut item: Item = Element::Symbol {
+            name: "iso7010:P002".into(),
+            invert: false,
+        }
+        .into();
+        let json = serde_json::to_string(&item).unwrap();
+        assert_eq!(serde_json::from_str::<Item>(&json).unwrap(), item);
+        item.title = Some("Rauchverbot".into());
+        let json = serde_json::to_string(&item).unwrap();
+        assert_eq!(serde_json::from_str::<Item>(&json).unwrap(), item);
     }
 
     #[test]
@@ -1386,7 +1557,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };
@@ -1428,7 +1599,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };
@@ -1517,7 +1688,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };
@@ -1559,7 +1730,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             padding_mm: 1.0,
             ..Label::default()
@@ -1647,7 +1818,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         };
         let mut label = Label {
             elements: vec![bar(0.0), bar(40.0)],
@@ -1795,6 +1966,67 @@ mod tests {
     }
 
     #[test]
+    fn fuse_box_renders_fields_and_separators() {
+        if !has_font() {
+            return;
+        }
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let fuse = |separator, vertical| Element::FuseBox {
+            fields: vec![
+                FuseField::new("HAUPT", 2.0),
+                FuseField::new("F1", 1.0),
+                FuseField::new("F2", 1.0),
+            ],
+            pitch_mm: 10.0,
+            separator,
+            vertical,
+            reverse: false,
+            size_pt: None,
+            align: TextAlign::Center,
+            font: None,
+            bold: false,
+            italic: false,
+        };
+        // Flow layout: natural length = 4 modules of 10 mm.
+        let flow = render_label(
+            &Label {
+                padding_mm: 0.0,
+                ..Label::single(fuse(FuseSeparator::Frame, false))
+            },
+            model,
+            geometry,
+        )
+        .unwrap();
+        let len = flow.height_dots();
+        assert!(
+            (len as f32 - mm_to_dots(40.0) as f32).abs() <= 2.0,
+            "length {len}"
+        );
+        // Frame: separator lines span the printable height at the field edges.
+        let pins = geometry.left_offset_pins..geometry.left_offset_pins + geometry.printable_pins;
+        let full = |line: u32| pins.clone().all(|p| flow.pixel(p, line));
+        let edge = mm_to_dots(20.0);
+        assert!((edge - 1..=edge + 1).any(full), "no separator at 20 mm");
+        // Without separators only text ink remains; vertical text renders too.
+        let plain = render_label(
+            &Label {
+                padding_mm: 0.0,
+                ..Label::single(fuse(FuseSeparator::None, true))
+            },
+            model,
+            geometry,
+        )
+        .unwrap();
+        assert!(!(0..plain.height_dots()).any(|l| pins.clone().all(|p| plain.pixel(p, l))));
+        assert!(!ink_lines(&plain).is_empty());
+        let json = Label::single(fuse(FuseSeparator::Marks, false))
+            .to_json()
+            .unwrap();
+        assert!(json.contains(r#""type": "fuse_box""#) && json.contains(r#""separator": "marks""#));
+    }
+
+    #[test]
     fn shapes_render_in_boxes_and_flow() {
         let model = p710();
         let geometry = geometry_for(model, 12).unwrap();
@@ -1836,7 +2068,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         };
         let label = Label {
             elements: vec![boxed(None), boxed(Some(30.0))],
@@ -1866,7 +2098,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         };
         for rotation in [0, 90, 180, 270] {
             let label = Label {
@@ -1921,7 +2153,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };

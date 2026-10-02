@@ -57,9 +57,12 @@ Editor
   Rechts: Eigenschaften des gewaehlten Elements.
 - Speichern: "Speichern" (Strg+S) schreibt in die offene Datei, "Speichern unter ..."
   waehlt eine neue. "Auto-Speichern" speichert danach jede Aenderung automatisch.
-- "Code-Assistent ...": QR-Code oder Barcode einfuegen. Bei QR-Codes Inhalt waehlen
+- Hinzufuegen > "Code" (Code-Assistent): QR-Code oder Barcode einfuegen. Bei QR-Codes Inhalt waehlen
   (Link, WLAN-Zugang, Kontakt, E-Mail, Telefon, Text). Bestehende Codes: "Assistent ..."
   rechts in den Eigenschaften.
+- Hinzufuegen > "Sicherungskasten": ein Element mit Feldern. Rechts in den
+  Eigenschaften: Anzahl Felder, Raster (mm), Trennzeichen, Text senkrecht, Umkehren und
+  je Feld Text, Breite (1x, 2x ...) und "<=>" zum Verbinden mit dem naechsten Feld.
 - Vorlagen > Sicherungskasten: "<=>" zwischen zwei Feldern verbindet sie (Geraet ueber
   mehrere Teileinheiten), die Schere trennt wieder. "Vorlage bearbeiten ..." (unter Label)
   oeffnet die Vorlage spaeter erneut. "Ziel": aktuelles Blatt, neues Blatt oder neue Datei.

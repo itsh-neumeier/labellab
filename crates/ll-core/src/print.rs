@@ -321,7 +321,7 @@ fn trim_for_margin(page: &Bitmap, max_margin: u16) -> (Bitmap, u16) {
     (out, trim as u16)
 }
 
-/// One page: control codes (raster mode, various mode, margin, print
+/// One page: control codes (raster mode, various mode, advanced mode, margin, print
 /// information, compression), the raster lines (PackBits, blank rows as
 /// `Z`), then `1A` (last page) or `0C` (more pages follow in this job).
 async fn send_page(
@@ -340,6 +340,11 @@ async fn send_page(
         .await?;
     transport
         .write_all(&command::various_mode(auto_cut))
+        .await?;
+    // Without it the printer feeds and cuts after the last label even
+    // with auto-cut off ("no cut" / chain printing would still cut).
+    transport
+        .write_all(&command::advanced_mode(auto_cut))
         .await?;
     transport.write_all(&command::margin(margin_dots)).await?;
     transport
@@ -425,6 +430,12 @@ mod tests {
             find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x00]).is_some(),
             "various_mode (no auto-cut) missing"
         );
+        // No cut: the printer must not feed and cut after the last label.
+        assert!(
+            find_subsequence(written, &[0x1B, 0x69, 0x4B, 0x00]).is_some(),
+            "advanced_mode (chain printing) missing"
+        );
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x4B, 0x08]).is_none());
         // Text without padding touches both ends: no feed margin left.
         assert!(
             find_subsequence(written, &[0x1B, 0x69, 0x64, 0, 0]).is_some(),
@@ -537,6 +548,9 @@ mod tests {
         // Four pages: auto-cut only on the last one.
         assert_eq!(count(written, &[0x1B, 0x69, 0x4D, 0x00]), 3);
         assert_eq!(count(written, &[0x1B, 0x69, 0x4D, 0x40]), 1);
+        // Feed-and-cut after the last label only where it is cut.
+        assert_eq!(count(written, &[0x1B, 0x69, 0x4B, 0x00]), 3);
+        assert_eq!(count(written, &[0x1B, 0x69, 0x4B, 0x08]), 1);
         assert_eq!(*written.last().unwrap(), 0x1A);
         // Pages 2-4 are marked as "other page" (n9 = 1).
         assert_eq!(seen.last(), Some(&(4, 4)));
