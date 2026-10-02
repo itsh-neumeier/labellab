@@ -422,10 +422,41 @@ async fn pair_bluetooth(id: String) -> Result<(), AppError> {
     }
 }
 
-/// Bundled symbol names for the symbol element.
+/// An icon set for the symbol picker (all icons incl. SVG).
+#[derive(Serialize)]
+struct IconSetDto {
+    #[serde(flatten)]
+    set: ll_render::IconSet,
+    builtin: bool,
+}
+
+fn iconset_dto(set: &ll_render::IconSet) -> IconSetDto {
+    IconSetDto {
+        builtin: ll_render::iconset::is_builtin(&set.id),
+        set: set.clone(),
+    }
+}
+
+/// All registered icon sets, built-in first.
 #[tauri::command]
-fn symbols() -> Vec<&'static str> {
-    ll_render::SYMBOL_NAMES.to_vec()
+fn iconsets() -> Vec<IconSetDto> {
+    ll_render::iconset::sets()
+        .iter()
+        .map(|s| iconset_dto(s))
+        .collect()
+}
+
+/// Imports a `.llabel-iconset` file (kept in the user data folder).
+#[tauri::command]
+fn import_iconset(path: PathBuf) -> Result<IconSetDto, AppError> {
+    let set = ll_core::iconsets::import(&path).map_err(err)?;
+    Ok(iconset_dto(&set))
+}
+
+/// Removes an imported icon set.
+#[tauri::command]
+fn remove_iconset(id: String) -> Result<(), AppError> {
+    ll_core::iconsets::remove(&id).map_err(err)
 }
 
 /// Builds a cable flag / cable wrap / patch panel label for the tape.
@@ -457,6 +488,9 @@ fn save_label(path: PathBuf, label: Label) -> Result<(), AppError> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    for warning in ll_core::iconsets::load_installed() {
+        eprintln!("icon set not loaded: {warning}");
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(SeriesState::default())
@@ -470,7 +504,9 @@ pub fn run() {
             load_csv,
             clear_csv,
             font_families,
-            symbols,
+            iconsets,
+            import_iconset,
+            remove_iconset,
             generate_layout,
             discover_bluetooth,
             pair_bluetooth,

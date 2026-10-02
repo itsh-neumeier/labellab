@@ -200,6 +200,28 @@
       </form>
     </dialog>
 
+    <dialog id="symbol-dialog">
+      <form method="dialog" class="symbol-picker">
+        <div class="symbol-head">
+          <h2 data-i18n="symbol.title"></h2>
+          <input id="symbol-search" type="search" data-i18n-placeholder="symbol.search" />
+        </div>
+        <div class="symbol-body">
+          <nav id="symbol-tree" class="symbol-tree"></nav>
+          <div class="symbol-main">
+            <p id="symbol-info" class="muted hint"></p>
+            <div id="symbol-grid" class="symbol-grid"></div>
+          </div>
+        </div>
+        <div class="row end">
+          <span id="symbol-msg" class="muted hint spacer"></span>
+          <button id="symbol-import" type="button" data-i18n="symbol.import"></button>
+          <button id="symbol-remove" type="button" data-i18n="symbol.remove" hidden></button>
+          <button value="close" data-i18n="symbol.close"></button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="series-dialog">
       <form method="dialog" class="wizard">
         <h2 data-i18n="series.title"></h2>
