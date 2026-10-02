@@ -63,8 +63,7 @@
         <div class="add">
           <span data-i18n="elements.add"></span>
           <button data-add="text" data-i18n="elements.text"></button>
-          <button data-add="qr" data-i18n="elements.qr"></button>
-          <button data-add="barcode" data-i18n="elements.barcode"></button>
+          <button id="btn-code" data-i18n="code.open" data-i18n-title="code.openHint"></button>
           <button data-add="image" data-i18n="elements.image"></button>
           <button data-add="symbol" data-i18n="elements.symbol"></button>
           <button data-add="fill" data-i18n="elements.fill"></button>
@@ -81,6 +80,7 @@
           <input id="min-length" type="number" min="0" step="1" data-i18n-placeholder="layout.auto" />
           <label for="fixed-length" data-i18n="layout.fixedLength" data-i18n-title="layout.fixedLengthHint"></label>
           <input id="fixed-length" type="checkbox" />
+          <div id="edit-template-row" class="grid-full" hidden><button id="btn-edit-template" data-i18n="wizard.editTemplate"></button></div>
           <label for="orientation" data-i18n="layout.orientation"></label>
           <select id="orientation">
             <option value="landscape" data-i18n="layout.landscape"></option>
@@ -410,6 +410,63 @@
       </form>
     </dialog>
 
+    <dialog id="code-dialog">
+      <form method="dialog" class="wizard code-wizard">
+        <h2 data-i18n="code.title"></h2>
+        <div class="code-grid">
+          <label><span data-i18n="code.type"></span><select id="cw-type"></select></label>
+          <label id="cw-kind-row"><span data-i18n="code.kind"></span>
+            <select id="cw-kind">
+              <option value="text" data-i18n="code.kindText"></option>
+              <option value="url" data-i18n="code.kindUrl"></option>
+              <option value="wifi" data-i18n="code.kindWifi"></option>
+              <option value="vcard" data-i18n="code.kindVcard"></option>
+              <option value="email" data-i18n="code.kindEmail"></option>
+              <option value="tel" data-i18n="code.kindTel"></option>
+            </select>
+          </label>
+          <div class="cw-group" data-kinds="text barcode">
+            <label><span data-i18n="elements.data"></span><textarea id="cw-text" rows="2"></textarea></label>
+          </div>
+          <div class="cw-group" data-kinds="url">
+            <label><span data-i18n="code.url"></span><input id="cw-url" type="text" value="https://" /></label>
+          </div>
+          <div class="cw-group" data-kinds="wifi">
+            <label><span data-i18n="code.ssid"></span><input id="cw-ssid" type="text" /></label>
+            <label><span data-i18n="code.password"></span><input id="cw-pass" type="text" /></label>
+            <label><span data-i18n="code.security"></span>
+              <select id="cw-sec">
+                <option value="WPA">WPA/WPA2/WPA3</option>
+                <option value="WEP">WEP</option>
+                <option value="nopass" data-i18n="code.noPassword"></option>
+              </select>
+            </label>
+            <label class="check"><input id="cw-hidden" type="checkbox" /> <span data-i18n="code.hiddenNet"></span></label>
+          </div>
+          <div class="cw-group" data-kinds="vcard">
+            <label><span data-i18n="code.name"></span><input id="cw-vname" type="text" /></label>
+            <label><span data-i18n="code.org"></span><input id="cw-vorg" type="text" /></label>
+            <label><span data-i18n="code.phone"></span><input id="cw-vtel" type="text" /></label>
+            <label><span data-i18n="code.email"></span><input id="cw-vmail" type="text" /></label>
+            <label><span data-i18n="code.url"></span><input id="cw-vurl" type="text" /></label>
+          </div>
+          <div class="cw-group" data-kinds="email">
+            <label><span data-i18n="code.email"></span><input id="cw-mail" type="text" /></label>
+            <label><span data-i18n="code.subject"></span><input id="cw-subject" type="text" /></label>
+          </div>
+          <div class="cw-group" data-kinds="tel">
+            <label><span data-i18n="code.phone"></span><input id="cw-tel" type="text" /></label>
+          </div>
+        </div>
+        <div class="wz-preview"><img id="cw-preview" alt="" /></div>
+        <p class="muted hint" id="cw-info"></p>
+        <div class="row end">
+          <button value="cancel" data-i18n="wizard.cancel"></button>
+          <button id="cw-apply" value="apply" class="primary" data-i18n="code.insert"></button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="wizard">
       <form method="dialog" class="wizard">
         <h2 data-i18n="wizard.title"></h2>
@@ -447,9 +504,18 @@
           <label><span data-i18n="wizard.mainSwitch"></span><input id="wz-main" type="text" value="HAUPTSCHALTER" /></label>
           <label><span data-i18n="wizard.mainSwitchWidth"></span><input id="wz-main-width" type="number" min="5" step="0.5" value="35" /></label>
           <label class="check"><input id="wz-main-right" type="checkbox" /> <span data-i18n="wizard.mainSwitchRight"></span></label>
+          <p class="muted hint" data-i18n="wizard.fieldsHint"></p>
+          <div id="wz-fb-fields" class="fb-fields"></div>
         </div>
         <p class="muted hint" id="wz-info"></p>
         <div class="row end">
+          <label class="wz-target"><span data-i18n="wizard.target"></span>
+            <select id="wz-target">
+              <option value="replace" data-i18n="wizard.targetReplace"></option>
+              <option value="sheet" data-i18n="wizard.targetSheet"></option>
+              <option value="file" data-i18n="wizard.targetFile"></option>
+            </select>
+          </label>
           <button value="cancel" data-i18n="wizard.cancel"></button>
           <button id="wz-create" value="create" class="primary" data-i18n="wizard.create"></button>
         </div>

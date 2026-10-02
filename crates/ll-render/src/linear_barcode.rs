@@ -93,7 +93,8 @@ pub(crate) fn encode_modules(symbology: Symbology, data: &str) -> Result<Vec<u8>
         Symbology::Ean8 => EAN8::new(data)
             .map_err(|e| RenderError::Barcode(e.to_string()))?
             .encode(),
-        Symbology::UpcA => UPCA::new(data)
+        // UPC-A is EAN-13 with a leading 0 (11 digits + check digit).
+        Symbology::UpcA => UPCA::new(format!("0{data}"))
             .map_err(|e| RenderError::Barcode(e.to_string()))?
             .encode(),
         Symbology::Code39 => Code39::new(data)
@@ -208,8 +209,14 @@ mod tests {
 
     #[test]
     fn renders_upca() {
-        let bmp = render_barcode(Symbology::UpcA, "012345612345", 128, 50, 39).unwrap();
+        let bmp = render_barcode(Symbology::UpcA, "03600029145", 128, 50, 39).unwrap();
         assert!(has_ink(&bmp));
+        // 12 digits with the check digit: same bars as EAN-13 with a leading 0.
+        assert_eq!(
+            encode_modules(Symbology::UpcA, "036000291452").unwrap(),
+            encode_modules(Symbology::Ean13, "0036000291452").unwrap()
+        );
+        assert!(encode_modules(Symbology::UpcA, "036000291453").is_err());
     }
 
     #[test]

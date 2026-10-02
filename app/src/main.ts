@@ -11,6 +11,7 @@ import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { bindImageEditor, openImageEditor } from "./imageEditor";
 import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
+import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
 import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
@@ -771,6 +772,12 @@ function updateRectInputs(index: number): void {
   }
 }
 
+function codeWizardButton(item: Item): HTMLButtonElement {
+  const button = makeButton(t("code.edit"), t("code.editHint"), () => openCodeWizard(item));
+  button.className = "code-edit";
+  return button;
+}
+
 function contentFields(item: Item): HTMLElement[] {
   switch (item.type) {
     case "text": {
@@ -829,7 +836,7 @@ function contentFields(item: Item): HTMLElement[] {
       return [area, style, row];
     }
     case "qr":
-      return [textInput(item.data, (v) => (item.data = v))];
+      return [textInput(item.data, (v) => (item.data = v)), codeWizardButton(item)];
     case "barcode": {
       const select = document.createElement("select");
       for (const s of api.SYMBOLOGIES) {
@@ -840,7 +847,7 @@ function contentFields(item: Item): HTMLElement[] {
         item.symbology = select.value as api.Symbology;
         changed(true);
       });
-      return [select, textInput(item.data, (v) => (item.data = v))];
+      return [select, textInput(item.data, (v) => (item.data = v)), codeWizardButton(item)];
     }
     case "image": {
       const row = document.createElement("div");
@@ -1270,6 +1277,7 @@ function renderLayout(): void {
   $<HTMLInputElement>("min-length").value = l.min_length_mm ? String(l.min_length_mm) : "";
   $<HTMLInputElement>("fixed-length").checked = !!l.fixed_length;
   $<HTMLSelectElement>("orientation").value = l.orientation ?? "landscape";
+  $("edit-template-row").hidden = !l.source;
   renderDecorButton();
   renderBorder();
   $<HTMLSelectElement>("strips").value = String(strips());
@@ -2993,9 +3001,14 @@ function renderGallery(): void {
       label.textContent = t(tp.name);
       tile.append(label);
       tile.addEventListener("click", () => {
-        if ($<HTMLInputElement>("wz-kind").value !== tp.kind) applyFieldDefaults(tp.kind);
+        if ($<HTMLInputElement>("wz-kind").value !== tp.kind) {
+          applyFieldDefaults(tp.kind);
+          fbSpans = [];
+          fbTexts = [];
+        }
         $<HTMLInputElement>("wz-kind").value = tp.kind;
         renderGallery();
+        renderFbFields();
         updateWizard();
       });
       tiles.append(tile);
@@ -3033,6 +3046,104 @@ function fieldSpec(): api.FieldSpec {
   };
 }
 
+// Fuse box fields: modules per field and custom texts, edited in the wizard.
+let fbSpans: number[] = [];
+let fbTexts: string[] = [];
+
+/** Keeps the fields covering exactly `modules` modules. */
+function normalizeFbSpans(modules: number): void {
+  let total = fbSpans.reduce((a, b) => a + b, 0);
+  while (total < modules) {
+    fbSpans.push(1);
+    total++;
+  }
+  while (total > modules && fbSpans.length) {
+    const last = fbSpans.length - 1;
+    if (fbSpans[last] > 1) fbSpans[last]--;
+    else fbSpans.pop();
+    total--;
+  }
+  fbTexts = fbTexts.slice(0, fbSpans.length);
+}
+
+/** Strip of fields: merge neighbours (⇔) or split a merged field (✂); text per field. */
+function renderFbFields(): void {
+  const box = $("wz-fb-fields");
+  box.replaceChildren();
+  const spec = fieldSpec();
+  normalizeFbSpans(spec.count);
+  fbSpans.forEach((span, i) => {
+    if (i > 0) {
+      const merge = makeButton("⇔", t("wizard.merge"), () => {
+        fbSpans.splice(i - 1, 2, fbSpans[i - 1] + span);
+        fbTexts.splice(i, 1);
+        renderFbFields();
+        updateWizard();
+      });
+      merge.type = "button";
+      merge.className = "fb-merge";
+      box.append(merge);
+    }
+    const field = document.createElement("div");
+    field.className = "fb-field";
+    field.style.setProperty("--span", String(span));
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = fbTexts[i] ?? "";
+    input.placeholder = `${spec.prefix}${String(spec.start + i * spec.step).padStart(spec.digits, "0")}`;
+    input.title = t("wizard.fieldText");
+    input.addEventListener("input", () => {
+      fbTexts[i] = input.value;
+    });
+    field.append(input);
+    if (span > 1) {
+      const split = makeButton(`✂ ${span}`, t("wizard.split"), () => {
+        fbSpans.splice(i, 1, ...Array<number>(span).fill(1));
+        fbTexts.splice(i + 1, 0, ...Array<string>(span - 1).fill(""));
+        renderFbFields();
+        updateWizard();
+      });
+      split.type = "button";
+      field.append(split);
+    }
+    box.append(field);
+  });
+}
+
+/** Fills the wizard from a stored template (editing it again). */
+function fillWizard(layout: api.Layout): void {
+  $<HTMLInputElement>("wz-kind").value = layout.kind;
+  const set = (id: string, v: string | number) => ($<HTMLInputElement>(id).value = String(v));
+  const check = (id: string, v: boolean) => ($<HTMLInputElement>(id).checked = v);
+  if ("text" in layout) set("wz-text", layout.text);
+  if ("diameter_mm" in layout) set("wz-diameter", layout.diameter_mm);
+  if ("flag_mm" in layout) set("wz-flag", layout.flag_mm);
+  if (layout.kind === "cable_wrap") {
+    set("wz-repeats", layout.repeats ?? 0);
+    check("wz-vertical", layout.vertical);
+  }
+  if ("count" in layout) {
+    set("wz-count", layout.count);
+    set("wz-pitch", layout.pitch_mm);
+    set("wz-prefix", layout.prefix);
+    set("wz-start", layout.start);
+    set("wz-step", layout.step);
+    set("wz-digits", layout.digits);
+    set("wz-margin", layout.margin_mm);
+    check("wz-separators", layout.separators);
+  }
+  if (layout.kind === "terminal_block") $<HTMLSelectElement>("wz-rows").value = String(layout.rows);
+  if (layout.kind === "fuse_box") {
+    check("wz-fb-vertical", layout.vertical);
+    set("wz-main", layout.main_switch);
+    set("wz-main-width", layout.main_switch_mm);
+    check("wz-main-right", layout.main_switch_right);
+    fbSpans = layout.spans?.length ? [...layout.spans] : [];
+    fbTexts = [...(layout.texts ?? [])];
+    if (fbSpans.length) set("wz-count", fbSpans.reduce((a, b) => a + b, 0));
+  }
+}
+
 function wizardLayout(): api.Layout {
   const kind = $<HTMLInputElement>("wz-kind").value as api.Layout["kind"];
   const text = $<HTMLInputElement>("wz-text").value;
@@ -3047,18 +3158,199 @@ function wizardLayout(): api.Layout {
     }
     case "terminal_block":
       return { kind, rows: Number($<HTMLSelectElement>("wz-rows").value) || 2, ...fieldSpec() };
-    case "fuse_box":
+    case "fuse_box": {
+      const spec = fieldSpec();
+      normalizeFbSpans(spec.count);
+      const merged = fbSpans.some((s) => s > 1);
       return {
         kind,
         vertical: $<HTMLInputElement>("wz-fb-vertical").checked,
         main_switch: $<HTMLInputElement>("wz-main").value,
         main_switch_mm: Math.max(1, num("wz-main-width")),
         main_switch_right: $<HTMLInputElement>("wz-main-right").checked,
-        ...fieldSpec(),
+        ...spec,
+        spans: merged ? [...fbSpans] : [],
+        texts: fbTexts.some((x) => x?.trim()) ? fbSpans.map((_, i) => fbTexts[i] ?? "") : [],
       };
+    }
     default:
       return { kind: "patch_panel", ...fieldSpec() };
   }
+}
+
+// ---------------------------------------------------------------- code wizard
+
+type CodeType = "qr" | api.Symbology;
+
+/** Element being edited by the code wizard; null = insert a new one. */
+let codeTarget: Item | null = null;
+let codeSeq = 0;
+let codeValid = false;
+
+const CODE_FIELD_IDS: [keyof CodeFields, string][] = [
+  ["text", "cw-text"],
+  ["url", "cw-url"],
+  ["ssid", "cw-ssid"],
+  ["password", "cw-pass"],
+  ["name", "cw-vname"],
+  ["org", "cw-vorg"],
+  ["web", "cw-vurl"],
+  ["subject", "cw-subject"],
+];
+
+function codeFields(): CodeFields {
+  const f = emptyFields();
+  for (const [key, id] of CODE_FIELD_IDS) (f[key] as string) = $<HTMLInputElement>(id).value;
+  const kind = $<HTMLSelectElement>("cw-kind").value;
+  // Phone and e-mail have one input per kind; use the visible one.
+  f.phone = $<HTMLInputElement>(kind === "vcard" ? "cw-vtel" : "cw-tel").value;
+  f.email = $<HTMLInputElement>(kind === "vcard" ? "cw-vmail" : "cw-mail").value;
+  f.security = $<HTMLSelectElement>("cw-sec").value as CodeFields["security"];
+  f.hidden = $<HTMLInputElement>("cw-hidden").checked;
+  return f;
+}
+
+function fillCodeFields(f: CodeFields): void {
+  for (const [key, id] of CODE_FIELD_IDS) $<HTMLInputElement>(id).value = f[key] as string;
+  $<HTMLInputElement>("cw-vtel").value = $<HTMLInputElement>("cw-tel").value = f.phone;
+  $<HTMLInputElement>("cw-vmail").value = $<HTMLInputElement>("cw-mail").value = f.email;
+  $<HTMLSelectElement>("cw-sec").value = f.security;
+  $<HTMLInputElement>("cw-hidden").checked = f.hidden;
+}
+
+type CodeElement = Extract<Element, { type: "qr" | "barcode" }>;
+
+function codeElement(): CodeElement {
+  const type = $<HTMLSelectElement>("cw-type").value as CodeType;
+  if (type === "qr") {
+    return { type: "qr", data: buildCode($<HTMLSelectElement>("cw-kind").value as CodeKind, codeFields()) };
+  }
+  return { type: "barcode", symbology: type, data: $<HTMLTextAreaElement>("cw-text").value.trim() };
+}
+
+/** The structured QR kinds need their main field. */
+function missingCodeField(kind: CodeKind): boolean {
+  const f = codeFields();
+  const required = { text: f.text, url: f.url.replace(/^https?:\/\/$/, ""), wifi: f.ssid, vcard: f.name, email: f.email, tel: f.phone }[kind];
+  return !required.trim();
+}
+
+function updateCodeWizard(): void {
+  const type = $<HTMLSelectElement>("cw-type").value as CodeType;
+  const kind = type === "qr" ? $<HTMLSelectElement>("cw-kind").value : "barcode";
+  $("cw-kind-row").hidden = type !== "qr";
+  document.querySelectorAll<HTMLElement>("#code-dialog .cw-group").forEach((g) => {
+    g.hidden = !(g.dataset.kinds ?? "").split(" ").includes(kind);
+  });
+  const element = codeElement();
+  const info = $("cw-info");
+  const hint = type === "qr" ? "" : t(`code.hint.${type}`);
+  const apply = $<HTMLButtonElement>("cw-apply");
+  if (!element.data || (type === "qr" && missingCodeField(kind as CodeKind))) {
+    codeValid = false;
+    apply.disabled = true;
+    info.textContent = hint;
+    $<HTMLImageElement>("cw-preview").removeAttribute("src");
+    $("cw-preview").parentElement!.hidden = true;
+    return;
+  }
+  // Live preview through the print render path; errors (wrong length,
+  // invalid characters) disable "insert".
+  const seq = ++codeSeq;
+  const height = labelHeightMm();
+  const rect = { x_mm: 0, y_mm: 0, w_mm: type === "qr" ? height : Math.max(30, height * 2), h_mm: height };
+  const label: Label = {
+    version: state.label.version,
+    gap_mm: 0,
+    padding_mm: 1,
+    padding_start_mm: 1,
+    frame: false,
+    elements: [{ ...element, rect: { ...rect, x_mm: 1 } }],
+  };
+  void (async () => {
+    try {
+      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), null, null, 2);
+      if (seq !== codeSeq) return;
+      codeValid = true;
+      apply.disabled = false;
+      $<HTMLImageElement>("cw-preview").src = `data:image/png;base64,${preview.png}`;
+      $("cw-preview").parentElement!.hidden = false;
+      info.textContent = [hint, type === "qr" ? t("code.chars", { n: element.data.length }) : ""].filter(Boolean).join(" ");
+    } catch (err) {
+      if (seq !== codeSeq) return;
+      codeValid = false;
+      apply.disabled = true;
+      $<HTMLImageElement>("cw-preview").removeAttribute("src");
+      $("cw-preview").parentElement!.hidden = true;
+      info.textContent = [hint, t("error.prefix", { error: errorText(err) })].filter(Boolean).join(" ");
+    }
+  })();
+}
+
+/** Opens the code wizard for a new code or to edit `item` (QR or barcode). */
+function openCodeWizard(item: Item | null): void {
+  codeTarget = item;
+  const typeSelect = $<HTMLSelectElement>("cw-type");
+  typeSelect.replaceChildren(
+    new Option(t("elements.qr"), "qr"),
+    ...api.SYMBOLOGIES.map((s) => new Option(api.SYMBOLOGY_NAMES[s], s)),
+  );
+  if (item?.type === "qr") {
+    const parsed = parseCode(item.data);
+    typeSelect.value = "qr";
+    $<HTMLSelectElement>("cw-kind").value = parsed.kind;
+    fillCodeFields(parsed.fields);
+  } else if (item?.type === "barcode") {
+    typeSelect.value = item.symbology;
+    fillCodeFields({ ...emptyFields(), text: item.data });
+  } else {
+    typeSelect.value = "qr";
+    $<HTMLSelectElement>("cw-kind").value = "url";
+    fillCodeFields(emptyFields());
+  }
+  $("cw-apply").textContent = t(item ? "code.apply" : "code.insert");
+  updateCodeWizard();
+  $<HTMLDialogElement>("code-dialog").showModal();
+}
+
+function bindCodeWizard(): void {
+  const dialog = $<HTMLDialogElement>("code-dialog");
+  $("btn-code").addEventListener("click", () => openCodeWizard(null));
+  let lastType = "qr";
+  $("cw-type").addEventListener("change", () => {
+    // QR → barcode: keep the content as barcode data.
+    const text = $<HTMLTextAreaElement>("cw-text");
+    if (lastType === "qr" && $<HTMLSelectElement>("cw-type").value !== "qr" && !text.value) {
+      text.value = buildCode($<HTMLSelectElement>("cw-kind").value as CodeKind, codeFields());
+    }
+    lastType = $<HTMLSelectElement>("cw-type").value;
+  });
+  $("cw-type").addEventListener("focus", () => (lastType = $<HTMLSelectElement>("cw-type").value));
+  dialog.addEventListener("input", updateCodeWizard);
+  dialog.addEventListener("change", updateCodeWizard);
+  $("cw-apply").addEventListener("click", (e) => {
+    if (!codeValid) {
+      e.preventDefault();
+      return;
+    }
+    const element = codeElement();
+    if (codeTarget && state.label.elements.includes(codeTarget)) {
+      // Switching QR ⇄ barcode keeps box, name and alignment.
+      if (codeTarget.type !== element.type && codeTarget.rect) {
+        // A barcode needs a longer box than a QR code and vice versa.
+        const fresh = newRect(element.type);
+        codeTarget.rect = portrait() ? { ...codeTarget.rect, h_mm: fresh.h_mm } : { ...codeTarget.rect, w_mm: fresh.w_mm };
+      }
+      const target = codeTarget as Record<string, unknown>;
+      delete target.symbology;
+      Object.assign(target, element);
+    } else {
+      state.label.elements.push({ ...element, rect: newRect(element.type) });
+      state.selected = state.label.elements.length - 1;
+    }
+    codeTarget = null;
+    changed(true);
+  });
 }
 
 let wizardSeq = 0;
@@ -3089,12 +3381,25 @@ function updateWizard(): void {
 
 function bindWizard(): void {
   const dialog = $<HTMLDialogElement>("wizard");
-  $("btn-wizard").addEventListener("click", () => {
+  const openWizard = (layout: api.Layout | null) => {
+    if (layout) fillWizard(layout);
+    // New templates go to a new sheet unless the current one is empty or edited.
+    const empty = state.label.elements.length === 0;
+    $<HTMLSelectElement>("wz-target").value = layout || empty ? "replace" : "sheet";
     renderGallery();
+    renderFbFields();
     updateWizard();
     dialog.showModal();
+  };
+  $("btn-wizard").addEventListener("click", () => openWizard(null));
+  $("btn-edit-template").addEventListener("click", () => {
+    if (state.label.source) openWizard(state.label.source);
   });
-  dialog.addEventListener("input", updateWizard);
+  dialog.addEventListener("input", (e) => {
+    const id = (e.target as HTMLElement).id;
+    if (["wz-count", "wz-prefix", "wz-start", "wz-step", "wz-digits"].includes(id)) renderFbFields();
+    updateWizard();
+  });
   dialog.addEventListener("change", updateWizard);
   $("wz-create").addEventListener("click", async (e) => {
     e.preventDefault();
@@ -3102,6 +3407,24 @@ function bindWizard(): void {
       const label = await api.generateLayout(wizardLayout(), selectedModel(), selectedWidth());
       for (const item of label.elements) {
         if (item.rect) item.rect = roundRect(item.rect);
+      }
+      const target = $<HTMLSelectElement>("wz-target").value;
+      const name = t(TEMPLATES.find((tp) => tp.kind === label.source?.kind)?.name ?? "wizard.title");
+      if (target === "file") {
+        if (!(await confirmDiscard())) return;
+        dialog.close();
+        await setDocument({ version: 3, sheets: [{ name, width_mm: selectedWidth(), label }] }, null);
+        renderAll();
+        return;
+      }
+      if (target === "sheet") {
+        syncSheet();
+        state.sheets.push({ name, width_mm: selectedWidth(), label });
+        dialog.close();
+        await showSheet(state.sheets.length - 1, false);
+        changed(true);
+        renderAll();
+        return;
       }
       state.label = label;
       state.selected = -1;
@@ -3324,6 +3647,7 @@ function bindUi(): void {
     b.addEventListener("click", () => insertPlaceholder(b.dataset.token!)),
   );
   bindWizard();
+  bindCodeWizard();
   bindImageEditor();
   bindCutOptions();
   bindDecor();

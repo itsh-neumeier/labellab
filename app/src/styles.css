@@ -424,6 +424,17 @@ dialog#decor-dialog::backdrop, dialog#frame-editor::backdrop { background: rgba(
 .fe-preview { background: #eef1f4; padding: 8px; border-radius: 6px; }
 .fe-preview img { display: block; height: 48px; max-width: 100%; background: #fff; }
 
+/* ---- wizard: fuse box fields, target ---- */
+.fb-fields { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px 2px; }
+.fb-field { flex: none; width: calc(var(--span, 1) * 52px + (var(--span, 1) - 1) * 20px); display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--border); border-radius: 4px; padding: 3px; box-sizing: border-box; max-width: 100%; }
+.fb-field input { width: 100%; font-size: 11px; padding: 2px; }
+.fb-field button { font-size: 10px; padding: 0 4px; }
+.fb-merge { flex: none; padding: 0 3px; font-size: 11px; align-self: center; }
+.wizard label.wz-target { display: flex; align-items: center; gap: 6px; margin-right: auto; }
+.grid-full { grid-column: 1 / -1; }
+.grid-full[hidden] { display: none; }
+.grid-full button { width: 100%; }
+
 /* ---- start screen / about ---- */
 .splash {
   position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
@@ -485,3 +496,16 @@ dialog#image-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .props .element.selected { border: 0; outline: none; box-shadow: none; background: none; }
 #cut-every-wrap[hidden] { display: none; }
 .data .row button { white-space: nowrap; }
+
+/* Code wizard */
+.code-wizard { width: min(460px, 90vw); }
+.code-grid { display: flex; flex-direction: column; gap: 8px; }
+.code-wizard label { grid-template-columns: 9em 1fr; }
+.code-wizard label.check { display: flex; }
+.code-wizard label[hidden], .cw-group[hidden] { display: none; }
+.cw-group { display: flex; flex-direction: column; gap: 8px; }
+.cw-group textarea { resize: vertical; font: inherit; }
+.code-wizard .wz-preview img { height: 64px; }
+.code-wizard .wz-preview img:not([src]) { display: none; }
+button.code-edit { align-self: flex-start; }
+.code-wizard .wz-preview[hidden] { display: none; }
