@@ -235,7 +235,27 @@ function layoutStage(): void {
     line.style.top = `${k * tapeMm() * ppm}px`;
     lines.append(line);
   }
+  drawRuler(width, ppm);
   repositionBoxes();
+}
+
+/** mm ruler above the stage: small ticks per mm (if wide enough), numbers every 10 mm. */
+function drawRuler(widthPx: number, ppm: number): void {
+  const ruler = $("ruler");
+  const lengthMm = Math.ceil(widthPx / ppm);
+  const every = ppm >= 4 ? 1 : ppm >= 1.5 ? 5 : 10;
+  const parts: string[] = [];
+  for (let mm = 0; mm <= lengthMm; mm += every) {
+    const x = (mm * ppm).toFixed(1);
+    const major = mm % 10 === 0;
+    const h = major ? 9 : mm % 5 === 0 ? 6 : 3;
+    parts.push(`<line x1="${x}" x2="${x}" y1="${18 - h}" y2="18" />`);
+    if (major) parts.push(`<text x="${x}" y="8" stroke="none">${mm}</text>`);
+  }
+  ruler.style.width = `${widthPx}px`;
+  ruler.innerHTML =
+    `<svg width="${widthPx}" height="18" stroke="currentColor" fill="currentColor" font-size="9" ` +
+    `text-anchor="middle" font-family="system-ui, sans-serif">${parts.join("")}</svg>`;
 }
 
 /**
@@ -340,6 +360,8 @@ function boxCaption(item: Item): string {
       return `${elementTitle(item)}: ${symbolLabel(item.name)}`;
     case "fill":
       return elementTitle(item);
+    case "shape":
+      return `${elementTitle(item)}: ${t(`shape.${item.shape}`)}`;
   }
 }
 
@@ -357,7 +379,7 @@ function renderBoxes(): void {
   state.label.elements.forEach((item, index) => {
     if (!item.rect) return;
     const box = document.createElement("div");
-    box.className = `box${index === state.selected ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}`;
+    box.className = `box${index === state.selected ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}${item.locked ? " locked" : ""}`;
     box.dataset.index = String(index);
     box.title = boxCaption(item);
     placeBox(box, item.rect);
@@ -400,7 +422,7 @@ function startDrag(e: PointerEvent, index: number): void {
   e.stopPropagation();
   select(index);
   const item = state.label.elements[index];
-  if (!item.rect) return;
+  if (!item.rect || item.locked) return;
   const box = (e.currentTarget as HTMLElement);
   const handle = (e.target as HTMLElement).dataset.handle ?? null;
   const start = { ...item.rect };
@@ -428,6 +450,12 @@ function startDrag(e: PointerEvent, index: number): void {
         w_mm: rx ? Math.max(MIN_BOX_MM, start.w_mm + dx) : start.w_mm,
         h_mm: ry ? Math.max(MIN_BOX_MM, start.h_mm + dy) : start.h_mm,
       };
+      if (rx && ry && ev.shiftKey && start.w_mm > 0 && start.h_mm > 0) {
+        // Keep the aspect ratio: follow the larger relative change.
+        const f = Math.max(resized.w_mm / start.w_mm, resized.h_mm / start.h_mm);
+        resized.w_mm = Math.max(MIN_BOX_MM, start.w_mm * f);
+        resized.h_mm = Math.max(MIN_BOX_MM, start.h_mm * f);
+      }
       ({ rect: next, guides } = snapResize(resized, snapTargets, threshold, rx, ry));
     }
     item.rect = roundRect(next);
@@ -465,7 +493,7 @@ function newRect(type: Element["type"]): Rect {
   const h = labelHeightMm();
   const end = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
   const x = state.label.elements.length ? end + NEW_ITEM_GAP_MM : state.label.padding_mm;
-  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5 }[type];
+  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5 }[type];
   return roundRect({ x_mm: x, y_mm: 0, w_mm: w, h_mm: h });
 }
 
@@ -668,7 +696,32 @@ function contentFields(item: Item): HTMLElement[] {
         changed(true);
       });
       invert.append(box, ` ${t("elements.invert")}`);
-      return [row, invert];
+      const slider = (key: "brightness" | "contrast") => {
+        const wrap = document.createElement("label");
+        wrap.className = "range-row";
+        const name = document.createElement("span");
+        name.textContent = t(`elements.${key}`);
+        const range = document.createElement("input");
+        range.type = "range";
+        range.min = "-100";
+        range.max = "100";
+        range.step = "5";
+        range.value = String(item[key] ?? 0);
+        const out = document.createElement("output");
+        out.textContent = range.value;
+        range.addEventListener("input", () => {
+          item[key] = Number(range.value);
+          out.textContent = range.value;
+          changed();
+        });
+        range.addEventListener("dblclick", () => {
+          range.value = "0";
+          range.dispatchEvent(new Event("input"));
+        });
+        wrap.append(name, range, out);
+        return wrap;
+      };
+      return [row, invert, slider("brightness"), slider("contrast")];
     }
     case "symbol": {
       const select = document.createElement("button");
@@ -705,7 +758,106 @@ function contentFields(item: Item): HTMLElement[] {
     }
     case "fill":
       return [];
+    case "shape": {
+      const kind = document.createElement("select");
+      for (const k of ["line", "rectangle", "rounded_rectangle", "ellipse"] as const) {
+        kind.add(new Option(t(`shape.${k}`), k, false, k === item.shape));
+      }
+      kind.addEventListener("change", () => {
+        item.shape = kind.value as api.ShapeKind;
+        changed(true);
+      });
+      const stroke = numberInput(item.stroke_mm, 0.1, "", (v) => {
+        if (v !== null && v > 0) item.stroke_mm = v;
+      });
+      stroke.min = "0.1";
+      const filled = document.createElement("label");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = !!item.filled;
+      box.disabled = item.shape === "line";
+      box.addEventListener("change", () => {
+        item.filled = box.checked;
+        changed(true);
+      });
+      filled.append(box, ` ${t("shape.filled")}`);
+      const row = document.createElement("div");
+      row.className = "row";
+      row.append(field("shape.stroke", stroke), filled);
+      return [kind, row];
+    }
   }
+}
+
+/** Moves/sizes the element's box relative to the label and tape. */
+function alignItem(index: number, how: "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom" | "fill"): void {
+  const item = state.label.elements[index];
+  if (!item?.rect) return;
+  const r = { ...item.rect };
+  const height = labelHeightMm();
+  const length = labelLengthWithout(index, r.w_mm);
+  const pad = state.label.padding_mm;
+  switch (how) {
+    case "left":
+      r.x_mm = pad;
+      break;
+    case "hcenter":
+      r.x_mm = (length - r.w_mm) / 2;
+      break;
+    case "right":
+      r.x_mm = Math.max(0, length - pad - r.w_mm);
+      break;
+    case "top":
+      r.y_mm = 0;
+      break;
+    case "vcenter":
+      r.y_mm = (height - r.h_mm) / 2;
+      break;
+    case "bottom":
+      r.y_mm = height - r.h_mm;
+      break;
+    case "fill":
+      r.y_mm = 0;
+      r.h_mm = height;
+      break;
+  }
+  item.rect = roundRect(r);
+  changed(true);
+}
+
+/**
+ * Label length in mm the element at `index` is aligned to: the other boxes
+ * plus padding, at least the minimum length (exactly it when fixed), and
+ * never shorter than the element itself.
+ */
+function labelLengthWithout(index: number, ownWidth: number): number {
+  const l = state.label;
+  const others = Math.max(
+    0,
+    ...l.elements.filter((it, i) => i !== index && it.rect).map((it) => it.rect!.x_mm + it.rect!.w_mm),
+  );
+  const min = l.min_length_mm ?? 0;
+  if (l.fixed_length && min > 0) return min;
+  return Math.max(others + l.padding_mm, min, ownWidth + 2 * l.padding_mm);
+}
+
+function alignRow(index: number): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "align-row";
+  const label = document.createElement("span");
+  label.textContent = t("align.title");
+  row.append(label);
+  const buttons: [string, string, Parameters<typeof alignItem>[1]][] = [
+    ["⇤", "align.toLeft", "left"],
+    ["↔", "align.toHCenter", "hcenter"],
+    ["⇥", "align.toRight", "right"],
+    ["⤒", "align.toTop", "top"],
+    ["↕", "align.toVCenter", "vcenter"],
+    ["⤓", "align.toBottom", "bottom"],
+    ["▯", "align.fillHeight", "fill"],
+  ];
+  for (const [icon, key, how] of buttons) row.append(makeButton(icon, t(key), () => alignItem(index, how)));
+  return row;
 }
 
 function removeItem(index: number): void {
@@ -720,6 +872,15 @@ function duplicateItem(index: number): void {
   state.label.elements.splice(index + 1, 0, copy);
   state.selected = index + 1;
   changed(true);
+}
+
+function lockButton(item: Item): HTMLButtonElement {
+  const b = makeButton(item.locked ? "🔒" : "🔓", t(item.locked ? "elements.unlock" : "elements.lock"), () => {
+    item.locked = !item.locked || undefined;
+    changed(true);
+  });
+  if (item.locked) b.classList.add("on");
+  return b;
 }
 
 function elementCard(item: Item, index: number): HTMLLIElement {
@@ -738,10 +899,12 @@ function elementCard(item: Item, index: number): HTMLLIElement {
       item.rotation = ((item.rotation ?? 0) + 90) % 360;
       changed(true);
     }),
+    lockButton(item),
     makeButton("⧉", t("elements.duplicate"), () => duplicateItem(index)),
     makeButton("✕", t("elements.remove"), () => removeItem(index)),
   );
   li.append(header, ...contentFields(item));
+  if (item.rect && !item.locked) li.append(alignRow(index));
   if (item.rect) li.append(rectFields(item, index));
   return li;
 }
@@ -772,6 +935,8 @@ function defaultElement(type: Element["type"]): Element {
       return { type, name: "material:warning", invert: false };
     case "fill":
       return { type };
+    case "shape":
+      return { type, shape: "rectangle", stroke_mm: 0.3, filled: false };
   }
 }
 
@@ -781,6 +946,7 @@ function renderLayout(): void {
   const l = state.label;
   $<HTMLInputElement>("padding").value = String(l.padding_mm);
   $<HTMLInputElement>("min-length").value = l.min_length_mm ? String(l.min_length_mm) : "";
+  $<HTMLInputElement>("fixed-length").checked = !!l.fixed_length;
   renderBorder();
   $<HTMLSelectElement>("strips").value = String(strips());
   updateStripsHint();
@@ -805,6 +971,10 @@ function bindLayout(): void {
   };
   num("padding", (v) => (state.label.padding_mm = v ?? 0));
   num("min-length", (v) => (state.label.min_length_mm = v && v > 0 ? v : null));
+  $<HTMLInputElement>("fixed-length").addEventListener("change", (e) => {
+    state.label.fixed_length = (e.target as HTMLInputElement).checked || undefined;
+    changed(true);
+  });
   bindBorder();
 }
 
@@ -1766,7 +1936,7 @@ function isTyping(): boolean {
 
 function nudge(dx: number, dy: number): void {
   const item = state.label.elements[state.selected];
-  if (!item?.rect) return;
+  if (!item?.rect || item.locked) return;
   item.rect = roundRect({ ...item.rect, x_mm: item.rect.x_mm + dx, y_mm: item.rect.y_mm + dy });
   repositionBoxes();
   updateRectInputs(state.selected);

@@ -62,6 +62,7 @@
           <button data-add="image" data-i18n="elements.image"></button>
           <button data-add="symbol" data-i18n="elements.symbol"></button>
           <button data-add="fill" data-i18n="elements.fill"></button>
+          <button data-add="shape" data-i18n="elements.shape"></button>
         </div>
 
         <h2 data-i18n="layout.title"></h2>
@@ -70,6 +71,8 @@
           <input id="padding" type="number" min="0" step="0.5" />
           <label for="min-length" data-i18n="layout.minLength"></label>
           <input id="min-length" type="number" min="0" step="1" data-i18n-placeholder="layout.auto" />
+          <label for="fixed-length" data-i18n="layout.fixedLength" data-i18n-title="layout.fixedLengthHint"></label>
+          <input id="fixed-length" type="checkbox" />
         </div>
 
         <h2 data-i18n="border.title"></h2>
@@ -110,6 +113,8 @@
         <p class="muted hint" data-i18n="numbering.hint"></p>
         <div class="chips" id="num-chips">
           <button class="chip" data-token="n">{{n}}</button>
+          <button class="chip" data-token="datum">{{datum}}</button>
+          <button class="chip" data-token="zeit">{{zeit}}</button>
           <button class="chip" data-token="n:02">{{n:02}}</button>
           <button class="chip" data-token="n:03">{{n:03}}</button>
           <button class="chip" data-token="A">{{A}}</button>
@@ -162,6 +167,7 @@
           <span class="muted" data-i18n="preview.hint"></span>
         </div>
         <div class="tape-wrap" id="tape-wrap">
+          <div id="ruler" class="ruler" aria-hidden="true"></div>
           <div class="stage" id="stage">
             <img id="preview" alt="" draggable="false" hidden />
             <div id="ink" class="ink"></div>

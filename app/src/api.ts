@@ -38,12 +38,15 @@ export type Element =
     }
   | { type: "qr"; data: string }
   | { type: "barcode"; symbology: Symbology; data: string }
-  | { type: "image"; path: string; invert: boolean }
+  | { type: "image"; path: string; invert: boolean; brightness?: number; contrast?: number }
   | { type: "symbol"; name: string; invert: boolean }
-  | { type: "fill" };
+  | { type: "fill" }
+  | { type: "shape"; shape: ShapeKind; stroke_mm: number; filled?: boolean };
+
+export type ShapeKind = "line" | "rectangle" | "rounded_rectangle" | "ellipse";
 
 /** An element plus its box and rotation (`ll_core::label::Item`, serialized flat). */
-export type Item = Element & { rect?: Rect | null; rotation?: number };
+export type Item = Element & { rect?: Rect | null; rotation?: number; locked?: boolean };
 
 /** Running number for `{{n}}`/`{{a}}`/`{{A}}`. */
 export interface Numbering {
@@ -79,6 +82,8 @@ export interface Border {
 export interface Label {
   version: number;
   elements: Item[];
+  /** With `min_length_mm`: exactly that long, content beyond is cut off. */
+  fixed_length?: boolean;
   gap_mm: number;
   padding_mm: number;
   min_length_mm?: number | null;
