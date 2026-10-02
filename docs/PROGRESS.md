@@ -199,6 +199,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- **Knopf „✂ Schnitt“ (2026-10-02):** nach „Kein Schnitt“ drücken → Band wird vorgeschoben
+  und genau einmal geschnitten? Wie viel leeres Band kommt heraus?
 - **Kein Schnitt (2026-10-02):** Schnitt „Kein Schnitt“ und „Kettendruck ohne Schnitt“
   drucken → darf am Ende **nicht** schneiden (neu: `ESC i K` Bit 3 = 0). Gegenprobe „Jedes
   Etikett“ → schneidet weiter wie bisher. Bleibt das Band nach „Kein Schnitt“ im Drucker,
@@ -323,6 +325,23 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Rahmen-Paint (ADR-035), „Vorlagen / Spezial-Elemente“
+- Rahmen-Editor: Zeichenfläche je Teil (`app/src/framePaint.ts`), Werkzeuge, Bild einfügen
+  über den Bild-Editor + Platzieren (Größe/Schwelle/Raster), Breite wächst mit; SVG-Code
+  als Alternative. Speicherung als SVG mit eingebettetem PNG (Render-Test in `decor.rs`).
+- Sicherungskasten nur noch über „Vorlagen / Spezial-Elemente“ (Knopf umbenannt, Sprache
+  als „DE/EN“, damit die Werkzeugleiste bei 1280 px in eine Zeile passt); Ziel „Ins aktuelle
+  Blatt einfügen“ (Standard für Sicherungskasten, nur Querformat).
+- Geprüft: fmt/clippy/Tests, Build; GUI unter Xvfb (zeichnen, speichern, wieder öffnen,
+  Bild aus Zwischenablage einfügen, Sicherungskasten einfügen).
+- Offen: Bild-Editor zeigt beim Rahmen-Einfügen seine „Druckumsetzung“-Auswahl (dort
+  ohne Wirkung).
+
+### 2026-10-02 – Claude Code, Knopf „✂ Schnitt“ (Vorschub + Schnitt ohne Druck)
+- Nutzerfrage: Schnitt ohne Druck. Kein eigener Befehl im Protokoll → `print::feed_and_cut`
+  sendet einen Auftrag mit einer leeren Rasterzeile und Auto-Cut. App-Befehl `feed_cut`,
+  Knopf neben „Drucken“. Test (Befehlsbytes); Hardware-Test eingetragen.
+
 ### 2026-10-02 – Claude Code, Sicherungskasten als Element (ADR-034)
 - Nutzer-Screenshots aus dem Hersteller-Editor: Sicherungskasten ist ein Element mit
   Eigenschaften. Neu: `Element::FuseBox` (`ll-core/src/fusebox.rs` Modell + Trennlinien,

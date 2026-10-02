@@ -640,3 +640,18 @@ Vorlage:
 - Konsequenzen: Hochformat-Ansicht: Felder laufen entlang der Box-Breite (wie gedreht). Neue
   Trennstil-Maße (0,25 mm Linie, 0,7 mm fett, 1/0,8 mm Striche) sind Konstanten in
   `fusebox.rs`, keine Protokollwerte.
+
+## ADR-035: Rahmen-Zeichnungen als PNG im SVG-Segment
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Rahmenteile selbst zeichnen wie in Paint, Bilder einfügen und
+  nachbearbeiten, statt nur SVG-Code.
+- Entscheidung: Der Editor (`app/src/framePaint.ts`) arbeitet mit 1 Bit je Pixel in der
+  bedruckbaren Höhe des gewählten Bandes (1 Pixel = 1 Druckpunkt). Gespeichert wird jedes
+  gezeichnete Teil als SVG mit genau einem `<image href="data:image/png;base64,…">`; das
+  Dateiformat `.llabel-frames` und der Renderer bleiben unverändert (resvg zeichnet
+  eingebettete PNGs, Test in `decor.rs`). Beim Öffnen werden solche Teile wieder als
+  Zeichnung geladen, andere SVGs als Code; „Zeichnen“ rastert SVG-Code auf Wunsch.
+  Bilder laufen über den vorhandenen Bild-Editor (Zuschnitt, Hintergrund) und werden mit
+  Schwelle oder Floyd-Steinberg-Raster in Pixel umgesetzt.
+- Konsequenzen: Auf anderen Bandbreiten wird die Zeichnung skaliert (nicht mehr
+  pixelgenau). Keine neue Abhängigkeit.

@@ -405,6 +405,20 @@ async fn print_label(
         .map_err(|e| err(ll_core::CoreError::from(e)))
 }
 
+/// Feeds and cuts the tape without printing (button next to "print").
+#[tauri::command]
+async fn feed_cut(connection: Connection, model: String) -> Result<(), AppError> {
+    let model = find_model(&model)?;
+    let mut transport = device::connect(&connection).await.map_err(err)?;
+    ll_core::print::feed_and_cut(transport.as_mut(), model)
+        .await
+        .map_err(err)?;
+    transport
+        .close()
+        .await
+        .map_err(|e| err(ll_core::CoreError::from(e)))
+}
+
 #[derive(Serialize)]
 struct CsvDto {
     headers: Vec<String>,
@@ -815,6 +829,7 @@ pub fn run() {
             list_devices,
             query_status,
             print_label,
+            feed_cut,
             load_csv,
             clear_csv,
             font_families,

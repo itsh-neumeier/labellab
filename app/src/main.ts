@@ -10,6 +10,7 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import * as api from "./api";
 import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { bindImageEditor, openImageEditor } from "./imageEditor";
+import { bindPaint, loadPaint, newPaint, segmentSvg } from "./framePaint";
 import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
 import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
@@ -2041,21 +2042,8 @@ function renderDecorList(): void {
   }
 }
 
-/** Template for a new frame: thin lines with simple end caps. */
-const FRAME_TEMPLATE: Omit<api.FrameDef, "id" | "name"> = {
-  start:
-    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100" viewBox="0 0 20 100"><path d="M20 4 H4 V96 H20" fill="none" stroke="#000" stroke-width="5"/></svg>',
-  middle:
-    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100" viewBox="0 0 20 100"><path d="M0 4 H20 M0 96 H20" fill="none" stroke="#000" stroke-width="5"/></svg>',
-  end: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100" viewBox="0 0 20 100"><path d="M0 4 H16 V96 H0" fill="none" stroke="#000" stroke-width="5"/></svg>',
-};
-
 let editingFrameId: string | null = null;
 let framePreviewTimer: number | undefined;
-
-function frameSegment(seg: "start" | "middle" | "end"): HTMLTextAreaElement {
-  return document.querySelector<HTMLTextAreaElement>(`#frame-editor .fe-seg[data-seg="${seg}"] textarea`)!;
-}
 
 function editedFrame(): api.FrameDef {
   const name = $<HTMLInputElement>("fe-name").value.trim() || t("frameEditor.untitled");
@@ -2063,9 +2051,9 @@ function editedFrame(): api.FrameDef {
   return {
     id: editingFrameId ?? `${slug}-${Date.now().toString(36)}`,
     name,
-    start: frameSegment("start").value,
-    middle: frameSegment("middle").value,
-    end: frameSegment("end").value,
+    start: segmentSvg("start"),
+    middle: segmentSvg("middle"),
+    end: segmentSvg("end"),
   };
 }
 
@@ -2082,13 +2070,17 @@ function scheduleFramePreview(): void {
   }, 250);
 }
 
-function openFrameEditor(frame?: api.FrameDef): void {
+/** Printable height of the selected tape in print dots (1 drawing pixel = 1 dot). */
+function tapeDots(): number {
+  return Math.max(8, Math.round((tapeMm() * 180) / 25.4));
+}
+
+async function openFrameEditor(frame?: api.FrameDef): Promise<void> {
   editingFrameId = frame?.id ?? null;
   $<HTMLInputElement>("fe-name").value = frame ? textOf(frame.name) : "";
-  const source = frame ?? FRAME_TEMPLATE;
-  frameSegment("start").value = source.start;
-  frameSegment("middle").value = source.middle;
-  frameSegment("end").value = source.end;
+  $("fe-msg").textContent = "";
+  if (frame) await loadPaint(frame, tapeDots());
+  else newPaint(tapeDots());
   $<HTMLDialogElement>("frame-editor").showModal();
   scheduleFramePreview();
 }
@@ -2110,19 +2102,7 @@ function bindDecor(): void {
       setStatus(t("error.prefix", { error: errorText(e) }), "error");
     }
   });
-  document.querySelectorAll<HTMLElement>("#frame-editor .fe-seg").forEach((seg) => {
-    seg.querySelector("textarea")!.addEventListener("input", scheduleFramePreview);
-    seg.querySelector("button")!.addEventListener("click", async () => {
-      const path = await open({ multiple: false, filters: [{ name: "SVG", extensions: ["svg"] }] });
-      if (typeof path !== "string") return;
-      try {
-        seg.querySelector("textarea")!.value = await api.readSvg(path);
-        scheduleFramePreview();
-      } catch (e) {
-        $("fe-msg").textContent = t("error.prefix", { error: errorText(e) });
-      }
-    });
-  });
+  bindPaint(scheduleFramePreview);
   $<HTMLInputElement>("fe-name").addEventListener("input", scheduleFramePreview);
   $("fe-save").addEventListener("click", async () => {
     try {
@@ -2294,6 +2274,27 @@ function setPrinting(on: boolean, text?: string): void {
   button.disabled = on;
   button.classList.toggle("busy", on);
   button.textContent = on ? (text ?? t("print.printingBusy")) : t("print.print");
+  $<HTMLButtonElement>("btn-feed-cut").disabled = on;
+}
+
+/** Feed and cut without printing (e.g. after "no cut" / chain printing). */
+async function feedCut(): Promise<void> {
+  if (state.printing) return;
+  const connection = selectedConnection();
+  if (!connection) {
+    setMessage(t("print.noDevice"), true);
+    return;
+  }
+  setPrinting(true);
+  setMessage("");
+  try {
+    await api.feedCut({ connection, model: selectedModel() });
+    setMessage(t("print.feedCutDone"));
+  } catch (e) {
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
+  } finally {
+    setPrinting(false);
+  }
 }
 
 /** Selected CSV record range for printing, null = all (or no CSV). */
@@ -3182,6 +3183,7 @@ function renderGallery(): void {
           fbTexts = [];
         }
         $<HTMLInputElement>("wz-kind").value = tp.kind;
+        if ($<HTMLSelectElement>("wz-target").value !== "replace") $<HTMLSelectElement>("wz-target").value = defaultWizardTarget(tp.kind, false);
         renderGallery();
         renderFbFields();
         updateWizard();
@@ -3530,6 +3532,16 @@ function bindCodeWizard(): void {
 
 let wizardSeq = 0;
 
+/**
+ * Where a template goes by default: edited templates and empty labels are
+ * replaced, special elements (fuse box) join the current label, other
+ * templates get a new sheet.
+ */
+function defaultWizardTarget(kind: string, editing: boolean): string {
+  if (editing || state.label.elements.length === 0) return "replace";
+  return kind === "fuse_box" ? "insert" : "sheet";
+}
+
 function updateWizard(): void {
   const kind = $<HTMLInputElement>("wz-kind").value;
   document.querySelectorAll<HTMLElement>("#wizard .wz-group").forEach((g) => {
@@ -3558,9 +3570,7 @@ function bindWizard(): void {
   const dialog = $<HTMLDialogElement>("wizard");
   const openWizard = (layout: api.Layout | null) => {
     if (layout) fillWizard(layout);
-    // New templates go to a new sheet unless the current one is empty or edited.
-    const empty = state.label.elements.length === 0;
-    $<HTMLSelectElement>("wz-target").value = layout || empty ? "replace" : "sheet";
+    $<HTMLSelectElement>("wz-target").value = defaultWizardTarget($<HTMLInputElement>("wz-kind").value, !!layout);
     renderGallery();
     renderFbFields();
     updateWizard();
@@ -3589,6 +3599,26 @@ function bindWizard(): void {
         if (!(await confirmDiscard())) return;
         dialog.close();
         await setDocument({ version: 3, sheets: [{ name, width_mm: selectedWidth(), label }] }, null);
+        renderAll();
+        return;
+      }
+      if (target === "insert") {
+        if (portrait()) {
+          $("wz-info").textContent = t("wizard.insertLandscapeOnly");
+          return;
+        }
+        // Append after the existing content, like a newly added element.
+        await ensureRects();
+        const end = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
+        const start = state.label.elements.length ? end + NEW_ITEM_GAP_MM : startPad();
+        const first = Math.min(...label.elements.map((i) => i.rect?.x_mm ?? 0));
+        for (const item of label.elements) {
+          if (item.rect) item.rect = roundRect({ ...item.rect, x_mm: item.rect.x_mm - first + start });
+        }
+        state.label.elements.push(...label.elements);
+        state.selected = state.label.elements.length - 1;
+        dialog.close();
+        changed(true);
         renderAll();
         return;
       }
@@ -3836,6 +3866,7 @@ function bindUi(): void {
   $("btn-status").addEventListener("click", readStatus);
   $("btn-keepalive").addEventListener("click", () => setKeepAlive(keepAliveTimer === undefined));
   $("btn-print").addEventListener("click", print);
+  $("btn-feed-cut").addEventListener("click", () => void feedCut());
   $("model").addEventListener("change", () => {
     fillWidths();
     tapeChanged();

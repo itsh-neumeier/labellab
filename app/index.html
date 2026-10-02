@@ -19,13 +19,13 @@
       <button id="btn-undo" class="icon-btn" data-i18n-title="toolbar.undoHint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
       <button id="btn-redo" class="icon-btn" data-i18n-title="toolbar.redoHint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       <span class="sep"></span>
-      <button id="btn-wizard" data-i18n="toolbar.wizard"></button>
+      <button id="btn-wizard" data-i18n="toolbar.wizard" data-i18n-title="toolbar.wizardHint"></button>
       <span class="spacer"></span>
       <span id="file-name" class="muted"></span>
       <button id="btn-about" data-i18n="about.open"></button>
-      <select id="lang" aria-label="Sprache / Language">
-        <option value="de">Deutsch</option>
-        <option value="en">English</option>
+      <select id="lang" aria-label="Sprache / Language" title="Sprache / Language">
+        <option value="de">DE</option>
+        <option value="en">EN</option>
       </select>
     </header>
 
@@ -68,7 +68,6 @@
           <button data-add="symbol" data-i18n="elements.symbol"></button>
           <button data-add="fill" data-i18n="elements.fill"></button>
           <button data-add="shape" data-i18n="elements.shape"></button>
-          <button data-add="fuse_box" data-i18n="elements.fuse_box" data-i18n-title="fuse.addHint"></button>
         </div>
 
         <h2 data-i18n="layout.title"></h2>
@@ -239,6 +238,7 @@
       </label>
       <span id="message" class="message"></span>
       <span class="spacer"></span>
+      <button id="btn-feed-cut" data-i18n="print.feedCut" data-i18n-title="print.feedCutHint"></button>
       <button id="btn-print" class="primary" data-i18n="print.print"></button>
     </footer>
 
@@ -335,10 +335,57 @@
         <h2 data-i18n="frameEditor.title"></h2>
         <p class="muted hint" data-i18n="frameEditor.hint"></p>
         <label class="fe-namefield"><span data-i18n="frameEditor.name"></span><input id="fe-name" type="text" /></label>
-        <div class="fe-segments">
-          <div class="fe-seg" data-seg="start"><strong data-i18n="frameEditor.start"></strong><textarea rows="6" spellcheck="false"></textarea><button type="button" data-i18n="frameEditor.load"></button></div>
-          <div class="fe-seg" data-seg="middle"><strong data-i18n="frameEditor.middle"></strong><textarea rows="6" spellcheck="false"></textarea><button type="button" data-i18n="frameEditor.load"></button></div>
-          <div class="fe-seg" data-seg="end"><strong data-i18n="frameEditor.end"></strong><textarea rows="6" spellcheck="false"></textarea><button type="button" data-i18n="frameEditor.load"></button></div>
+        <div class="row fe-head">
+          <div id="fe-tabs" class="seg-tabs">
+            <button type="button" data-seg="start" data-i18n="frameEditor.start"></button>
+            <button type="button" data-seg="middle" data-i18n="frameEditor.middle"></button>
+            <button type="button" data-seg="end" data-i18n="frameEditor.end"></button>
+          </div>
+          <div class="seg-tabs">
+            <button type="button" id="fe-mode-draw" data-i18n="paint.modeDraw"></button>
+            <button type="button" id="fe-mode-code" data-i18n="paint.modeCode"></button>
+          </div>
+        </div>
+        <div id="fe-paint" class="fe-paint">
+          <div id="fe-tools" class="row fe-tools">
+            <button type="button" data-tool="pencil" class="on" data-i18n-title="paint.pencil">✎</button>
+            <button type="button" data-tool="eraser" data-i18n-title="paint.eraser">⌫</button>
+            <button type="button" data-tool="line" data-i18n-title="paint.line">╱</button>
+            <button type="button" data-tool="rect" data-i18n-title="paint.rect">▭</button>
+            <button type="button" data-tool="ellipse" data-i18n-title="paint.ellipse">◯</button>
+            <button type="button" data-tool="fill" data-i18n-title="paint.fill">◉</button>
+            <select id="fe-brush" data-i18n-title="paint.brush">
+              <option value="1">1 px</option><option value="2">2 px</option><option value="3">3 px</option>
+              <option value="4">4 px</option><option value="6">6 px</option><option value="8">8 px</option>
+            </select>
+            <label class="check"><input id="fe-filled" type="checkbox" /> <span data-i18n="paint.filled"></span></label>
+            <span class="sep"></span>
+            <button type="button" id="fe-undo" data-i18n-title="paint.undo">↶</button>
+            <button type="button" id="fe-mirror" data-i18n-title="paint.mirror">⇋</button>
+            <button type="button" id="fe-clear" data-i18n="paint.clear"></button>
+            <button type="button" id="fe-from-start" data-i18n="paint.fromStart"></button>
+          </div>
+          <div class="row fe-tools">
+            <label class="inline"><span data-i18n="paint.width"></span><input id="fe-width" type="number" min="1" max="2000" /></label>
+            <label class="inline" data-i18n-title="paint.heightHint"><span data-i18n="paint.height"></span><input id="fe-height" type="number" min="8" max="512" /></label>
+            <button type="button" id="fe-crop" data-i18n="paint.crop" data-i18n-title="paint.cropHint"></button>
+            <span class="sep"></span>
+            <button type="button" id="fe-insert" data-i18n="paint.insert"></button>
+            <button type="button" id="fe-paste" data-i18n="paint.paste"></button>
+          </div>
+          <div id="fe-place" class="row fe-tools fe-place" hidden>
+            <label class="inline"><span data-i18n="paint.scale"></span><input id="fe-place-scale" type="range" min="5" max="300" value="100" /></label>
+            <label class="inline"><span data-i18n="paint.threshold"></span><input id="fe-place-threshold" type="range" min="1" max="254" value="128" /></label>
+            <label class="check"><input id="fe-place-dither" type="checkbox" /> <span data-i18n="paint.dither"></span></label>
+            <button type="button" id="fe-place-ok" class="primary" data-i18n="paint.placeOk"></button>
+            <button type="button" id="fe-place-cancel" data-i18n="wizard.cancel"></button>
+          </div>
+          <div class="fe-canvas-wrap"><canvas id="fe-canvas"></canvas></div>
+          <p class="muted hint" data-i18n="paint.hint"></p>
+        </div>
+        <div id="fe-code" class="fe-code" hidden>
+          <textarea id="fe-svg" rows="8" spellcheck="false"></textarea>
+          <div class="row"><button type="button" id="fe-load-svg" data-i18n="frameEditor.load"></button></div>
         </div>
         <div class="fe-preview"><img id="fe-preview" alt="" /></div>
         <p id="fe-msg" class="muted hint"></p>
@@ -512,6 +559,7 @@
         <div class="row end">
           <label class="wz-target"><span data-i18n="wizard.target"></span>
             <select id="wz-target">
+              <option value="insert" data-i18n="wizard.targetInsert"></option>
               <option value="replace" data-i18n="wizard.targetReplace"></option>
               <option value="sheet" data-i18n="wizard.targetSheet"></option>
               <option value="file" data-i18n="wizard.targetFile"></option>

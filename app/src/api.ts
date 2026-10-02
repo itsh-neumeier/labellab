@@ -297,6 +297,9 @@ export interface PrintJob {
 export const printLabel = (args: { label: Label; connection: Connection; model: string; job: PrintJob }) =>
   invoke<void>("print_label", args);
 
+/** Feeds and cuts the tape without printing. */
+export const feedCut = (args: { connection: Connection; model: string }) => invoke<void>("feed_cut", args);
+
 export interface Progress {
   done: number;
   total: number;

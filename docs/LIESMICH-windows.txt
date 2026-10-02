@@ -46,6 +46,8 @@ Editor
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
 - Daten (CSV) > "Beispiel-CSV ...": legt eine passende CSV-Vorlage an (Spalten aus den
   {{Platzhaltern}} des Labels) und laedt sie.
+- "Schnitt" (Knopf neben "Drucken"): schiebt das Band vor und schneidet, ohne zu
+  drucken - z. B. nach "Kein Schnitt", wenn das letzte Label noch im Drucker steckt.
 - Druckleiste "Schnitt": jedes Etikett / am Ende / alle N / Kettendruck / kein Schnitt;
   "Schnittmarken" druckt Linien zum Schneiden von Hand, "Spiegeln" spiegelt das Label.
 - Rahmen > Deko-Rahmen: Rahmen aus der Galerie waehlen oder mit "Neuer Rahmen ..."
@@ -60,7 +62,10 @@ Editor
 - Hinzufuegen > "Code" (Code-Assistent): QR-Code oder Barcode einfuegen. Bei QR-Codes Inhalt waehlen
   (Link, WLAN-Zugang, Kontakt, E-Mail, Telefon, Text). Bestehende Codes: "Assistent ..."
   rechts in den Eigenschaften.
-- Hinzufuegen > "Sicherungskasten": ein Element mit Feldern. Rechts in den
+- Rahmen > Deko-Rahmen > "Neuer Rahmen ...": Anfang, Mitte und Ende wie in Paint
+  zeichnen (linke Maustaste zeichnet, rechte radiert) oder ein Bild einfuegen,
+  zuschneiden und nachzeichnen. 1 Pixel = 1 Druckpunkt.
+- "Vorlagen / Spezial-Elemente" > Sicherungskasten: ein Element mit Feldern. Rechts in den
   Eigenschaften: Anzahl Felder, Raster (mm), Trennzeichen, Text senkrecht, Umkehren und
   je Feld Text, Breite (1x, 2x ...) und "<=>" zum Verbinden mit dem naechsten Feld.
 - Vorlagen > Sicherungskasten: "<=>" zwischen zwei Feldern verbindet sie (Geraet ueber

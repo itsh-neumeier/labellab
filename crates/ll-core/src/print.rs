@@ -189,6 +189,20 @@ pub async fn print_labels(
     Ok(())
 }
 
+/// Feeds and cuts without printing: a job of one blank raster line with
+/// auto-cut (the printer has no stand-alone cut command). Cuts off a label
+/// left in the printer by "no cut" / chain printing. A one-line page with
+/// auto-cut was seen to cut on a PT-P710BT (pre-cut test 2026-10-01);
+/// TODO(verify): exactly one cut and the fed length.
+pub async fn feed_and_cut(
+    transport: &mut dyn Transport,
+    model: &ModelInfo,
+) -> Result<(), CoreError> {
+    let (width_mm, _) = read_status_and_geometry(transport, model).await?;
+    let blank = Bitmap::new(model.head_pins, 1);
+    send_page(transport, &blank, width_mm, true, 0, true, true).await
+}
+
 /// Prints a single line of `text`, see [`print_label`].
 pub async fn print_text(
     transport: &mut dyn Transport,
@@ -405,6 +419,19 @@ mod tests {
 
     fn p710bt() -> &'static model::ModelInfo {
         model::find_by_name("PT-P710BT").expect("PT-P710BT must be in the model table")
+    }
+
+    #[tokio::test]
+    async fn feed_and_cut_sends_one_blank_line_with_cut() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+        feed_and_cut(&mut transport, p710bt()).await.unwrap();
+        let written = transport.written();
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x4D, 0x40]).is_some());
+        assert!(find_subsequence(written, &[0x1B, 0x69, 0x4B, 0x08]).is_some());
+        // One raster line, sent as an empty row, then print with feed.
+        assert_eq!(count(written, &[0x5A]), 1);
+        assert_eq!(*written.last().unwrap(), 0x1A);
     }
 
     #[tokio::test]
