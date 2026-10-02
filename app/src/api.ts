@@ -48,7 +48,19 @@ export type Element =
 export type ShapeKind = "line" | "rectangle" | "rounded_rectangle" | "ellipse";
 
 /** An element plus its box and rotation (`ll_core::label::Item`, serialized flat). */
-export type Item = Element & { rect?: Rect | null; rotation?: number; locked?: boolean };
+export type VAlign = "top" | "middle" | "bottom";
+
+/**
+ * `halign`: content position in the box for codes/images/symbols (text uses
+ * its own `align`); `valign`: for all elements. Absent = centered.
+ */
+export type Item = Element & {
+  rect?: Rect | null;
+  rotation?: number;
+  locked?: boolean;
+  halign?: TextAlign | null;
+  valign?: VAlign | null;
+};
 
 /** Running number for `{{n}}`/`{{a}}`/`{{A}}`. */
 export interface Numbering {
@@ -100,6 +112,8 @@ export interface Border {
   sides: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   pattern_mm: number;
   inset_mm: number;
+  /** Distance per side (overrides `inset_mm`); left/right count from the label margins. */
+  insets_mm?: { top: number; bottom: number; left: number; right: number } | null;
 }
 
 export interface Label {

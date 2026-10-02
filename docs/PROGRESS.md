@@ -98,6 +98,8 @@
   - [x] Rand links/rechts getrennt einstellbar, in der Vorschau als Zonen, Ausrichten/
     Einrasten daran, Hinweis bei Elementen im Rand (Nutzerwunsch 2026-10-02)
   - [x] Boxen an allen vier Seiten und Ecken ziehbar (Nutzerwunsch 2026-10-02)
+  - [x] Rahmen innerhalb der Label-Ränder, Abstand je Seite; Inhalt in der Box horizontal/
+    vertikal ausrichten; senkrechtes Lineal links (Nutzerwunsch 2026-10-02, ADR-030)
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
@@ -277,6 +279,18 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Rahmenabstände, Inhaltsausrichtung, senkrechtes Lineal (ADR-030)
+- `LabelBorder::insets_mm` (oben/unten/links/rechts, sonst `inset_mm`); links/rechts zählen
+  ab den Label-Rändern (`ll_render::Insets`, `border_reserve` je Seite).
+- `Item::halign`/`valign`; Text: `valign` im fontdue-Layout (`boxed::TextLayout`, ersetzt
+  die lange Parameterliste), QR/Barcode/Bild/Symbol: `boxed::align_content` verschiebt die
+  Tinte nach dem Drehen an die gewünschte Seite.
+- App: Zeile „Inhalt:“ (⇤ ↔ ⇥ ⤒ ↕ ⤓) je Element, die Text-„Ausrichtung“-Auswahl ist darin
+  aufgegangen; vier Abstandsfelder beim Rahmen; senkrechtes mm-Lineal links über die volle
+  Bandbreite.
+- Geprüft: Tests (4 neue), fmt/clippy, Frontend-Build; GUI unter Xvfb (Text rechts/oben,
+  Lineal), CLI-Render (QR oben links/unten rechts, Rahmen 3 mm Rand + 2 mm Abstand rechts).
+
 ### 2026-10-02 – Claude Code, Fix Labellänge (100 mm fest → 107 mm gedruckt)
 - Ursache (Messung Nutzer): Der Drucker-Rand `1B 69 64` (Nachlauf, Standard 28 Punkte
   ≈ 3,95 mm) kommt vor *und* nach dem Label dazu: 100 + 2 × 3,95 ≈ 108 mm.

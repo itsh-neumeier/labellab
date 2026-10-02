@@ -15,6 +15,8 @@ import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle
 
 const DOTS_PER_MM = 180 / 25.4;
 const PREVIEW_DEBOUNCE_MS = 40;
+/** Width of the vertical ruler (matches `.vruler` in styles.css). */
+const VRULER_PX = 26;
 /** Base color of clear tape (matches `.stage.clear-tape`). */
 const CLEAR_TAPE_CSS = "#e9edf1";
 const HISTORY_DEBOUNCE_MS = 400;
@@ -314,7 +316,27 @@ function layoutStage(): void {
     lines.append(line);
   }
   drawRuler(width, ppm);
+  drawVRuler(height + 2 * tapeMarginMm() * ppm, ppm);
   repositionBoxes();
+}
+
+/** mm ruler left of the tape, across the full tape width (0 = top tape edge). */
+function drawVRuler(heightPx: number, ppm: number): void {
+  const ruler = $("vruler");
+  const widthMm = heightPx / ppm;
+  const every = ppm >= 4 ? 1 : 5;
+  const parts: string[] = [];
+  for (let mm = 0; mm <= widthMm + 0.01; mm += every) {
+    const y = (mm * ppm).toFixed(1);
+    const major = mm % 5 === 0;
+    const w = major ? 7 : 3;
+    parts.push(`<line x1="${VRULER_PX - w}" x2="${VRULER_PX}" y1="${y}" y2="${y}" />`);
+    if (major && mm > 0) parts.push(`<text x="${VRULER_PX - 9}" y="${y}" stroke="none" dominant-baseline="middle">${mm}</text>`);
+  }
+  ruler.style.height = `${heightPx}px`;
+  ruler.innerHTML =
+    `<svg width="${VRULER_PX}" height="${heightPx}" stroke="currentColor" fill="currentColor" font-size="9" ` +
+    `text-anchor="end" font-family="system-ui, sans-serif">${parts.join("")}</svg>`;
 }
 
 /** mm ruler above the stage: small ticks per mm (if wide enough), numbers every 10 mm. */
@@ -691,14 +713,6 @@ function contentFields(item: Item): HTMLElement[] {
       const size = numberInput(item.size_pt, 0.5, t("layout.auto"), (v) => {
         item.size_pt = v && v > 0 ? v : null;
       });
-      const align = document.createElement("select");
-      for (const a of ["left", "center", "right"] as const) {
-        align.add(new Option(t(`align.${a}`), a, false, a === item.align));
-      }
-      align.addEventListener("change", () => {
-        item.align = align.value as api.TextAlign;
-        changed(true);
-      });
       const spacing = numberInput(item.line_spacing, 0.1, "1.0", (v) => {
         item.line_spacing = v && v > 0 ? Math.min(3, Math.max(0.5, v)) : null;
       });
@@ -707,7 +721,7 @@ function contentFields(item: Item): HTMLElement[] {
       spacing.title = t("elements.lineSpacingHint");
       const row = document.createElement("div");
       row.className = "row";
-      row.append(field("elements.size", size), field("elements.lineSpacing", spacing), field("elements.align", align));
+      row.append(field("elements.size", size), field("elements.lineSpacing", spacing));
 
       const font = fontPicker(item.font ?? null, (family) => {
         item.font = family;
@@ -960,6 +974,40 @@ function alignRow(index: number): HTMLElement {
   return row;
 }
 
+/** Content alignment inside the box: horizontal and vertical, three each. */
+function contentAlignRow(item: Item): HTMLElement | null {
+  const aligned = ["text", "qr", "barcode", "image", "symbol"];
+  if (!aligned.includes(item.type)) return null;
+  const row = document.createElement("div");
+  row.className = "align-row";
+  const label = document.createElement("span");
+  label.textContent = t("content.title");
+  row.append(label);
+  const h = (): api.TextAlign => (item.type === "text" ? item.align : (item.halign ?? "center"));
+  const v = (): api.VAlign => item.valign ?? "middle";
+  const buttons: [string, string, () => boolean, () => void][] = [
+    ["⇤", "content.left", () => h() === "left", () => setH("left")],
+    ["↔", "content.hcenter", () => h() === "center", () => setH("center")],
+    ["⇥", "content.right", () => h() === "right", () => setH("right")],
+    ["⤒", "content.top", () => v() === "top", () => (item.valign = "top")],
+    ["↕", "content.vmiddle", () => v() === "middle", () => (item.valign = null)],
+    ["⤓", "content.bottom", () => v() === "bottom", () => (item.valign = "bottom")],
+  ];
+  function setH(a: api.TextAlign): void {
+    if (item.type === "text") item.align = a;
+    else item.halign = a === "center" ? null : a;
+  }
+  for (const [icon, key, on, apply] of buttons) {
+    const b = makeButton(icon, t(key), () => {
+      apply();
+      changed(true);
+    });
+    b.classList.toggle("on", on());
+    row.append(b);
+  }
+  return row;
+}
+
 function removeItem(index: number): void {
   state.label.elements.splice(index, 1);
   state.selected = Math.min(state.selected, state.label.elements.length - 1);
@@ -1005,6 +1053,8 @@ function elementCard(item: Item, index: number): HTMLLIElement {
   );
   li.append(header, ...contentFields(item));
   if (item.rect && !item.locked) li.append(alignRow(index));
+  const contentRow = item.rect ? contentAlignRow(item) : null;
+  if (contentRow) li.append(contentRow);
   if (item.rect) li.append(rectFields(item, index));
   return li;
 }
@@ -1118,7 +1168,10 @@ function renderBorder(): void {
   const d = b ?? defaultBorder();
   $<HTMLInputElement>("border-width").value = String(d.width_mm);
   $<HTMLInputElement>("border-pattern").value = String(d.pattern_mm);
-  $<HTMLInputElement>("border-inset").value = String(d.inset_mm);
+  const insets = borderInsets(d);
+  document.querySelectorAll<HTMLInputElement>("[data-inset]").forEach((input) => {
+    input.value = String(insets[input.dataset.inset as BorderSide]);
+  });
   document.querySelectorAll<HTMLInputElement>("[data-side]").forEach((c) => {
     c.checked = d.sides[c.dataset.side as keyof api.Border["sides"]];
   });
@@ -1127,10 +1180,18 @@ function renderBorder(): void {
   document.querySelectorAll<HTMLElement>(".border-pattern").forEach((el) => (el.hidden = !patterned));
 }
 
+type BorderSide = keyof api.Border["sides"];
+
+/** Border distance per side (matches `LabelBorder::insets` in `ll-core`). */
+function borderInsets(b: api.Border): Record<BorderSide, number> {
+  const i = b.insets_mm ?? { top: b.inset_mm, bottom: b.inset_mm, left: b.inset_mm, right: b.inset_mm };
+  return { top: Math.max(0, i.top), bottom: Math.max(0, i.bottom), left: Math.max(0, i.left), right: Math.max(0, i.right) };
+}
+
 /** Space the border takes from each edge, in mm (matches `border_reserve` in `ll-core`). */
-function borderReserveMm(b: api.Border): number {
+function borderReserveMm(b: api.Border, side: BorderSide): number {
   const width = Math.max(0, b.width_mm);
-  return Math.max(0, b.inset_mm) + width + Math.max(width, BORDER_CLEARANCE_MM);
+  return borderInsets(b)[side] + width + Math.max(width, BORDER_CLEARANCE_MM);
 }
 
 /**
@@ -1139,10 +1200,10 @@ function borderReserveMm(b: api.Border): number {
  * changed.
  */
 function fitBoxesInsideBorder(b: api.Border): boolean {
-  const r = borderReserveMm(b);
-  const top = b.sides.top ? r : 0;
-  const bottom = labelHeightMm() - (b.sides.bottom ? r : 0);
-  const left = b.sides.left ? r : 0;
+  const top = b.sides.top ? borderReserveMm(b, "top") : 0;
+  const bottom = labelHeightMm() - (b.sides.bottom ? borderReserveMm(b, "bottom") : 0);
+  // The border's left edge sits inside the label margin.
+  const left = b.sides.left ? startPad() + borderReserveMm(b, "left") : 0;
   let moved = false;
   for (const item of state.label.elements) {
     const rect = item.rect;
@@ -1192,7 +1253,11 @@ function bindBorder(): void {
   };
   num("border-width", 0.05, (b, v) => (b.width_mm = v));
   num("border-pattern", 0.1, (b, v) => (b.pattern_mm = v));
-  num("border-inset", 0, (b, v) => (b.inset_mm = v));
+  document.querySelectorAll<HTMLInputElement>("[data-inset]").forEach((input) => {
+    num(input.id, 0, (b, v) => {
+      b.insets_mm = { ...borderInsets(b), [input.dataset.inset as BorderSide]: v };
+    });
+  });
   document.querySelectorAll<HTMLInputElement>("[data-side]").forEach((c) => {
     c.addEventListener("change", () =>
       update((b) => (b.sides[c.dataset.side as keyof api.Border["sides"]] = c.checked), true),

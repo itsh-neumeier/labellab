@@ -94,8 +94,14 @@
           <input id="border-width" type="number" min="0.1" step="0.1" class="border-opt" />
           <label for="border-pattern" data-i18n="border.pattern" class="border-opt border-pattern"></label>
           <input id="border-pattern" type="number" min="0.2" step="0.1" class="border-opt border-pattern" />
-          <label for="border-inset" data-i18n="border.inset" class="border-opt"></label>
-          <input id="border-inset" type="number" min="0" step="0.1" class="border-opt" />
+          <label for="border-inset-top" data-i18n="border.insetTop" data-i18n-title="border.insetHint" class="border-opt"></label>
+          <input id="border-inset-top" data-inset="top" type="number" min="0" step="0.1" class="border-opt" />
+          <label for="border-inset-bottom" data-i18n="border.insetBottom" data-i18n-title="border.insetHint" class="border-opt"></label>
+          <input id="border-inset-bottom" data-inset="bottom" type="number" min="0" step="0.1" class="border-opt" />
+          <label for="border-inset-left" data-i18n="border.insetLeft" data-i18n-title="border.insetHint" class="border-opt"></label>
+          <input id="border-inset-left" data-inset="left" type="number" min="0" step="0.1" class="border-opt" />
+          <label for="border-inset-right" data-i18n="border.insetRight" data-i18n-title="border.insetHint" class="border-opt"></label>
+          <input id="border-inset-right" data-inset="right" type="number" min="0" step="0.1" class="border-opt" />
         </div>
         <div class="border-sides border-opt">
           <span data-i18n="border.sides"></span>
@@ -173,14 +179,17 @@
         </div>
         <div class="tape-wrap" id="tape-wrap">
           <div id="ruler" class="ruler" aria-hidden="true"></div>
-          <div class="tape-frame" id="tape-frame">
-            <div class="stage" id="stage">
-              <img id="preview" alt="" draggable="false" hidden />
-              <div id="ink" class="ink"></div>
-              <div id="strip-lines" class="strip-lines"></div>
-              <div id="margin-start" class="margin-zone"></div>
-              <div id="margin-end" class="margin-zone"></div>
-              <div id="boxes" class="boxes"></div>
+          <div class="stage-row">
+            <div id="vruler" class="vruler" aria-hidden="true"></div>
+            <div class="tape-frame" id="tape-frame">
+              <div class="stage" id="stage">
+                <img id="preview" alt="" draggable="false" hidden />
+                <div id="ink" class="ink"></div>
+                <div id="strip-lines" class="strip-lines"></div>
+                <div id="margin-start" class="margin-zone"></div>
+                <div id="margin-end" class="margin-zone"></div>
+                <div id="boxes" class="boxes"></div>
+              </div>
             </div>
           </div>
           <p id="preview-msg" class="preview-msg"></p>

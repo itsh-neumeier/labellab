@@ -33,6 +33,10 @@ Editor
 - Strg+V fuegt ein Bild (z. B. Screenshot) oder Text aus der Zwischenablage als neues
   Element ein. Strg+C / Strg+X / Strg+V kopieren das gewaehlte Element. Eingefuegte Bilder
   liegen unter %APPDATA%\LabelLab\pasted.
+- "Inhalt:" (Zeile in jeder Elementkarte): Inhalt in der Box links/mittig/rechts und
+  oben/mittig/unten ausrichten.
+- Rahmen: "Abstand oben/unten/links/rechts" einzeln; links/rechts zusaetzlich zum
+  Label-Rand.
 - Boxen: an jeder Seite und Ecke ziehen = Groesse aendern (Umschalt an einer Ecke:
   Seitenverhaeltnis halten).
 - Laenge: Das gedruckte Label ist so lang wie in der Vorschau. Der Abstand zwischen

@@ -23,8 +23,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use ll_protocol::model::{dots_to_mm, mm_to_dots, pt_to_dots, ModelInfo, TapeGeometry};
 use ll_render::{
-    boxed, Bitmap, Face, FaceSet, ImageAdjust, ImageEdit, QrErrorCorrection, ShapeKind, Symbology,
-    TextAlign,
+    boxed, boxed::TextLayout, Bitmap, Face, FaceSet, ImageAdjust, ImageEdit, QrErrorCorrection,
+    ShapeKind, Symbology, TextAlign, VAlign,
 };
 use serde::{Deserialize, Serialize};
 
@@ -63,9 +63,46 @@ pub struct LabelBorder {
     /// Dash length (`dashed`) or stripe width (`striped`) in mm.
     #[serde(default = "default_border_pattern_mm")]
     pub pattern_mm: f32,
-    /// Distance from the label edge in mm.
+    /// Distance from the label edge in mm (all sides; see `insets_mm`).
     #[serde(default)]
     pub inset_mm: f32,
+    /// Distance per side in mm, overriding `inset_mm`. Left/right count
+    /// from the label margins (`padding_start_mm`/`padding_mm`), top/bottom
+    /// from the printable area's edges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub insets_mm: Option<BorderInsets>,
+}
+
+/// Border distance per side in mm.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct BorderInsets {
+    #[serde(default)]
+    pub top: f32,
+    #[serde(default)]
+    pub bottom: f32,
+    #[serde(default)]
+    pub left: f32,
+    #[serde(default)]
+    pub right: f32,
+}
+
+impl LabelBorder {
+    /// Distances per side (`insets_mm`, else `inset_mm` everywhere), never
+    /// negative.
+    pub fn insets(&self) -> BorderInsets {
+        let i = self.insets_mm.unwrap_or(BorderInsets {
+            top: self.inset_mm,
+            bottom: self.inset_mm,
+            left: self.inset_mm,
+            right: self.inset_mm,
+        });
+        BorderInsets {
+            top: i.top.max(0.0),
+            bottom: i.bottom.max(0.0),
+            left: i.left.max(0.0),
+            right: i.right.max(0.0),
+        }
+    }
 }
 
 impl Default for LabelBorder {
@@ -76,6 +113,7 @@ impl Default for LabelBorder {
             sides: BorderSides::ALL,
             pattern_mm: default_border_pattern_mm(),
             inset_mm: 0.0,
+            insets_mm: None,
         }
     }
 }
@@ -182,6 +220,14 @@ pub struct Item {
     /// Has no effect on rendering.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
+    /// Horizontal position of the content inside its box (codes, images,
+    /// symbols; text uses its own `align`). `None` = centered.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub halign: Option<TextAlign>,
+    /// Vertical position of the content inside its box (all elements).
+    /// `None` = middle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valign: Option<VAlign>,
 }
 
 fn is_zero(v: &u16) -> bool {
@@ -195,6 +241,8 @@ impl From<Element> for Item {
             rect: None,
             rotation: 0,
             locked: false,
+            halign: None,
+            valign: None,
         }
     }
 }
@@ -555,8 +603,18 @@ fn render_flow_element(
             let size_px = size_pt.map(|pt| canvas.pt(pt));
             let spacing = line_spacing.unwrap_or(1.0);
             let width = boxed::text_natural_width(text, &faces, pins, size_px, spacing)?;
-            let (local, clipped) =
-                boxed::text_in_box_checked(text, &faces, width, pins, size_px, *align, spacing)?;
+            let (local, clipped) = boxed::text_in_box_checked(
+                text,
+                &faces,
+                width,
+                pins,
+                &TextLayout {
+                    size_px,
+                    align: *align,
+                    valign: VAlign::Middle,
+                    line_spacing: spacing,
+                },
+            )?;
             *overflow |= clipped;
             let mut out = Bitmap::new(head, width);
             out.blit(&local, offset as i32, 0, offset..offset + pins);
@@ -629,6 +687,7 @@ fn render_boxed_element(
     element: &Element,
     w: u32,
     h: u16,
+    valign: VAlign,
     canvas: &Canvas,
     fonts: &mut FontCache,
     overflow: &mut bool,
@@ -649,9 +708,12 @@ fn render_boxed_element(
                 &face_set(&faces),
                 w,
                 h,
-                size_pt.map(|pt| canvas.pt(pt)),
-                *align,
-                line_spacing.unwrap_or(1.0),
+                &TextLayout {
+                    size_px: size_pt.map(|pt| canvas.pt(pt)),
+                    align: *align,
+                    valign,
+                    line_spacing: line_spacing.unwrap_or(1.0),
+                },
             )?;
             *overflow |= clipped;
             bitmap
@@ -711,14 +773,16 @@ struct Reserve {
 /// [`BORDER_CLEARANCE_MM`]) on each side that has a border.
 fn border_reserve(border: &LabelBorder, canvas: &Canvas) -> Reserve {
     let width = border.width_mm.max(0.0);
-    let total = canvas.mm(border.inset_mm.max(0.0) + width + width.max(BORDER_CLEARANCE_MM));
-    let pins = total.min(u16::MAX as u32) as u16;
+    let line = width + width.max(BORDER_CLEARANCE_MM);
+    let insets = border.insets();
+    let dots = |inset: f32| canvas.mm(inset + line);
+    let pins = |inset: f32| dots(inset).min(u16::MAX as u32) as u16;
     let sides = border.sides;
     Reserve {
-        top: if sides.top { pins } else { 0 },
-        bottom: if sides.bottom { pins } else { 0 },
-        left: if sides.left { total } else { 0 },
-        right: if sides.right { total } else { 0 },
+        top: if sides.top { pins(insets.top) } else { 0 },
+        bottom: if sides.bottom { pins(insets.bottom) } else { 0 },
+        left: if sides.left { dots(insets.left) } else { 0 },
+        right: if sides.right { dots(insets.right) } else { 0 },
     }
 }
 
@@ -804,6 +868,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
             let (x, y, w, h) = canvas.rect(rect);
             if w > 0 && h > 0 {
                 let turns = ((item.rotation / 90) % 4) as u8;
+                let valign = item.valign.unwrap_or_default();
                 let local = if turns % 2 == 1 {
                     // Render into the swapped box, then turn it upright.
                     let (rw, rh) = (h as u32, w.min(u16::MAX as u32) as u16);
@@ -811,14 +876,34 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
                         &item.element,
                         rw,
                         rh,
+                        valign,
                         canvas,
                         &mut fonts,
                         &mut overflow[i],
                     )?
                     .rotated(turns)
                 } else {
-                    render_boxed_element(&item.element, w, h, canvas, &mut fonts, &mut overflow[i])?
-                        .rotated(turns)
+                    render_boxed_element(
+                        &item.element,
+                        w,
+                        h,
+                        valign,
+                        canvas,
+                        &mut fonts,
+                        &mut overflow[i],
+                    )?
+                    .rotated(turns)
+                };
+                // Codes, images and symbols render centered; move them to
+                // the requested side (text aligns itself in its layout).
+                let local = match item.element {
+                    Element::Qr { .. }
+                    | Element::Barcode { .. }
+                    | Element::Image { .. }
+                    | Element::Symbol { .. } => {
+                        boxed::align_content(&local, h, item.halign, item.valign)
+                    }
+                    _ => local,
                 };
                 bitmap.blit(&local, canvas.offset as i32 + y, x, clip.clone());
             }
@@ -832,6 +917,7 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     }
 
     if let Some(border) = label.effective_border() {
+        let insets = border.insets();
         let thickness = if border.width_mm > 0.0 {
             canvas.mm(border.width_mm).clamp(1, u16::MAX as u32) as u16
         } else {
@@ -846,7 +932,13 @@ fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
                 thickness,
                 sides: border.sides,
                 pattern: canvas.mm(border.pattern_mm).max(1),
-                inset: canvas.mm(border.inset_mm),
+                // Left/right sit inside the label margins.
+                inset: ll_render::Insets {
+                    top: canvas.mm(insets.top),
+                    bottom: canvas.mm(insets.bottom),
+                    left: padding_start + canvas.mm(insets.left),
+                    right: padding + canvas.mm(insets.right),
+                },
             },
         );
     }
@@ -1025,6 +1117,8 @@ mod tests {
                     }),
                     rotation: 0,
                     locked: false,
+                    halign: None,
+                    valign: None,
                 },
                 Element::Qr {
                     data: "https://example.org".into(),
@@ -1150,6 +1244,8 @@ mod tests {
                 }),
                 rotation: 0,
                 locked: false,
+                halign: None,
+                valign: None,
             }],
             ..Label::default()
         };
@@ -1188,6 +1284,8 @@ mod tests {
                 }),
                 rotation: 0,
                 locked: false,
+                halign: None,
+                valign: None,
             }],
             ..Label::default()
         };
@@ -1273,6 +1371,8 @@ mod tests {
                 }),
                 rotation: 0,
                 locked: false,
+                halign: None,
+                valign: None,
             }],
             ..Label::default()
         };
@@ -1311,6 +1411,8 @@ mod tests {
                 }),
                 rotation: 0,
                 locked: false,
+                halign: None,
+                valign: None,
             }],
             padding_mm: 1.0,
             ..Label::default()
@@ -1395,6 +1497,8 @@ mod tests {
             }),
             rotation: 0,
             locked: false,
+            halign: None,
+            valign: None,
         };
         let mut label = Label {
             elements: vec![bar(0.0), bar(40.0)],
@@ -1428,6 +1532,36 @@ mod tests {
         let (start6, end6) = ink(&label);
         assert!((start6 - start2).abs_diff(mm_to_dots(4.0)) <= 1);
         assert_eq!(end6, end2);
+    }
+
+    #[test]
+    fn border_sits_inside_the_label_margins() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let label = Label {
+            padding_mm: 3.0,
+            padding_start_mm: Some(5.0),
+            min_length_mm: Some(40.0),
+            fixed_length: true,
+            border: Some(LabelBorder {
+                insets_mm: Some(BorderInsets {
+                    left: 1.0,
+                    right: 2.0,
+                    ..BorderInsets::default()
+                }),
+                ..LabelBorder::default()
+            }),
+            ..Label::default()
+        };
+        let b = render_label(&label, model, geometry).unwrap();
+        let lines = ink_lines(&b);
+        let (first, last) = (lines[0], lines[lines.len() - 1]);
+        assert!(first.abs_diff(mm_to_dots(6.0)) <= 1, "first {first}");
+        assert!(
+            (b.height_dots() - 1 - last).abs_diff(mm_to_dots(5.0)) <= 1,
+            "end gap {}",
+            b.height_dots() - 1 - last
+        );
     }
 
     #[test]
@@ -1469,6 +1603,8 @@ mod tests {
             }),
             rotation: 0,
             locked: false,
+            halign: None,
+            valign: None,
         };
         let label = Label {
             elements: vec![boxed(None), boxed(Some(30.0))],
@@ -1495,6 +1631,8 @@ mod tests {
             }),
             rotation,
             locked: false,
+            halign: None,
+            valign: None,
         };
         for rotation in [0, 90, 180, 270] {
             let label = Label {
@@ -1546,6 +1684,8 @@ mod tests {
                 }),
                 rotation: 0,
                 locked: false,
+                halign: None,
+                valign: None,
             }],
             ..Label::default()
         };

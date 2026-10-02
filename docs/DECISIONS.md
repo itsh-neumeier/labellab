@@ -567,3 +567,17 @@ Vorlage:
   Schnitten derselben Familie in einem fontdue-Layout.
 - Konsequenzen: Ältere Programmstände drucken die Marker als Zeichen. Die Marker sind im
   Textfeld sichtbar (kein WYSIWYG-Editor); dafür gibt es die Knöpfe/Tastenkürzel.
+
+## ADR-030: Rahmen innerhalb der Label-Ränder, Inhaltsausrichtung in Boxen
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: der Rahmen soll die Label-Ränder berücksichtigen und je Seite einen
+  Abstand haben; Inhalte in Boxen horizontal und vertikal ausrichtbar.
+- Entscheidung: Rahmen-Abstand je Seite (`insets_mm`, Rückfall auf `inset_mm`); links/rechts
+  wird er zu `padding_start_mm`/`padding_mm` addiert, oben/unten gilt er ab dem
+  bedruckbaren Bereich. Ausrichtung als `halign`/`valign` am `Item` (nicht am Element, damit
+  es keine Kollision mit Text-Feldern im flachen JSON gibt); Text nutzt weiter `align` für
+  die Waagerechte und `valign` im Layout, andere Elemente werden nach dem Rendern anhand
+  ihrer Tinte verschoben (Renderer bleiben unverändert zentriert).
+- Konsequenzen: Ältere Labels mit Rahmen und Rand > 0 zeichnen den Rahmen jetzt um den Rand
+  nach innen versetzt. Bilder mit weißem Hintergrund richten sich nach ihrer Tinte, nicht
+  nach dem Bildrand.
