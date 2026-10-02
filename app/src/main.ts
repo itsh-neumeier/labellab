@@ -2036,6 +2036,43 @@ function bindSplash(): void {
   $("btn-about").addEventListener("click", showSplash);
 }
 
+// ---------------------------------------------------------------- cut options
+
+const CUT_MODE_KEY = "labellab.cutMode";
+
+/** Print settings from the cut mode select (like the cut options of other label editors). */
+function cutSettings(): Pick<api.PrintJob, "cut" | "chain" | "cutEvery" | "cutMarks" | "mirror"> {
+  const mode = $<HTMLSelectElement>("cut-mode").value;
+  const every = Math.max(2, Number($<HTMLInputElement>("cut-every").value) || 2);
+  return {
+    cut: mode === "each" || mode === "end" || mode === "every",
+    chain: mode === "end" || mode === "every" || mode === "chain",
+    cutEvery: mode === "every" ? every : 0,
+    cutMarks: $<HTMLInputElement>("cut-marks").checked,
+    mirror: $<HTMLInputElement>("mirror").checked,
+  };
+}
+
+function bindCutOptions(): void {
+  const select = $<HTMLSelectElement>("cut-mode");
+  try {
+    const saved = localStorage.getItem(CUT_MODE_KEY);
+    if (saved && Array.from(select.options).some((o) => o.value === saved)) select.value = saved;
+  } catch {
+    // default
+  }
+  const update = () => {
+    $("cut-every-wrap").hidden = select.value !== "every";
+    try {
+      localStorage.setItem(CUT_MODE_KEY, select.value);
+    } catch {
+      // not remembered
+    }
+  };
+  select.addEventListener("change", update);
+  update();
+}
+
 // ---------------------------------------------------------------- keep-alive
 
 /**
@@ -2106,8 +2143,7 @@ async function print(): Promise<void> {
       model: selectedModel(),
       job: {
         copies: Math.max(1, Number($<HTMLInputElement>("copies").value) || 1),
-        cut: $<HTMLInputElement>("cut").checked,
-        chain: $<HTMLInputElement>("chain").checked,
+        ...cutSettings(),
         marginDots: Math.max(0, Number($<HTMLInputElement>("margin").value) || 0),
         rows: selectedRows(),
         count: state.csv ? null : numberedCount() || null,
@@ -2250,6 +2286,46 @@ async function loadCsvFile(): Promise<void> {
     renderCsv();
     schedulePreview();
     setMessage("");
+  } catch (e) {
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
+  }
+}
+
+/** Placeholders the series fills itself (not CSV columns). */
+const BUILTIN_PLACEHOLDERS = new Set(["n", "a", "A", "datum", "date", "zeit", "time"]);
+
+/** CSV columns the current label uses (`{{name}}`), in order of appearance. */
+function labelColumns(): string[] {
+  const seen: string[] = [];
+  const texts = state.sheets.flatMap((s) => (s === state.sheets[state.sheet] ? state.label : s.label).elements);
+  for (const item of texts) {
+    const source = item.type === "text" ? item.text : item.type === "qr" || item.type === "barcode" ? item.data : "";
+    for (const m of source.matchAll(/\{\{\s*([^}:\s]+)(?::[^}]*)?\s*\}\}/g)) {
+      if (!BUILTIN_PLACEHOLDERS.has(m[1]) && !seen.includes(m[1])) seen.push(m[1]);
+    }
+  }
+  return seen;
+}
+
+/** Writes a sample CSV (the label's columns, or example columns) and loads it. */
+async function createCsvSample(): Promise<void> {
+  const columns = labelColumns();
+  const header = columns.length ? columns : t("data.sampleColumns").split(";");
+  const quote = (v: string) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const rows = [1, 2, 3].map((i) => header.map((c) => quote(`${c} ${i}`)).join(";"));
+  const content = `${header.map(quote).join(";")}\r\n${rows.join("\r\n")}\r\n`;
+  const path = await save({ defaultPath: t("data.sampleFile"), filters: [{ name: t("data.filter"), extensions: ["csv"] }] });
+  if (!path) return;
+  try {
+    await api.saveTextFile(path, content);
+    const csv = await api.loadCsv(path);
+    state.csv = { ...csv, name: path.split(/[\\/]/).pop() ?? path };
+    $<HTMLInputElement>("preview-row").value = "1";
+    $<HTMLInputElement>("row-from").value = "1";
+    $<HTMLInputElement>("row-to").value = String(csv.rows.length);
+    renderCsv();
+    schedulePreview();
+    setMessage(t("data.sampleSaved", { path }));
   } catch (e) {
     setMessage(t("error.prefix", { error: errorText(e) }), true);
   }
@@ -3242,12 +3318,14 @@ function bindUi(): void {
   $("btn-refresh").addEventListener("click", () => void refreshDevices());
   $("device").addEventListener("change", () => applyDeviceModel(state.devices[Number($<HTMLSelectElement>("device").value)]));
   $("btn-csv").addEventListener("click", loadCsvFile);
+  $("btn-csv-sample").addEventListener("click", () => void createCsvSample());
   for (const id of ["num-count", "num-start", "num-step"]) $(id).addEventListener("input", schedulePreview);
   document.querySelectorAll<HTMLButtonElement>("#num-chips [data-token]").forEach((b) =>
     b.addEventListener("click", () => insertPlaceholder(b.dataset.token!)),
   );
   bindWizard();
   bindImageEditor();
+  bindCutOptions();
   bindDecor();
   bindPrinterInfo();
   bindClipboard();

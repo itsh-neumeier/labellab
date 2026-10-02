@@ -42,6 +42,14 @@ impl Bitmap {
         }
     }
 
+    /// Mirrored along the label length (mirror print, e.g. for reading
+    /// through clear tape from the back).
+    pub fn mirrored(&self) -> Bitmap {
+        let mut rows = self.rows.clone();
+        rows.reverse();
+        Bitmap { rows, ..*self }
+    }
+
     pub fn row(&self, y: u32) -> &[u8] {
         &self.rows[y as usize]
     }

@@ -148,6 +148,7 @@
         <div class="data">
           <div class="row">
             <button id="btn-csv" data-i18n="data.load"></button>
+            <button id="btn-csv-sample" data-i18n="data.sample" data-i18n-title="data.sampleHint"></button>
             <span id="csv-name" class="muted filename" data-i18n="data.none"></span>
             <button id="btn-csv-clear" data-i18n-title="data.clear" hidden>✕</button>
           </div>
@@ -218,8 +219,20 @@
       <label><span data-i18n="print.copies"></span>
         <input id="copies" type="number" min="1" value="1" />
       </label>
-      <label><input id="cut" type="checkbox" checked /> <span data-i18n="print.cut"></span></label>
-      <label data-i18n-title="print.chainHint"><input id="chain" type="checkbox" /> <span data-i18n="print.chain"></span></label>
+      <label data-i18n-title="print.cutHint"><span data-i18n="print.cutMode"></span>
+        <select id="cut-mode">
+          <option value="each" data-i18n="print.cutEach"></option>
+          <option value="end" data-i18n="print.cutEnd"></option>
+          <option value="every" data-i18n="print.cutEvery"></option>
+          <option value="chain" data-i18n="print.cutChain"></option>
+          <option value="none" data-i18n="print.cutNone"></option>
+        </select>
+      </label>
+      <label id="cut-every-wrap" hidden><span data-i18n="print.cutEveryN"></span>
+        <input id="cut-every" type="number" min="2" value="2" />
+      </label>
+      <label data-i18n-title="print.cutMarksHint"><input id="cut-marks" type="checkbox" /> <span data-i18n="print.cutMarks"></span></label>
+      <label data-i18n-title="print.mirrorHint"><input id="mirror" type="checkbox" /> <span data-i18n="print.mirror"></span></label>
       <label><span data-i18n="print.margin"></span>
         <input id="margin" type="number" min="0" />
       </label>

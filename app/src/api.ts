@@ -251,6 +251,10 @@ export interface PrintJob {
   cut: boolean;
   chain: boolean;
   marginDots: number;
+  /** With chain + cut: also cut after every n-th label (0 = only at the end). */
+  cutEvery: number;
+  cutMarks: boolean;
+  mirror: boolean;
   /** 1-based inclusive record range of the loaded CSV; null = all. */
   rows: [number, number] | null;
   /** Without CSV: labels in a numbered series (null = single label). */
@@ -371,3 +375,4 @@ export const deleteFrame = (id: string) => invoke<void>("delete_frame", { id });
 export const importFrameSet = (path: string) => invoke<string>("import_frame_set", { path });
 export const removeFrameSet = (id: string) => invoke<void>("remove_frame_set", { id });
 export const readSvg = (path: string) => invoke<string>("read_svg", { path });
+export const saveTextFile = (path: string, content: string) => invoke<void>("save_text_file", { path, content });

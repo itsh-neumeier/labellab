@@ -113,12 +113,12 @@
   - [x] USB unter Windows: Fehler „incompatible driver is installed“ (Nutzer 2026-10-02) —
     neuer Transport `ll_transport::usbprint` über die Geräteschnittstelle des
     Windows-Druckertreibers, `nusb` nur noch Rückfall (Hardware-Test offen)
-  - [ ] Schnittoptionen wie im Hersteller-Editor (Nutzerwunsch 2026-10-02, Hilfe-Seite
+  - [x] Schnittoptionen wie im Hersteller-Editor (Nutzerwunsch 2026-10-02, Hilfe-Seite
     „Schnittoptionen“ gelesen): Auswahl statt Häkchen – jedes Etikett schneiden / Schnitt am
     Ende / Kettendruck (kein Vorschub nach dem letzten) / kein Schnitt (Spezialband) /
     Schnittmarken drucken / alle N Etiketten schneiden (per Seiten-Schnittflag im Kettenauftrag,
     TODO(verify)) / Spiegeldruck. Halbschnitt am PT-P710BT unverifiziert → erst Hardware-Test.
-  - [ ] Daten (CSV): Beispieldatei erzeugen und speichern lassen (Nutzerwunsch 2026-10-02)
+  - [x] Daten (CSV): Beispieldatei erzeugen und speichern lassen (Nutzerwunsch 2026-10-02)
   - [x] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
     an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
   - [x] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
@@ -155,9 +155,9 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-- Reihenfolge der offenen Nutzerwünsche (2026-10-02): ~~1. Auto-Speichern~~,
-  ~~2. Ebenen/Eigenschaften~~, 3. senkrechte Bandausrichtung, 4. Segment-Rahmen + Editor,
-  5. `.lbx`-Import.
+- Offene Nutzerwünsche (Stand 2026-10-02 abends): `.lbx`-Import (Plan `docs/IMPORT-LBX.md`),
+  Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
+  Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
   Bandausrichtung im Editor, Akkuanzeige nach Rohdaten-Test, macOS-Build (Tauri kann es,
   braucht macOS-Runner in CI + Bluetooth über CoreBluetooth/IOBluetooth — neuer Transport),
@@ -198,6 +198,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- Schnittoptionen: „Alle N Etiketten“ (Schnitt-Flag je Seite im Kettenauftrag), Schnittmarken,
+  Spiegeln, „Kettendruck (kein Schnitt)“ am Gerät prüfen.
 - USB unter Windows ohne Treibertausch: Status lesen und Drucken über `usbprint.sys`
   (`ll_transport::usbprint`). Klappt das Lesen des Status nicht, Fehlermeldung notieren.
 - Länge: Label mit fester Länge 100 mm (Rand links/rechts ≥ 4 mm) drucken → genau 100 mm?
@@ -316,6 +318,20 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Beispiel-CSV
+- „Beispiel-CSV …“ unter Daten (CSV): Spalten = vom Label genutzte `{{Platzhalter}}` (ohne
+  n/a/A/datum/zeit), sonst „Name;Raum;Nummer“; 3 Beispielzeilen, `;`-getrennt; Speicherort
+  per Dialog, danach direkt geladen. App-Befehl `save_text_file`.
+- Geprüft: Build; GUI unter Xvfb (Datei erzeugt und geladen).
+
+### 2026-10-02 – Claude Code, Schnittoptionen
+- Druckleiste: Auswahl „Schnitt“ (jedes Etikett / Schnitt am Ende / alle N Etiketten /
+  Kettendruck ohne Schnitt / kein Schnitt) statt zwei Häkchen, dazu „Schnittmarken“ und
+  „Spiegeln“; Auswahl wird gemerkt. `PrintOptions::cut_every` (Schnitt-Flag je Seite im
+  Kettenauftrag, TODO(verify)), `cut_marks` (gepunktete Linie am Ende jedes Etiketts),
+  `mirror` (`Bitmap::mirrored`). Halbschnitt nicht eingebaut (am PT-P710BT unverifiziert).
+- Geprüft: Tests (2 neue), fmt/clippy, Build; Druckleiste unter Xvfb.
+
 ### 2026-10-02 – Claude Code, Deko-Rahmen aus Segmenten (ADR-032)
 - `ll_render::decor`: Rahmen aus drei SVG-Segmenten (Anfang, Mitte wiederholt und leicht
   gestreckt, Ende) in voller druckbarer Höhe; Sets als `.llabel-frames` mit Registry.

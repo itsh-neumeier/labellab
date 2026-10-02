@@ -106,6 +106,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- „Beispiel-CSV …“: erzeugt eine CSV mit den Platzhalter-Spalten des Labels, speichert und
+  lädt sie
+- Schnittoptionen: jedes Etikett, Schnitt am Ende, alle N Etiketten, Kettendruck ohne
+  Schnitt, kein Schnitt (Spezialband); dazu Schnittmarken und Spiegeldruck
 - Deko-Rahmen aus Anfangs-, Mittel- (wiederholt) und Endstück: 8 mitgelieferte Rahmen,
   eigener Rahmen-Editor (SVG), Import von Rahmen-Sets (`.llabel-frames`)
 - Hochformat: Label mit senkrechtem Band bearbeiten („Ausrichtung“ unter Label)

@@ -44,6 +44,10 @@ Editor
   Obergrenze fuer den Vorschub des Druckers.
 - Rand links / Rand rechts: Abstand zwischen Schnitt und Inhalt, in der Vorschau
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
+- Daten (CSV) > "Beispiel-CSV ...": legt eine passende CSV-Vorlage an (Spalten aus den
+  {{Platzhaltern}} des Labels) und laedt sie.
+- Druckleiste "Schnitt": jedes Etikett / am Ende / alle N / Kettendruck / kein Schnitt;
+  "Schnittmarken" druckt Linien zum Schneiden von Hand, "Spiegeln" spiegelt das Label.
 - Rahmen > Deko-Rahmen: Rahmen aus der Galerie waehlen oder mit "Neuer Rahmen ..."
   selbst anlegen (Anfang, Mitte, Ende als SVG). Eigene Rahmen liegen unter
   %APPDATA%\LabelLab\frames.
