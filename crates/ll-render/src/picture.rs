@@ -10,6 +10,7 @@ use std::path::Path;
 
 use image::{GrayImage, Luma};
 
+use crate::iconset::Halftone;
 use crate::{Bitmap, RenderError};
 
 /// Loads `path` (PNG/JPEG/BMP via `image`, SVG via `resvg`/`usvg`/
@@ -106,6 +107,25 @@ pub fn render_gray(
     left_offset_pins: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
+    render_gray_halftone(
+        gray,
+        head_pins,
+        printable_pins,
+        left_offset_pins,
+        invert,
+        Halftone::Dither,
+    )
+}
+
+/// [`render_gray`] with a choice of halftone (dither or hard threshold).
+pub fn render_gray_halftone(
+    gray: &GrayImage,
+    head_pins: u16,
+    printable_pins: u16,
+    left_offset_pins: u16,
+    invert: bool,
+    halftone: Halftone,
+) -> Result<Bitmap, RenderError> {
     let (src_w, src_h) = gray.dimensions();
     if src_w == 0 || src_h == 0 || printable_pins == 0 {
         return Ok(Bitmap::new(head_pins, 0));
@@ -117,7 +137,7 @@ pub fn render_gray(
 
     let resized =
         image::imageops::resize(gray, new_w, new_h, image::imageops::FilterType::Triangle);
-    let bits = floyd_steinberg_dither(&resized, invert);
+    let bits = halftone_bits(&resized, invert, halftone);
 
     let mut bitmap = Bitmap::new(head_pins, new_w);
     for y in 0..new_h {
@@ -128,6 +148,22 @@ pub fn render_gray(
         }
     }
     Ok(bitmap)
+}
+
+/// Gray level below which a pixel becomes ink with [`Halftone::Threshold`].
+/// Chosen so safety yellow (luma ≈ 170–200) stays white while signal red,
+/// blue and green (luma ≈ 60–110) and black become ink.
+const ICON_THRESHOLD: u8 = 150;
+
+/// One `bool` per pixel (row-major), `true` = ink.
+pub(crate) fn halftone_bits(img: &GrayImage, invert: bool, halftone: Halftone) -> Vec<bool> {
+    match halftone {
+        Halftone::Dither => floyd_steinberg_dither(img, invert),
+        Halftone::Threshold => img
+            .pixels()
+            .map(|Luma([v])| (*v < ICON_THRESHOLD) != invert)
+            .collect(),
+    }
 }
 
 /// Classic Floyd-Steinberg error diffusion. Returns one `bool` per pixel
