@@ -542,6 +542,47 @@ fn iconsets() -> Vec<IconSetDto> {
         .collect()
 }
 
+/// Stores an image pasted from the clipboard (base64) and returns its path.
+#[tauri::command]
+fn save_pasted_image(data: String, extension: String) -> Result<PathBuf, AppError> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|e| AppError::new("image", e.to_string()))?;
+    ll_core::pasted::save_image(&bytes, &extension).map_err(err)
+}
+
+/// A pasted image stored in the data folder, with its size in pixels.
+#[derive(Serialize)]
+struct PastedImageDto {
+    path: PathBuf,
+    width: u32,
+    height: u32,
+}
+
+/// Reads an image from the system clipboard (fallback where the webview's
+/// paste event carries no image data) and stores it as PNG. `None` when
+/// the clipboard holds no image.
+#[tauri::command]
+fn paste_clipboard_image(app: tauri::AppHandle) -> Result<Option<PastedImageDto>, AppError> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+    let Ok(image) = app.clipboard().read_image() else {
+        return Ok(None);
+    };
+    let (width, height) = (image.width(), image.height());
+    let Some(rgba) = image::RgbaImage::from_raw(width, height, image.rgba().to_vec()) else {
+        return Ok(None);
+    };
+    let mut png = Vec::new();
+    rgba.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(|e| AppError::new("image", e.to_string()))?;
+    let path = ll_core::pasted::save_image(&png, "png").map_err(err)?;
+    Ok(Some(PastedImageDto {
+        path,
+        width,
+        height,
+    }))
+}
+
 /// Imports a `.llabel-iconset` file (kept in the user data folder).
 #[tauri::command]
 fn import_iconset(path: PathBuf) -> Result<IconSetDto, AppError> {
@@ -591,6 +632,7 @@ pub fn run() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(SeriesState::default())
         .invoke_handler(tauri::generate_handler![
             models,
@@ -605,6 +647,8 @@ pub fn run() {
             iconsets,
             history,
             image_editor_source,
+            save_pasted_image,
+            paste_clipboard_image,
             record_history,
             load_history,
             import_iconset,

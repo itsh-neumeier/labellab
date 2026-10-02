@@ -523,3 +523,19 @@ Vorlage:
   MIT/Apache-2.0) für die PNG-Kodierung der Editor-Vorschau. Ältere Programmstände
   ignorieren das unbekannte Feld `edit`: Labels mit Bearbeitung öffnen dort, aber
   unbearbeitet.
+
+## ADR-027: Einfügen aus der Zwischenablage
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Grafiken und Texte mit Strg+V einfügen; Oberflächentexte sollen
+  nicht markierbar sein (Verhalten wie eine Desktop-App).
+- Entscheidung: Bild-Elemente verweisen weiter auf Dateien; ein eingefügtes Bild wird als
+  Datei im Datenordner (`pasted/`, Name = FNV-1a-Hash des Inhalts) gespeichert statt in die
+  `.llabel`-Datei eingebettet. Bilddaten kommen bevorzugt aus dem Paste-Ereignis (WebView2),
+  sonst aus der System-Zwischenablage über `tauri-plugin-clipboard-manager` (offizielles
+  Tauri-Plugin, MIT/Apache-2.0), weil WebKitGTK eingefügte Bilder nicht an die Seite gibt.
+  Elemente werden als JSON (`application/x-labellab+json`, Text-Rückfall mit Marker)
+  kopiert. Ein verstecktes contenteditable-Element nimmt Strg+C/X/V kurz den Fokus ab,
+  damit auch WebKitGTK Clipboard-Ereignisse auslöst.
+- Konsequenzen: Ein Label mit eingefügtem Bild ist nur zusammen mit dem Datenordner
+  vollständig (wie bisher bei Bildern aus anderen Ordnern). Einbetten von Bildern in die
+  `.llabel`-Datei bleibt eine mögliche spätere Erweiterung.

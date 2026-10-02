@@ -104,6 +104,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Bild-Editor „Bild bearbeiten …“: zuschneiden, drehen, spiegeln, Hintergrund entfernen
   (automatisch oder per Klick auf eine Farbe, mit Toleranz), Raster oder Schwelle für den
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
+- Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
+  und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+### Geändert
+- Texte der Oberfläche (Beschriftungen, Hinweise, Knöpfe) lassen sich nicht mehr markieren;
+  Eingabefelder bleiben markierbar
 
 ### Behoben
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb

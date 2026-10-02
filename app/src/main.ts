@@ -2244,6 +2244,166 @@ function bindWizard(): void {
   });
 }
 
+// ---------------------------------------------------------------- clipboard
+
+/** Clipboard type for copied elements (JSON list of items). */
+const CLIPBOARD_TYPE = "application/x-labellab+json";
+/** Marker in the plain-text fallback, for webviews without custom types. */
+const CLIPBOARD_MARKER = "labellab-elements";
+const IMAGE_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/bmp": "bmp",
+  "image/svg+xml": "svg",
+};
+
+/** Clipboard shortcuts act on elements unless a field or dialog has focus. */
+function clipboardFree(): boolean {
+  const el = document.activeElement;
+  const editable = el instanceof HTMLElement && el.isContentEditable && el.id !== "paste-catcher";
+  return !isTyping() && !editable && !document.querySelector("dialog[open]");
+}
+
+function copySelected(e: ClipboardEvent): boolean {
+  const item = state.label.elements[state.selected];
+  if (!item || !e.clipboardData || !clipboardFree()) return false;
+  const json = JSON.stringify({ [CLIPBOARD_MARKER]: [item] });
+  e.clipboardData.setData(CLIPBOARD_TYPE, json);
+  e.clipboardData.setData("text/plain", item.type === "text" ? item.text : json);
+  e.preventDefault();
+  return true;
+}
+
+function copiedItems(data: DataTransfer): Item[] | null {
+  for (const text of [data.getData(CLIPBOARD_TYPE), data.getData("text/plain")]) {
+    try {
+      const items = JSON.parse(text)?.[CLIPBOARD_MARKER];
+      if (Array.isArray(items) && items.length) return items as Item[];
+    } catch {
+      // not ours
+    }
+  }
+  return null;
+}
+
+/** Adds items behind the existing ones and selects the last. */
+function insertItems(items: Item[]): void {
+  for (const item of items) {
+    const rect = newRect(item.type);
+    item.rect = item.rect ? roundRect({ ...item.rect, x_mm: rect.x_mm }) : rect;
+    state.label.elements.push(item);
+  }
+  state.selected = state.label.elements.length - 1;
+  changed(true);
+}
+
+function readBase64(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Width / height of an image file (1 if it can't be measured). */
+function aspectRatio(file: Blob): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(1);
+    };
+    img.src = url;
+  });
+}
+
+function insertImage(path: string, ratio: number): void {
+  const rect = newRect("image");
+  rect.w_mm = rect.h_mm * ratio;
+  insertItems([{ type: "image", path, invert: false, rect: roundRect(rect) }]);
+}
+
+async function pasteImage(file: File, extension: string): Promise<void> {
+  try {
+    const [data, ratio] = await Promise.all([readBase64(file), aspectRatio(file)]);
+    insertImage(await api.savePastedImage(data, extension), ratio);
+  } catch (err) {
+    setStatus(t("error.prefix", { error: errorText(err) }), "error");
+  }
+}
+
+/** Image straight from the system clipboard (WebKitGTK passes none to the page). */
+async function pasteSystemImage(): Promise<void> {
+  try {
+    const image = await api.pasteClipboardImage();
+    if (image) insertImage(image.path, image.width / Math.max(1, image.height));
+  } catch (err) {
+    setStatus(t("error.prefix", { error: errorText(err) }), "error");
+  }
+}
+
+function paste(e: ClipboardEvent): void {
+  const data = e.clipboardData;
+  if (!data || !clipboardFree()) return;
+  for (const file of Array.from(data.files)) {
+    const extension = IMAGE_TYPES[file.type];
+    if (extension) {
+      e.preventDefault();
+      void pasteImage(file, extension);
+      return;
+    }
+  }
+  const items = copiedItems(data);
+  if (items) {
+    e.preventDefault();
+    insertItems(items);
+    return;
+  }
+  e.preventDefault();
+  const text = data.getData("text/plain").replace(/\r\n?/g, "\n").trim();
+  if (text) insertItems([{ ...(defaultElement("text") as Item), text } as Item]);
+  else void pasteSystemImage();
+}
+
+/**
+ * Webviews only fire clipboard events where something is editable or
+ * selected (WebKitGTK). Before Ctrl+C/X/V reaches the webview, move the
+ * focus to a hidden editable node with a selection so the event fires.
+ */
+function clipboardTarget(e: KeyboardEvent): void {
+  const key = e.key.toLowerCase();
+  if (!(e.ctrlKey || e.metaKey) || !["c", "x", "v"].includes(key) || !clipboardFree()) return;
+  if (key !== "v" && state.selected < 0) return;
+  const catcher = $("paste-catcher");
+  catcher.textContent = "\u00a0";
+  catcher.focus();
+  const range = document.createRange();
+  range.selectNodeContents(catcher);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  window.setTimeout(() => {
+    catcher.blur();
+    catcher.textContent = "";
+    selection?.removeAllRanges();
+  });
+}
+
+function bindClipboard(): void {
+  document.addEventListener("keydown", clipboardTarget, true);
+  document.addEventListener("copy", (e) => void copySelected(e));
+  document.addEventListener("cut", (e) => {
+    if (copySelected(e)) removeItem(state.selected);
+  });
+  document.addEventListener("paste", paste);
+}
+
 // ---------------------------------------------------------------- startup
 
 function isTyping(): boolean {
@@ -2292,6 +2452,7 @@ function bindUi(): void {
   );
   bindWizard();
   bindImageEditor();
+  bindClipboard();
   bindPairing();
   $("btn-csv-clear").addEventListener("click", clearCsvFile);
   $("preview-row").addEventListener("input", schedulePreview);
