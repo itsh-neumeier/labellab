@@ -517,6 +517,8 @@ function boxCaption(item: Item): string {
       return elementTitle(item);
     case "shape":
       return `${elementTitle(item)}: ${t(`shape.${item.shape}`)}`;
+    case "fuse_box":
+      return item.fields.map((f) => f.text).join(" | ") || elementTitle(item);
   }
 }
 
@@ -655,10 +657,12 @@ function newRect(type: Element["type"]): Rect {
   const start = state.label.elements.length ? end + NEW_ITEM_GAP_MM : startPad();
   if (portrait()) {
     // Tape-wide boxes stacked down the label.
-    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h }[type];
+    const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
+    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h, fuse_box: fuse }[type];
     return roundRect({ x_mm: 0, y_mm: start, w_mm: h, h_mm: len });
   }
-  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5 }[type];
+  const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
+  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5, fuse_box: fuse }[type];
   return roundRect({ x_mm: start, y_mm: 0, w_mm: w, h_mm: h });
 }
 
@@ -778,8 +782,172 @@ function codeWizardButton(item: Item): HTMLButtonElement {
   return button;
 }
 
+type FuseBoxItem = Extract<Item, { type: "fuse_box" }>;
+
+const FUSE_DEFAULT_COUNT = 12;
+const FUSE_DEFAULT_PITCH_MM = 17.5;
+const FUSE_RATIOS = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8];
+
+const fuseRatio = (f: api.FuseField) => f.ratio ?? 1;
+
+/** Length of a fuse box in mm: its ratios in modules of `pitch_mm`. */
+function fuseLength(item: FuseBoxItem): number {
+  return item.fields.reduce((sum, f) => sum + fuseRatio(f), 0) * item.pitch_mm;
+}
+
+/** Sizes the box along the tape to the fields (like the module grid on the rail). */
+function fitFuseBox(item: FuseBoxItem): void {
+  if (!item.rect) return;
+  const len = Math.round(fuseLength(item) * 10) / 10;
+  item.rect = portrait() ? { ...item.rect, h_mm: len } : { ...item.rect, w_mm: len };
+  const index = state.label.elements.indexOf(item);
+  if (index >= 0) updateRectInputs(index);
+}
+
+/** Next automatic field text after the last one ("F12" → "F13"). */
+function nextFuseText(fields: api.FuseField[]): string {
+  const last = fields[fields.length - 1]?.text ?? "F0";
+  const m = /^(.*?)(\d+)$/.exec(last);
+  if (!m) return `F${fields.length + 1}`;
+  return `${m[1]}${String(Number(m[2]) + 1).padStart(m[2].length, "0")}`;
+}
+
+/** Properties of a fuse box: layout, text style and the list of fields. */
+function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
+  const list = document.createElement("div");
+  list.className = "fuse-list";
+  const count = numberInput(item.fields.length, 1, "", (v) => {
+    const n = Math.max(1, Math.min(99, Math.round(v ?? 1)));
+    while (item.fields.length < n) item.fields.push({ text: nextFuseText(item.fields) });
+    item.fields.length = n;
+    fitFuseBox(item);
+    renderList();
+  });
+  count.min = "1";
+  const pitch = numberInput(item.pitch_mm, 0.5, String(FUSE_DEFAULT_PITCH_MM), (v) => {
+    item.pitch_mm = v && v > 0 ? v : FUSE_DEFAULT_PITCH_MM;
+    fitFuseBox(item);
+  });
+  pitch.min = "1";
+  pitch.title = t("fuse.pitchHint");
+  const sizeRow = document.createElement("div");
+  sizeRow.className = "row";
+  sizeRow.append(field("fuse.count", count), field("fuse.pitch", pitch));
+
+  const separator = document.createElement("select");
+  for (const s of api.FUSE_SEPARATORS) {
+    separator.add(new Option(t(`fuse.sep.${s}`), s, false, s === (item.separator ?? "frame")));
+  }
+  separator.addEventListener("change", () => {
+    item.separator = separator.value as api.FuseSeparator;
+    changed();
+  });
+  const check = (key: "vertical" | "reverse", label: string) => {
+    const wrap = document.createElement("label");
+    wrap.className = "check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = !!item[key];
+    box.addEventListener("change", () => {
+      item[key] = box.checked;
+      changed();
+    });
+    wrap.append(box, ` ${t(label)}`);
+    return wrap;
+  };
+  const optRow = document.createElement("div");
+  optRow.className = "row";
+  optRow.append(check("vertical", "fuse.vertical"), check("reverse", "fuse.reverse"));
+
+  const size = numberInput(item.size_pt, 0.5, t("layout.auto"), (v) => {
+    item.size_pt = v && v > 0 ? v : null;
+  });
+  const font = fontPicker(item.font ?? null, (family) => {
+    item.font = family;
+    changed(true);
+  });
+  const toggle = (label: string, title: string, key: "bold" | "italic") => {
+    const b = makeButton(label, title, () => {
+      item[key] = !item[key];
+      b.classList.toggle("on", !!item[key]);
+      changed();
+    });
+    b.className = `toggle${item[key] ? " on" : ""}`;
+    b.style.fontWeight = key === "bold" ? "700" : "";
+    b.style.fontStyle = key === "italic" ? "italic" : "";
+    return b;
+  };
+  const style = document.createElement("div");
+  style.className = "row font-row";
+  style.append(field("elements.font", font), toggle("F", t("elements.bold"), "bold"), toggle("K", t("elements.italic"), "italic"));
+  const sizeField = document.createElement("div");
+  sizeField.className = "row";
+  sizeField.append(field("elements.size", size), field("fuse.separator", separator));
+
+  function renderList(): void {
+    list.replaceChildren();
+    count.value = String(item.fields.length);
+    item.fields.forEach((f, i) => {
+      const row = document.createElement("div");
+      row.className = "fuse-row";
+      const num = document.createElement("span");
+      num.className = "muted";
+      num.textContent = String(i + 1);
+      const text = document.createElement("input");
+      text.type = "text";
+      text.value = f.text;
+      text.addEventListener("input", () => {
+        f.text = text.value;
+        syncBoxCaption();
+        changed();
+      });
+      trackField(text, (v) => (f.text = v));
+      const ratio = document.createElement("select");
+      ratio.title = t("fuse.ratio");
+      const ratios = FUSE_RATIOS.includes(fuseRatio(f)) ? FUSE_RATIOS : [...FUSE_RATIOS, fuseRatio(f)].sort((a, b) => a - b);
+      for (const r of ratios) ratio.add(new Option(`${r.toLocaleString()}×`, String(r), false, r === fuseRatio(f)));
+      ratio.addEventListener("change", () => {
+        f.ratio = Number(ratio.value);
+        if (f.ratio === 1) delete f.ratio;
+        fitFuseBox(item);
+        changed();
+      });
+      const dir = document.createElement("select");
+      dir.title = t("fuse.direction");
+      dir.add(new Option("·", "", false, f.vertical == null));
+      dir.add(new Option("→", "h", false, f.vertical === false));
+      dir.add(new Option("↑", "v", false, f.vertical === true));
+      dir.addEventListener("change", () => {
+        f.vertical = dir.value === "" ? null : dir.value === "v";
+        if (f.vertical == null) delete f.vertical;
+        changed();
+      });
+      row.append(num, text, ratio, dir);
+      if (i < item.fields.length - 1) {
+        const merge = makeButton("⇔", t("fuse.merge"), () => {
+          const next = item.fields[i + 1];
+          f.ratio = fuseRatio(f) + fuseRatio(next);
+          if (!f.text.trim()) f.text = next.text;
+          item.fields.splice(i + 1, 1);
+          renderList();
+          changed();
+        });
+        merge.type = "button";
+        row.append(merge);
+      } else {
+        row.append(document.createElement("span"));
+      }
+      list.append(row);
+    });
+  }
+  renderList();
+  return [sizeRow, sizeField, optRow, style, list];
+}
+
 function contentFields(item: Item): HTMLElement[] {
   switch (item.type) {
+    case "fuse_box":
+      return fuseBoxFields(item);
     case "text": {
       const area = document.createElement("textarea");
       area.rows = Math.min(4, Math.max(2, item.text.split("\n").length));
@@ -1265,6 +1433,13 @@ function defaultElement(type: Element["type"]): Element {
       return { type };
     case "shape":
       return { type, shape: "rectangle", stroke_mm: 0.3, filled: false };
+    case "fuse_box":
+      return {
+        type,
+        fields: Array.from({ length: FUSE_DEFAULT_COUNT }, (_, i) => ({ text: `F${i + 1}` })),
+        pitch_mm: FUSE_DEFAULT_PITCH_MM,
+        separator: "frame",
+      };
   }
 }
 

@@ -143,6 +143,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   EAN-13, EAN-8, UPC-A, Code 39, ITF), für QR-Codes Inhalte wie WLAN-Zugang, Kontakt (vCard),
   E-Mail, Telefon oder Link ausfüllen, Live-Vorschau mit Prüfung; bestehende Codes über
   „Assistent …“ in den Eigenschaften bearbeiten (auch QR ⇄ Barcode umstellen)
+- Neues Element „Sicherungskasten“ (wie im Hersteller-Editor): ein Element mit Feldern und
+  Trennzeichen (Rahmen, Linie, Fett, Gestrichelt, Markierungen, keine), alles nachträglich in
+  den Eigenschaften änderbar: Anzahl Felder, Raster, Breite je Feld (0,5×–8×), Text je Feld,
+  Felder verbinden, Text senkrecht (auch je Feld), Umkehren, Schrift/Größe/Fett/Kursiv. Die
+  Vorlage „Sicherungskasten / Verteiler“ erzeugt jetzt dieses Element
 - Vorlage Sicherungskasten/Verteiler: Teileinheiten zu einem Feld verbinden (⇔) und wieder
   trennen (✂), eigener Text je Feld; das Label merkt sich die Vorlage und lässt sich über
   „Vorlage bearbeiten …“ jederzeit anpassen

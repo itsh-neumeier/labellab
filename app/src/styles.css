@@ -509,3 +509,9 @@ dialog#image-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .code-wizard .wz-preview img:not([src]) { display: none; }
 button.code-edit { align-self: flex-start; }
 .code-wizard .wz-preview[hidden] { display: none; }
+
+/* Fuse box properties */
+.fuse-list { display: flex; flex-direction: column; gap: 3px; max-height: 320px; overflow-y: auto; }
+.fuse-row { display: grid; grid-template-columns: 1.6em 1fr 4.2em 2.8em 2em; gap: 3px; align-items: center; }
+.fuse-row input, .fuse-row select { min-width: 0; font-size: 12px; padding: 2px 3px; }
+.fuse-row button { padding: 0 4px; font-size: 11px; }

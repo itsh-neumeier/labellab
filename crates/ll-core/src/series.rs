@@ -282,6 +282,11 @@ pub fn apply(label: &Label, data: Option<&DataSet>, number: usize, numbering: Nu
                 }
             }
             Element::Symbol { name, .. } => *name = f(name),
+            Element::FuseBox { fields, .. } => {
+                for field in fields {
+                    field.text = f(&field.text);
+                }
+            }
             Element::Fill | Element::Shape { .. } => {}
         }
     }
@@ -311,6 +316,7 @@ pub fn placeholders(label: &Label) -> Vec<String> {
             Element::Qr { data } | Element::Barcode { data, .. } => scan(data),
             Element::Image { path, .. } => scan(&path.to_string_lossy()),
             Element::Symbol { name, .. } => scan(name),
+            Element::FuseBox { fields, .. } => fields.iter().for_each(|f| scan(&f.text)),
             Element::Fill | Element::Shape { .. } => {}
         }
     }

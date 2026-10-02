@@ -43,7 +43,33 @@ export type Element =
   | { type: "image"; path: string; invert: boolean; brightness?: number; contrast?: number; edit?: ImageEdit }
   | { type: "symbol"; name: string; invert: boolean }
   | { type: "fill" }
-  | { type: "shape"; shape: ShapeKind; stroke_mm: number; filled?: boolean };
+  | { type: "shape"; shape: ShapeKind; stroke_mm: number; filled?: boolean }
+  | {
+      type: "fuse_box";
+      fields: FuseField[];
+      /** Width of one ratio unit (module) in mm. */
+      pitch_mm: number;
+      separator?: FuseSeparator;
+      vertical?: boolean;
+      reverse?: boolean;
+      size_pt?: number | null;
+      align?: TextAlign;
+      font?: string | null;
+      bold?: boolean;
+      italic?: boolean;
+    };
+
+/** One field of a fuse box (`ll_core::fusebox::FuseField`). */
+export interface FuseField {
+  text: string;
+  /** Relative width (1 = one module); absent = 1. */
+  ratio?: number;
+  /** Text direction override; absent = the element's `vertical`. */
+  vertical?: boolean | null;
+}
+
+export type FuseSeparator = "marks" | "dashed" | "line" | "bold" | "frame" | "none";
+export const FUSE_SEPARATORS: FuseSeparator[] = ["frame", "line", "bold", "dashed", "marks", "none"];
 
 export type ShapeKind = "line" | "rectangle" | "rounded_rectangle" | "ellipse";
 

@@ -323,6 +323,15 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Sicherungskasten als Element (ADR-034)
+- Nutzer-Screenshots aus dem Hersteller-Editor: Sicherungskasten ist ein Element mit
+  Eigenschaften. Neu: `Element::FuseBox` (`ll-core/src/fusebox.rs` Modell + Trennlinien,
+  `label::render_fuse_box` Text), `boxed::text_fit_px` für eine gemeinsame Größe; CSV-
+  Platzhalter in Feldtexten. GUI: Knopf „Sicherungskasten“, Eigenschaften mit Feldliste
+  (Text, Faktor, Richtung, ⇔). Generator `layouts::fuse_box` liefert ein Element.
+- Geprüft: Tests (Trennstile, Spannen, Rendern, Generator), fmt/clippy, Build; GUI unter Xvfb.
+- Offen/Ideen: Feldtext direkt im Label anklicken (wie im Hersteller-Editor), Hochformat.
+
 ### 2026-10-02 – Claude Code, Fix „Kein Schnitt“ schneidet trotzdem
 - Nutzer-Bug: „Kein Schnitt (Spezialband)“ schnitt am Ende. Ursache: `ESC i K` (Advanced
   Mode) wurde nie gesendet; Bit 3 „no chain printing“ steht im Drucker offenbar auf 1

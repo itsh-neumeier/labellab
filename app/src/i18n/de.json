@@ -446,5 +446,22 @@
   "code.hint.ean8": "EAN-8: 7 Ziffern (Prüfziffer wird ergänzt) oder 8 mit gültiger Prüfziffer.",
   "code.hint.upc_a": "UPC-A: 11 Ziffern (Prüfziffer wird ergänzt) oder 12 mit gültiger Prüfziffer.",
   "code.hint.code39": "Code 39: Großbuchstaben, Ziffern und - . $ / + % Leerzeichen.",
-  "code.hint.itf": "ITF: gerade Anzahl Ziffern."
+  "code.hint.itf": "ITF: gerade Anzahl Ziffern.",
+  "elements.fuse_box": "Sicherungskasten",
+  "fuse.addHint": "Beschriftung für Verteiler/Sicherungskasten: Felder mit Trennlinien, nachträglich bearbeitbar",
+  "fuse.count": "Felder",
+  "fuse.pitch": "Raster (mm)",
+  "fuse.pitchHint": "Breite eines Feldes mit Faktor 1× (Teileinheit, z. B. 17,5 mm)",
+  "fuse.separator": "Trennzeichen",
+  "fuse.sep.frame": "Rahmen",
+  "fuse.sep.line": "Linie",
+  "fuse.sep.bold": "Fett",
+  "fuse.sep.dashed": "Gestrichelt",
+  "fuse.sep.marks": "Markierungen",
+  "fuse.sep.none": "Keine",
+  "fuse.vertical": "Text senkrecht",
+  "fuse.reverse": "Umkehren",
+  "fuse.ratio": "Breite (Vielfaches des Rasters)",
+  "fuse.direction": "Textrichtung: · wie oben, → waagerecht, ↑ senkrecht",
+  "fuse.merge": "Mit dem nächsten Feld verbinden"
 }

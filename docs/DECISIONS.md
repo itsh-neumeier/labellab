@@ -622,4 +622,21 @@ Vorlage:
   im Frontend (`app/src/codes.ts`) und erkennt ihn beim Bearbeiten wieder; das Datenformat
   der Elemente `qr`/`barcode` bleibt unverändert.
 - Konsequenzen: Alte Dateien ohne `source` bleiben gültig (kein „Vorlage bearbeiten“).
+- Nachtrag (ADR-034): Der Sicherungskasten ist inzwischen ein eigenes Element.
   UPC-A wird jetzt als EAN-13 mit führender 0 kodiert (Fehlerkorrektur).
+
+## ADR-034: Sicherungskasten als eigenes Element
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzer zeigte den Sicherungskasten des Hersteller-Editors: ein Objekt, dessen
+  Felder (Anzahl, Raster, Verhältnis je Feld), Trennzeichen und Text nachträglich in den
+  Eigenschaften geändert werden. Unsere Vorlage erzeugte viele Einzel-Elemente.
+- Entscheidung: `Element::FuseBox { fields: [{text, ratio, vertical?}], pitch_mm,
+  separator (marks|dashed|line|bold|frame|none), vertical, reverse, size_pt, align, font,
+  bold, italic }` (`ll_core::fusebox`). Felder werden nach `ratio` über die Box verteilt,
+  `pitch_mm` × Summe der Faktoren ist die natürliche Länge (Fluss-Layout; der Editor setzt
+  die Boxlänge danach). Eine gemeinsame Schriftgröße für alle Felder (`None` = größte, die in
+  jedes Feld passt). Senkrechter Text liest von unten nach oben. Der Generator `fuse_box`
+  liefert genau dieses eine Element (Hauptschalter = Feld mit Faktor Breite/Raster, waagerecht).
+- Konsequenzen: Hochformat-Ansicht: Felder laufen entlang der Box-Breite (wie gedreht). Neue
+  Trennstil-Maße (0,25 mm Linie, 0,7 mm fett, 1/0,8 mm Striche) sind Konstanten in
+  `fusebox.rs`, keine Protokollwerte.

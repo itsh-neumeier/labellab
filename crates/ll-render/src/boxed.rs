@@ -251,6 +251,19 @@ fn auto_font_px(
     lo
 }
 
+/// Largest font size in dots at which `text` (explicit line breaks only)
+/// fits a `box_w` x `box_h` dot box; used to give several boxes one
+/// common size.
+pub fn text_fit_px(text: &str, faces: &FaceSet, box_w: u32, box_h: u16, line_spacing: f32) -> f32 {
+    auto_font_px(
+        faces,
+        &runs(text),
+        Some(box_w as f32),
+        box_h as f32,
+        clamp_line_spacing(line_spacing),
+    )
+}
+
 /// Width in dots `text` needs at `size_px` (or, if `None`, at the largest
 /// size fitting `box_h`), without wrapping. Used to give flow-layout text
 /// its natural length. `text` may contain `**bold**`/`__italic__`.
