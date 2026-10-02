@@ -35,6 +35,9 @@ Editor
   liegen unter %APPDATA%\LabelLab\pasted.
 - Boxen: an jeder Seite und Ecke ziehen = Groesse aendern (Umschalt an einer Ecke:
   Seitenverhaeltnis halten).
+- Laenge: Das gedruckte Label ist so lang wie in der Vorschau. Der Abstand zwischen
+  Schnitt und Inhalt kommt aus "Rand links/rechts"; "Nachlauf" ist nur noch die
+  Obergrenze fuer den Vorschub des Druckers.
 - Rand links / Rand rechts: Abstand zwischen Schnitt und Inhalt, in der Vorschau
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
 - "Wach halten" (neben "Status lesen"): fragt alle 2 Minuten den Status ab, damit

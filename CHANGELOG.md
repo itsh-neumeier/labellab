@@ -124,6 +124,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- Gedruckte Labels waren um etwa 8 mm länger als eingestellt (der Drucker-Nachlauf kam an
+  beiden Enden dazu); er wird jetzt von den Label-Rändern abgezogen, Standard ist 0
 - Bild-Editor: Die Abdunklung des Zuschnitt-Rahmens lag über dem ganzen Dialog
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb
   `labellab.exe` beim Packen die Oberfläche `LabelLab.exe` (Windows unterscheidet keine
