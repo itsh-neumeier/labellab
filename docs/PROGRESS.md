@@ -108,6 +108,11 @@
     Endsegment (SVG), mitgelieferte Bibliothek + Editor/Creator (Nutzerwunsch 2026-10-02)
   - [ ] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
     2026-10-02, = Hochformat aus Paket 3b)
+  - [ ] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
+    an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
+  - [ ] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
+    Ein-/Ausblenden, Duplizieren, Löschen), rechts Eigenschaften-Leiste für das gewählte
+    Element (Nutzerwunsch 2026-10-02; Ausblenden braucht Feld `hidden` am Item)
   - [ ] Akkustand: Statusbyte per Rohdaten-Vergleich (Ladekabel/Akku) ermitteln, dann anzeigen
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
@@ -136,6 +141,9 @@
 |---|---|---|---|
 
 ## Nächste Schritte
+- Reihenfolge der offenen Nutzerwünsche (2026-10-02, Vorschlag): 1. Auto-Speichern +
+  Undo/Redo-Symbole, 2. Ebenen links / Eigenschaften rechts, 3. senkrechte Bandausrichtung,
+  4. Segment-Rahmen + Editor.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
   Bandausrichtung im Editor, Akkuanzeige nach Rohdaten-Test, macOS-Build (Tauri kann es,
   braucht macOS-Runner in CI + Bluetooth über CoreBluetooth/IOBluetooth — neuer Transport),
