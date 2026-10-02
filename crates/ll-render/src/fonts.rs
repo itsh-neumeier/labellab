@@ -119,6 +119,34 @@ pub fn families() -> Vec<String> {
     names
 }
 
+/// The faces one text element draws with: regular, bold, italic and bold
+/// italic of one family (inline styles, see [`crate::richtext`]).
+pub struct FaceSet<'a> {
+    faces: [&'a Face; 4],
+}
+
+impl<'a> FaceSet<'a> {
+    /// Faces indexed by bit 0 = bold, bit 1 = italic.
+    pub fn new(regular: &'a Face, bold: &'a Face, italic: &'a Face, bold_italic: &'a Face) -> Self {
+        Self {
+            faces: [regular, bold, italic, bold_italic],
+        }
+    }
+
+    /// One face for every style (text without inline styles).
+    pub fn single(face: &'a Face) -> Self {
+        Self { faces: [face; 4] }
+    }
+
+    pub(crate) fn get(&self, index: usize) -> &'a Face {
+        self.faces[index.min(3)]
+    }
+
+    pub(crate) fn fonts(&self) -> [&'a Font; 4] {
+        self.faces.map(|f| &f.font)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

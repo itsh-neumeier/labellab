@@ -106,6 +106,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- Einzelne Textteile fett oder kursiv: Text markieren und F/K (Strg+B/Strg+I) drücken;
+  gespeichert als `**fett**` und `__kursiv__` im Text
 - Zeilenabstand für Text einstellbar (Feld „Zeilenabstand“, 0,5–3)
 ### Geändert
 - Vorschau zeigt die volle Bandbreite; der Rand, den der Druckkopf nicht erreicht, ist grau

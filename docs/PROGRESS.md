@@ -93,6 +93,8 @@
     Oberflächentexte nicht markierbar (Nutzerwunsch 2026-10-02, ADR-027)
   - [x] Vorschau in voller Bandbreite mit grauem, nicht bedruckbarem Rand; Zeilenabstand für
     Text; schnellere Vorschau bei viel Inhalt (Nutzerwunsch 2026-10-02, ADR-028)
+  - [x] Einzelne Textteile fett/kursiv (`**fett**`, `__kursiv__`; F/K bzw. Strg+B/I auf die
+    Markierung) (Nutzerwunsch 2026-10-02, ADR-029)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
   - [x] Lineal (mm) über der Vorschau
@@ -267,6 +269,18 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Fett/kursiv für Textteile (ADR-029)
+- `ll_render::richtext` (Parser `**…**`/`__…__`, ungepaarte Marker bleiben Text),
+  `FaceSet` (regulär/fett/kursiv/fett-kursiv); Textfunktionen in `boxed` legen Läufe mit
+  eigenem Font-Index an (fontdue), Synthese (Schräg/Fett) je Glyphe nach deren Schnitt.
+  `ll-core` lädt die drei Zusatzschnitte nur, wenn der Text Marker enthält; der
+  Fluss-Schnellpfad gilt nur für Text ohne Marker.
+- App: F/K wirken bei Markierung im Textfeld auf den markierten Teil (Marker setzen bzw.
+  entfernen), sonst auf das ganze Element; Strg+B/Strg+I im Textfeld; Beschriftungen und
+  Verlaufsnamen ohne Marker (`app/src/richtext.ts`).
+- Geprüft: Tests (5 neue), fmt/clippy, Frontend-Build; GUI unter Xvfb („Server **42**“,
+  „Rack __kalt__“, erneutes Strg+B entfernt die Marker).
+
 ### 2026-10-02 – Claude Code, Bandrand, Zeilenabstand, Vorschau-Performance (ADR-028)
 - Fix: Abdunklung des Zuschnitt-Rahmens im Bild-Editor lag über dem ganzen Dialog
   (`box-shadow` nicht beschnitten) → `.ie-stage { overflow: hidden }`, Griffe innen.

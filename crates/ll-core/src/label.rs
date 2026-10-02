@@ -23,7 +23,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use ll_protocol::model::{dots_to_mm, mm_to_dots, pt_to_dots, ModelInfo, TapeGeometry};
 use ll_render::{
-    boxed, Bitmap, Face, ImageAdjust, ImageEdit, QrErrorCorrection, ShapeKind, Symbology, TextAlign,
+    boxed, Bitmap, Face, FaceSet, ImageAdjust, ImageEdit, QrErrorCorrection, ShapeKind, Symbology,
+    TextAlign,
 };
 use serde::{Deserialize, Serialize};
 
@@ -400,30 +401,54 @@ impl FontCache {
         family: &Option<String>,
         bold: bool,
         italic: bool,
-    ) -> Result<&Face, CoreError> {
+    ) -> Result<Arc<Face>, CoreError> {
         let key = (family.clone(), bold, italic);
-        if !self.faces.contains_key(&key) {
-            let shared = shared_faces()
-                .lock()
-                .ok()
-                .and_then(|faces| faces.get(&key).cloned());
-            let face = match shared {
-                Some(face) => face,
-                None => {
-                    let face = Arc::new(Face::load(family.as_deref(), bold, italic)?);
-                    if let Ok(mut faces) = shared_faces().lock() {
-                        faces.insert(key.clone(), face.clone());
-                    }
-                    face
-                }
-            };
-            self.faces.insert(key.clone(), face);
+        if let Some(face) = self.faces.get(&key) {
+            return Ok(face.clone());
         }
-        self.faces
-            .get(&key)
-            .map(|f| f.as_ref())
-            .ok_or(CoreError::Template("font cache".into()))
+        let shared = shared_faces()
+            .lock()
+            .ok()
+            .and_then(|faces| faces.get(&key).cloned());
+        let face = match shared {
+            Some(face) => face,
+            None => {
+                let face = Arc::new(Face::load(family.as_deref(), bold, italic)?);
+                if let Ok(mut faces) = shared_faces().lock() {
+                    faces.insert(key.clone(), face.clone());
+                }
+                face
+            }
+        };
+        self.faces.insert(key, face.clone());
+        Ok(face)
     }
+
+    /// Regular, bold, italic and bold-italic faces for a text element
+    /// (on top of its base style). Without inline styles only one face is
+    /// loaded.
+    fn faces(
+        &mut self,
+        family: &Option<String>,
+        bold: bool,
+        italic: bool,
+        text: &str,
+    ) -> Result<[Arc<Face>; 4], CoreError> {
+        let base = self.face(family, bold, italic)?;
+        if !ll_render::richtext::has_markup(text) {
+            return Ok([base.clone(), base.clone(), base.clone(), base]);
+        }
+        Ok([
+            base,
+            self.face(family, true, italic)?,
+            self.face(family, bold, true)?,
+            self.face(family, true, true)?,
+        ])
+    }
+}
+
+fn face_set(faces: &[Arc<Face>; 4]) -> FaceSet<'_> {
+    FaceSet::new(&faces[0], &faces[1], &faces[2], &faces[3])
 }
 
 /// The surface a label is composed on. For a normal print it is the real
@@ -507,7 +532,7 @@ fn render_flow_element(
             bold: false,
             italic: false,
             ..
-        } if !text.contains('\n') => {
+        } if !text.contains('\n') && !ll_render::richtext::has_markup(text) => {
             ll_render::render_text_with_font(text, fonts.default_bytes()?, head, pins, offset)?
         }
         Element::Text {
@@ -519,12 +544,13 @@ fn render_flow_element(
             italic,
             line_spacing,
         } => {
-            let font = fonts.face(font, *bold, *italic)?;
+            let faces = fonts.faces(font, *bold, *italic, text)?;
+            let faces = face_set(&faces);
             let size_px = size_pt.map(|pt| canvas.pt(pt));
             let spacing = line_spacing.unwrap_or(1.0);
-            let width = boxed::text_natural_width(text, font, pins, size_px, spacing)?;
+            let width = boxed::text_natural_width(text, &faces, pins, size_px, spacing)?;
             let (local, clipped) =
-                boxed::text_in_box_checked(text, font, width, pins, size_px, *align, spacing)?;
+                boxed::text_in_box_checked(text, &faces, width, pins, size_px, *align, spacing)?;
             *overflow |= clipped;
             let mut out = Bitmap::new(head, width);
             out.blit(&local, offset as i32, 0, offset..offset + pins);
@@ -611,9 +637,10 @@ fn render_boxed_element(
             italic,
             line_spacing,
         } => {
+            let faces = fonts.faces(font, *bold, *italic, text)?;
             let (bitmap, clipped) = boxed::text_in_box_checked(
                 text,
-                fonts.face(font, *bold, *italic)?,
+                &face_set(&faces),
                 w,
                 h,
                 size_pt.map(|pt| canvas.pt(pt)),

@@ -53,6 +53,8 @@
   "elements.duplicate": "Duplicate (Ctrl+D)",
   "elements.lineSpacing": "Line spacing",
   "elements.lineSpacingHint": "Distance between lines as a multiple (1.0 = normal, 0.5–3)",
+  "elements.boldHint": "Bold: selected part (Ctrl+B) or the whole text",
+  "elements.italicHint": "Italic: selected part (Ctrl+I) or the whole text",
   "elements.size": "Size (pt)",
   "elements.align": "Alignment",
   "align.left": "Left",
