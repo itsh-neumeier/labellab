@@ -12,10 +12,12 @@
       <button id="btn-open" data-i18n="toolbar.open"></button>
       <select id="recent" aria-label="Zuletzt verwendet"></select>
       <button id="btn-history" data-i18n="history.open"></button>
-      <button id="btn-save" data-i18n="toolbar.save"></button>
+      <button id="btn-save" data-i18n="toolbar.saveNow" data-i18n-title="toolbar.saveHint"></button>
+      <button id="btn-save-as" data-i18n="toolbar.saveAs"></button>
+      <label class="autosave" data-i18n-title="toolbar.autosaveHint"><input type="checkbox" id="autosave" /> <span data-i18n="toolbar.autosave"></span></label>
       <span class="sep"></span>
-      <button id="btn-undo" data-i18n="toolbar.undo" data-i18n-title="toolbar.undoHint"></button>
-      <button id="btn-redo" data-i18n="toolbar.redo" data-i18n-title="toolbar.redoHint"></button>
+      <button id="btn-undo" class="icon-btn" data-i18n-title="toolbar.undoHint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button id="btn-redo" class="icon-btn" data-i18n-title="toolbar.redoHint"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       <span class="sep"></span>
       <button id="btn-wizard" data-i18n="toolbar.wizard"></button>
       <span class="spacer"></span>
