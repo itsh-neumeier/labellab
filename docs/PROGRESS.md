@@ -114,7 +114,8 @@
     Ein-/Ausblenden, Duplizieren, Löschen), rechts Eigenschaften-Leiste für das gewählte
     Element (Nutzerwunsch 2026-10-02; Ausblenden braucht Feld `hidden` am Item)
   - [ ] Import von Dateien des Hersteller-Editors (`.lbx`, ZIP mit `label.xml`) in `.llabel`
-    (Nutzerwunsch 2026-10-02; Beispieldatei des Nutzers nicht ins Repo)
+    (Nutzerwunsch 2026-10-02; Beispieldateien des Nutzers nicht ins Repo). Analyse und Plan:
+    `docs/IMPORT-LBX.md`
   - [ ] Akkustand: Statusbyte per Rohdaten-Vergleich (Ladekabel/Akku) ermitteln, dann anzeigen
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
