@@ -1,0 +1,41 @@
+# Builds the bundled icon sets from Wikimedia Commons (see
+# tools/iconsets/*/README.md) and uploads them as an artifact. Runs on
+# GitHub because Wikimedia rate-limits shared IPs; the result is checked
+# into crates/ll-render/assets/iconsets/ by hand after review.
+name: Icon sets
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "tools/iconsets/**"
+      - ".github/workflows/iconsets.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install libudev, dbus and fonts (text in SVGs becomes paths)
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libdbus-1-dev pkg-config fonts-dejavu-core fonts-liberation
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: fetch IEC 60417 from Commons
+        run: mkdir -p build && python3 tools/iconsets/iec60417/fetch.py build/iec60417 2>&1 | tee build/iec60417.log
+        shell: bash
+      - name: fetch ISO 7010 from Commons
+        run: python3 tools/iconsets/iso7010/fetch.py build/iso7010 2>&1 | tee build/iso7010.log
+        shell: bash
+      - name: build icon sets
+        run: |
+          mkdir -p dist
+          cargo run --release -p ll-render --example build_iconset -- tools/iconsets/iec60417/set.json build/iec60417/manifest.json dist/iec60417.llabel-iconset
+          cargo run --release -p ll-render --example build_iconset -- tools/iconsets/iso7010/set.json build/iso7010/manifest.json dist/iso7010.llabel-iconset
+          cp build/*.log dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iconsets
+          path: dist/*

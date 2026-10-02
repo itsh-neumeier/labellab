@@ -203,5 +203,21 @@
   "border.left": "left",
   "border.right": "right",
   "font.search": "Search font …",
-  "font.none": "No font found"
+  "font.none": "No font found",
+  "symbol.choose": "Choose symbol …",
+  "symbol.title": "Choose symbol",
+  "symbol.search": "Search (name or code, e.g. W012) …",
+  "symbol.all": "All",
+  "symbol.uncategorized": "Uncategorized",
+  "symbol.import": "Import icon set …",
+  "symbol.remove": "Remove set",
+  "symbol.removeConfirm": "Remove icon set “{name}”? Labels using its symbols can no longer be printed.",
+  "symbol.close": "Close",
+  "symbol.count": "{n} symbols",
+  "symbol.imported": "Imported: {name} ({n} symbols)",
+  "symbol.filter": "LabelLab icon set",
+  "symbol.license": "License: {license}",
+  "symbol.unknown": "unknown symbol",
+  "symbol.none": "No symbols found.",
+  "symbol.removed": "Removed: {name}"
 }

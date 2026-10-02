@@ -203,5 +203,21 @@
   "border.left": "links",
   "border.right": "rechts",
   "font.search": "Schrift suchen …",
-  "font.none": "Keine Schrift gefunden"
+  "font.none": "Keine Schrift gefunden",
+  "symbol.choose": "Symbol wählen …",
+  "symbol.title": "Symbol auswählen",
+  "symbol.search": "Suchen (Name oder Nummer, z. B. W012) …",
+  "symbol.all": "Alle",
+  "symbol.uncategorized": "Ohne Kategorie",
+  "symbol.import": "Icon-Set importieren …",
+  "symbol.remove": "Set entfernen",
+  "symbol.removeConfirm": "Icon-Set „{name}“ entfernen? Labels, die seine Symbole verwenden, lassen sich danach nicht mehr drucken.",
+  "symbol.close": "Schließen",
+  "symbol.count": "{n} Symbole",
+  "symbol.imported": "Importiert: {name} ({n} Symbole)",
+  "symbol.filter": "LabelLab-Icon-Set",
+  "symbol.license": "Lizenz: {license}",
+  "symbol.unknown": "unbekanntes Symbol",
+  "symbol.none": "Keine Symbole gefunden.",
+  "symbol.removed": "Entfernt: {name}"
 }

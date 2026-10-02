@@ -423,3 +423,51 @@ Vorlage:
   Band aussehen, ist hardware-offen. Systemschriften, die die Webview nicht kennt, erscheinen
   in der Liste in der Ersatzschrift (gedruckt wird trotzdem die gewählte).
 
+## ADR-023: Icon-Sets (`.llabel-iconset`) mit Kategorien, Import und ISO-7010-Set
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Symbole nach Kategorien ordnen, eigene Icon-Sets als **eine Datei**
+  mit eigener Endung importieren, und die Sicherheitszeichen nach ISO 7010 (Liste im
+  Wikipedia-Artikel) als eigenes Set mitliefern. Weitere Sets sollen folgen können.
+- Entscheidung:
+  - **Dateiformat `.llabel-iconset`** (JSON, `format: "llabel-iconset"`, `version: 1`): `id`,
+    `name`/`description` (Text oder `{de, en}`), `license`, `source`, `halftone`
+    (`threshold`|`dither`), `categories[]` (`id`, `name`), `icons[]` (`id`, `name`,
+    `category`, `tags`, `svg` als SVG-Text, optional `license`/`author`/`source` je Icon).
+    Eine Datei, menschenlesbar, ohne Zip; SVGs werden beim Erstellen mit usvg bereinigt.
+  - **Registry in `ll-render::iconset`** (prozessweit, `RwLock`): mitgelieferte Sets
+    (`material` = bisherige Symbolbibliothek, jetzt mit Kategorien; `iso7010`) plus importierte.
+    Symbolnamen `set:icon` (z. B. `iso7010:W012`); ein Name ohne Set wird in allen Sets gesucht
+    (mitgelieferte zuerst), daher bleiben alte `.llabel`-Dateien (`warning`) gültig.
+    Mitgelieferte IDs sind reserviert.
+  - **Graustufen → Punkte:** Icon-Sets nutzen standardmäßig einen harten Schwellwert (Luma
+    < 150 = Tinte): Signalgelb wird weiß, Signalrot/-blau/-grün und Schwarz werden Tinte. So
+    bleiben Zeichen auf 180 dpi sauber statt gerastert (Bilder bleiben bei Floyd-Steinberg).
+  - **Import/Verwaltung in `ll-core::iconsets`:** Import prüft die Datei vollständig und kopiert
+    sie nach `<Datenordner>/iconsets/<id>.llabel-iconset` (Windows `%APPDATA%\LabelLab`,
+    Linux `~/.local/share/labellab`, überschreibbar mit `LABELLAB_DATA_DIR`); CLI und GUI laden
+    beim Start alle Dateien dort. `from_dir` baut ein Set aus einem SVG-Ordner (Unterordner =
+    Kategorien).
+  - CLI: `labellab symbols [--set] [--search]`, `labellab iconset list|import|remove|create`.
+    GUI: Symbolauswahl-Dialog (Sets/Kategorien links, Suche, Vorschau-Kacheln, „Icon-Set
+    importieren …“, „Set entfernen“).
+  - **ISO-7010-Set:** Grafiken von Wikimedia Commons, nur Dateien mit Commons-Lizenz
+    „Public domain“ oder „CC0“ (335 Zeichen; M002 ist CC BY-SA und fehlt daher). Herkunft, Urheber
+    und Lizenz je Zeichen im Set; Bauweg reproduzierbar (`tools/iconsets/iso7010/`). Weil
+    Wikimedia die geteilte IP drosselte, kamen die Dateien über einen per SHA-1 gegen Commons
+    geprüften Mirror (npm `@iso-safety-signs/assets`) – nur byte-identische Dateien.
+  - **IEC-60417-Set:** alle SVGs der Commons-Kategorie „IEC 60417 symbols“ (alle Seiten über
+    die API) plus nicht einsortierte Dateien „IEC 60417 - Ref-No …“ (z. B. 5007 „Ein“), gleiche
+    Lizenzregel (754 Symbole; 5107A ist CC BY-SA und fehlt). Englische Namen aus den
+    Commons-Beschreibungen (deutsche Namen gibt es dort nicht). Commons ordnet nicht thematisch; die
+    Kategorien (Sicherheit, Medizin, Ein/Aus, Elektrik, Audio/Video, Daten, Temperatur, Licht,
+    Bedienung, Sonstige) vergibt das Bauskript nach Stichworten der Beschreibung.
+  - Die ISO/IEC-Datenbank „Online Browsing Platform“ (OBP) ist **keine** Quelle: deren Inhalte
+    sind geschützt und nicht frei lizenziert.
+  - Beide Sets baut der Workflow „Icon sets“ auf GitHub (dort keine Drosselung der IP); das
+    Ergebnis wird nach Durchsicht nach `crates/ll-render/assets/iconsets/` übernommen.
+- Konsequenzen: `.llabel`-Dateien mit Symbolen aus importierten Sets brauchen dieses Set auf dem
+  Zielrechner (klare Fehlermeldung, sonst kein Druck). Das ISO-Set vergrößert das Programm um
+  das JSON (~1 MB). Rechtlich: ISO beansprucht Rechte an der Norm; die Commons-Dateien sind dort
+  als gemeinfrei (u. a. „zu einfach für Schutz“) bzw. CC0 eingestuft — diese Einstufung wird
+  übernommen und je Zeichen dokumentiert.
+

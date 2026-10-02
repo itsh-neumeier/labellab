@@ -14,8 +14,9 @@ use fontdue::layout::{
 use fontdue::Font;
 use serde::{Deserialize, Serialize};
 
+use crate::iconset::Halftone;
 use crate::linear_barcode::encode_modules;
-use crate::picture::{floyd_steinberg_dither, load_gray, render_svg_to_gray};
+use crate::picture::{halftone_bits, load_gray, render_svg_to_gray};
 use crate::{render_qr, Bitmap, Face, QrErrorCorrection, RenderError, Symbology};
 
 /// Alpha threshold (0-255) above which a rasterized pixel counts as ink.
@@ -285,10 +286,17 @@ pub fn image_in_box(
     box_h: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    gray_in_box(&load_gray(path, box_h)?, box_w, box_h, invert)
+    gray_in_box(
+        &load_gray(path, box_h)?,
+        box_w,
+        box_h,
+        invert,
+        Halftone::Dither,
+    )
 }
 
-/// Renders a bundled symbol (see [`crate::symbols`]) fitted into the box
+/// Renders a symbol from a registered icon set (see [`crate::iconset`])
+/// fitted into the box
 /// like [`image_in_box`].
 pub fn symbol_in_box(
     name: &str,
@@ -296,13 +304,14 @@ pub fn symbol_in_box(
     box_h: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    let data = crate::symbols::symbol_svg(name).ok_or_else(|| {
-        RenderError::Image(format!(
-            "unknown symbol '{name}', available: {}",
-            crate::SYMBOL_NAMES.join(", ")
-        ))
-    })?;
-    gray_in_box(&render_svg_to_gray(data, box_h)?, box_w, box_h, invert)
+    let (svg, halftone) = crate::symbols::symbol_source(name)?;
+    gray_in_box(
+        &render_svg_to_gray(svg.as_bytes(), box_h)?,
+        box_w,
+        box_h,
+        invert,
+        halftone,
+    )
 }
 
 fn gray_in_box(
@@ -310,6 +319,7 @@ fn gray_in_box(
     box_w: u32,
     box_h: u16,
     invert: bool,
+    halftone: Halftone,
 ) -> Result<Bitmap, RenderError> {
     let (src_w, src_h) = gray.dimensions();
     let mut out = Bitmap::new(box_h, box_w);
@@ -321,7 +331,7 @@ fn gray_in_box(
     let new_h = ((src_h as f32 * scale).round() as u32).clamp(1, box_h as u32);
     let resized =
         image::imageops::resize(gray, new_w, new_h, image::imageops::FilterType::Triangle);
-    let bits = floyd_steinberg_dither(&resized, invert);
+    let bits = halftone_bits(&resized, invert, halftone);
 
     let line_off = (box_w - new_w) / 2;
     let pin_off = (box_h as u32 - new_h) / 2;

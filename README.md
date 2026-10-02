@@ -24,7 +24,8 @@ Die Dateien sind nicht signiert; Windows SmartScreen kann beim ersten Start warn
 ## Geplante Funktionen (v1.0)
 - Direktdruck per Bluetooth (Windows: native RFCOMM inkl. Kopplung, ohne virtuelle COM-Ports; Linux: BlueZ) und USB
 - Live-Abfrage des eingelegten Bands (Breite, Typ, Farben) mit automatischer Anpassung des Editors
-- Label-Editor: Text, Rahmen (verschiedene Stile, Seiten frei wählbar), Barcodes, QR/DataMatrix, Bilder, Symbole, pixelgenaue Vorschau
+- Label-Editor: Text, Rahmen (verschiedene Stile, Seiten frei wählbar), Symbole aus Icon-Sets
+  (ISO 7010, IEC 60417, eigene `.llabel-iconset`-Dateien), Barcodes, QR/DataMatrix, Bilder, Symbole, pixelgenaue Vorschau
 - Kabelfahnen, Kabelwickel, Patchpanel-Labels, Serien mit Nummerierung und CSV-Import, Kettendruck
 - CLI `labellab` für Skripte und Automatisierung
 - GUI mit Tauri 2

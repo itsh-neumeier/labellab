@@ -84,6 +84,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Warnband) mit einstellbarer Linienstärke, Abstand und frei wählbaren Seiten (z. B. nur oben
   oder oben und unten) — in der Oberfläche und per `labellab … --border …`
 - Schriftauswahl zeigt jede Schrift in ihrem eigenen Schriftbild, mit Suchfeld
+- Icon-Sets: Symbole nach Sets und Kategorien geordnet, neue Symbolauswahl mit Suche und
+  Vorschau; eigene Sets als `.llabel-iconset`-Datei importieren (auch aus einem Ordner mit
+  SVGs erstellbar: `labellab iconset create`)
+- Mitgelieferte Icon-Sets „ISO 7010 Sicherheitszeichen“ (335 Warn-, Verbots-, Gebots-,
+  Brandschutz- und Rettungszeichen) und „IEC 60417 Gerätesymbole“ (754 Symbole, z. B. Erde,
+  Sicherung, Ein/Aus, Schutzklasse II), Grafiken von Wikimedia Commons (gemeinfrei/CC0)
 
 ### Behoben
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb

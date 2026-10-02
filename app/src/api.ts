@@ -142,7 +142,35 @@ export const renderPreview = (
   scale: number,
 ) => invoke<{ png: string; overflowing: number[] }>("render_preview", { label, model, widthMm, row, numbering, scale });
 
-export const symbols = () => invoke<string[]>("symbols");
+/** Same text in every language, or translated (`{"de": …, "en": …}`). */
+export type I18nText = string | Record<string, string>;
+
+export interface Icon {
+  id: string;
+  name: I18nText;
+  category?: string | null;
+  tags?: string[];
+  svg: string;
+  license?: string | null;
+  author?: string | null;
+  source?: string | null;
+}
+
+/** A `.llabel-iconset` (`ll_render::IconSet`) plus whether it ships with LabelLab. */
+export interface IconSet {
+  id: string;
+  name: I18nText;
+  description?: I18nText | null;
+  license?: string | null;
+  source?: string | null;
+  categories: { id: string; name: I18nText }[];
+  icons: Icon[];
+  builtin: boolean;
+}
+
+export const iconsets = () => invoke<IconSet[]>("iconsets");
+export const importIconset = (path: string) => invoke<IconSet>("import_iconset", { path });
+export const removeIconset = (id: string) => invoke<void>("remove_iconset", { id });
 export const generateLayout = (layout: Layout, model: string, widthMm: number) =>
   invoke<Label>("generate_layout", { layout, model, widthMm });
 

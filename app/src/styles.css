@@ -232,3 +232,44 @@ dialog#series-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .fontpick-item .fam { font-family: system-ui, sans-serif; font-size: 11px; color: var(--muted); margin-left: 8px; }
 .fontpick-item.active, .fontpick-item:hover { background: rgba(31, 111, 235, 0.12); }
 .fontpick-item.current { font-weight: 600; }
+
+/* ---- symbol picker ---- */
+dialog#symbol-dialog {
+  border: 1px solid var(--border); border-radius: 10px; padding: 0;
+  background: var(--panel); color: var(--text); width: min(980px, 96vw);
+}
+dialog#symbol-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.symbol-picker { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.symbol-head { display: flex; gap: 12px; align-items: center; }
+.symbol-head h2 { margin: 0; font-size: 16px; white-space: nowrap; }
+.symbol-head input { flex: 1; }
+.symbol-body { display: flex; gap: 12px; height: min(560px, 68vh); }
+.symbol-tree { width: 230px; flex: none; overflow: auto; border-right: 1px solid var(--border); padding-right: 8px; }
+.symbol-tree .set { font-weight: 600; margin: 8px 0 2px; }
+.symbol-tree button {
+  display: flex; justify-content: space-between; width: 100%; text-align: left;
+  border: none; background: none; padding: 3px 8px; border-radius: 5px;
+}
+.symbol-tree button .n { color: var(--muted); font-size: 12px; }
+.symbol-tree button.active { background: rgba(31, 111, 235, 0.14); }
+.symbol-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.symbol-main .hint { margin: 0 0 6px; }
+.symbol-grid {
+  flex: 1; overflow: auto; display: grid; gap: 6px; align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+}
+.symbol-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px;
+  border: 1px solid var(--border); border-radius: 8px; background: #fff; color: #222; cursor: pointer;
+}
+.symbol-tile:hover, .symbol-tile:focus { outline: 2px solid var(--accent); }
+.symbol-tile.current { outline: 2px solid var(--accent); background: rgba(31, 111, 235, 0.08); }
+.symbol-tile img { width: 56px; height: 56px; object-fit: contain; }
+.symbol-tile .code { font-size: 11px; font-weight: 600; }
+.symbol-tile .label {
+  font-size: 10px; line-height: 1.2; text-align: center; max-height: 2.4em; overflow: hidden;
+}
+.symbol-choose { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; }
+.symbol-choose img { width: 32px; height: 32px; object-fit: contain; background: #fff; border-radius: 4px; flex: none; }
+.symbol-choose span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.end .spacer { flex: 1; }

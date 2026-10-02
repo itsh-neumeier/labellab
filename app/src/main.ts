@@ -46,7 +46,7 @@ const state = {
   devices: [] as Device[],
   selected: -1,
   fonts: [] as string[],
-  symbols: [] as string[],
+  iconsets: [] as api.IconSet[],
   csv: null as (api.Csv & { name: string }) | null,
   /** Last focused text field in an element card (CSV column insertion). */
   lastField: null as { el: HTMLInputElement | HTMLTextAreaElement; apply: (v: string) => void } | null,
@@ -337,7 +337,7 @@ function boxCaption(item: Item): string {
     case "image":
       return item.path.split(/[\\/]/).pop() || elementTitle(item);
     case "symbol":
-      return `${elementTitle(item)}: ${item.name}`;
+      return `${elementTitle(item)}: ${symbolLabel(item.name)}`;
     case "fill":
       return elementTitle(item);
   }
@@ -671,12 +671,26 @@ function contentFields(item: Item): HTMLElement[] {
       return [row, invert];
     }
     case "symbol": {
-      const select = document.createElement("select");
-      const names = state.symbols.includes(item.name) ? state.symbols : [item.name, ...state.symbols];
-      for (const n of names) select.add(new Option(n, n, false, n === item.name));
-      select.addEventListener("change", () => {
-        item.name = select.value;
-        changed(true);
+      const select = document.createElement("button");
+      select.type = "button";
+      select.className = "symbol-choose";
+      select.title = t("symbol.choose");
+      const found = findIcon(item.name);
+      if (found) {
+        const img = document.createElement("img");
+        img.src = svgUrl(found.icon.svg);
+        img.alt = "";
+        select.append(img);
+      }
+      const caption = document.createElement("span");
+      caption.textContent = found ? symbolLabel(item.name) : `${item.name} (${t("symbol.unknown")})`;
+      select.append(caption);
+      select.addEventListener("click", (e) => {
+        e.preventDefault();
+        openSymbolPicker(item.name, (name) => {
+          item.name = name;
+          changed(true);
+        });
       });
       const invert = document.createElement("label");
       const box = document.createElement("input");
@@ -755,7 +769,7 @@ function defaultElement(type: Element["type"]): Element {
     case "image":
       return { type, path: "", invert: false };
     case "symbol":
-      return { type, name: state.symbols[0] ?? "warning", invert: false };
+      return { type, name: "material:warning", invert: false };
     case "fill":
       return { type };
   }
@@ -1261,6 +1275,212 @@ async function clearCsvFile(): Promise<void> {
   schedulePreview();
 }
 
+// ---------------------------------------------------------------- symbols (icon sets)
+
+/** Text of an icon set field in the UI language. */
+function textOf(text: api.I18nText | null | undefined): string {
+  if (!text) return "";
+  if (typeof text === "string") return text;
+  return text[currentLang()] ?? text.de ?? text.en ?? Object.values(text)[0] ?? "";
+}
+
+function svgUrl(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/** Looks up `set:icon` or a bare `icon` (first set that has it), like `ll_render::iconset::resolve`. */
+function findIcon(name: string): { set: api.IconSet; icon: api.Icon } | null {
+  const [setId, iconId] = name.includes(":") ? (name.split(":", 2) as [string, string]) : [null, name];
+  for (const set of state.iconsets) {
+    if (setId !== null && set.id !== setId) continue;
+    const icon = set.icons.find((i) => i.id === iconId);
+    if (icon) return { set, icon };
+  }
+  return null;
+}
+
+/** "W012 · Warnung vor elektrischer Spannung" style caption for a symbol name. */
+function symbolLabel(name: string): string {
+  const found = findIcon(name);
+  if (!found) return name;
+  const title = textOf(found.icon.name);
+  return title && title !== found.icon.id ? `${found.icon.id} · ${title}` : found.icon.id;
+}
+
+async function loadIconsets(): Promise<void> {
+  try {
+    state.iconsets = await api.iconsets();
+  } catch (e) {
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
+  }
+  renderElements();
+  renderBoxes();
+}
+
+/** Picker state: selected set/category filter and the callback for a pick. */
+const picker = {
+  setId: "",
+  category: "" as string | null, // "" = all, null = uncategorized
+  current: "",
+  onPick: (_name: string) => {},
+};
+
+function openSymbolPicker(current: string, onPick: (name: string) => void): void {
+  const found = findIcon(current);
+  picker.current = found ? `${found.set.id}:${found.icon.id}` : current;
+  picker.onPick = onPick;
+  picker.setId = found?.set.id ?? state.iconsets[0]?.id ?? "";
+  picker.category = "";
+  $<HTMLInputElement>("symbol-search").value = "";
+  $("symbol-msg").textContent = "";
+  renderSymbolTree();
+  renderSymbolGrid();
+  const dialog = $<HTMLDialogElement>("symbol-dialog");
+  if (!dialog.open) dialog.showModal();
+  $("symbol-search").focus();
+  // Scroll the current symbol into view.
+  dialog.querySelector(".symbol-tile.current")?.scrollIntoView({ block: "center" });
+}
+
+function renderSymbolTree(): void {
+  const tree = $("symbol-tree");
+  tree.replaceChildren();
+  const searching = $<HTMLInputElement>("symbol-search").value.trim() !== "";
+  const entry = (label: string, count: number, active: boolean, onClick: () => void) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = active ? "active" : "";
+    const name = document.createElement("span");
+    name.textContent = label;
+    const n = document.createElement("span");
+    n.className = "n";
+    n.textContent = String(count);
+    b.append(name, n);
+    b.addEventListener("click", onClick);
+    return b;
+  };
+  for (const set of state.iconsets) {
+    const title = document.createElement("div");
+    title.className = "set";
+    title.textContent = textOf(set.name);
+    title.title = [textOf(set.description), set.license ? t("symbol.license", { license: set.license }) : ""]
+      .filter(Boolean)
+      .join("\n");
+    tree.append(title);
+    const select = (category: string | null) => () => {
+      picker.setId = set.id;
+      picker.category = category;
+      renderSymbolTree();
+      renderSymbolGrid();
+    };
+    const isSet = !searching && picker.setId === set.id;
+    tree.append(entry(t("symbol.all"), set.icons.length, isSet && picker.category === "", select("")));
+    for (const cat of set.categories) {
+      const count = set.icons.filter((i) => i.category === cat.id).length;
+      if (count) tree.append(entry(textOf(cat.name), count, isSet && picker.category === cat.id, select(cat.id)));
+    }
+    const loose = set.icons.filter((i) => !i.category).length;
+    if (loose && set.categories.length) {
+      tree.append(entry(t("symbol.uncategorized"), loose, isSet && picker.category === null, select(null)));
+    }
+  }
+  const set = state.iconsets.find((s) => s.id === picker.setId);
+  $("symbol-remove").hidden = !set || set.builtin;
+}
+
+function renderSymbolGrid(): void {
+  const grid = $("symbol-grid");
+  grid.replaceChildren();
+  const query = $<HTMLInputElement>("symbol-search").value.trim().toLowerCase();
+  const hits: { set: api.IconSet; icon: api.Icon }[] = [];
+  for (const set of state.iconsets) {
+    if (!query && set.id !== picker.setId) continue;
+    for (const icon of set.icons) {
+      if (query) {
+        const hay = [icon.id, textOf(icon.name), ...(icon.tags ?? [])].join(" ").toLowerCase();
+        if (!hay.includes(query)) continue;
+      } else if (picker.category === null ? icon.category : picker.category && icon.category !== picker.category) {
+        continue;
+      }
+      hits.push({ set, icon });
+    }
+  }
+  for (const { set, icon } of hits) {
+    const full = `${set.id}:${icon.id}`;
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = `symbol-tile${full === picker.current ? " current" : ""}`;
+    tile.title = [textOf(icon.name), full, icon.author ? `© ${icon.author}` : "", icon.license ?? ""]
+      .filter(Boolean)
+      .join("\n");
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = "";
+    img.src = svgUrl(icon.svg);
+    const code = document.createElement("span");
+    code.className = "code";
+    code.textContent = icon.id;
+    const label = document.createElement("span");
+    label.className = "label";
+    label.textContent = textOf(icon.name) === icon.id ? "" : textOf(icon.name);
+    tile.append(img, code, label);
+    tile.addEventListener("click", () => {
+      $<HTMLDialogElement>("symbol-dialog").close();
+      picker.onPick(full);
+    });
+    grid.append(tile);
+  }
+  const set = state.iconsets.find((s) => s.id === picker.setId);
+  $("symbol-info").textContent = hits.length
+    ? [t("symbol.count", { n: hits.length }), !query && set?.license ? t("symbol.license", { license: set.license }) : ""]
+        .filter(Boolean)
+        .join(" · ")
+    : t("symbol.none");
+}
+
+async function importIconsetFile(): Promise<void> {
+  const path = await open({ multiple: false, filters: [{ name: t("symbol.filter"), extensions: ["llabel-iconset"] }] });
+  if (typeof path !== "string") return;
+  try {
+    const set = await api.importIconset(path);
+    await loadIconsets();
+    picker.setId = set.id;
+    picker.category = "";
+    $<HTMLInputElement>("symbol-search").value = "";
+    renderSymbolTree();
+    renderSymbolGrid();
+    $("symbol-msg").textContent = t("symbol.imported", { name: textOf(set.name), n: set.icons.length });
+  } catch (e) {
+    $("symbol-msg").textContent = t("error.prefix", { error: errorText(e) });
+  }
+}
+
+async function removeCurrentIconset(): Promise<void> {
+  const set = state.iconsets.find((s) => s.id === picker.setId);
+  if (!set || set.builtin) return;
+  if (!window.confirm(t("symbol.removeConfirm", { name: textOf(set.name) }))) return;
+  try {
+    await api.removeIconset(set.id);
+    await loadIconsets();
+    picker.setId = state.iconsets[0]?.id ?? "";
+    picker.category = "";
+    renderSymbolTree();
+    renderSymbolGrid();
+    $("symbol-msg").textContent = t("symbol.removed", { name: textOf(set.name) });
+  } catch (e) {
+    $("symbol-msg").textContent = t("error.prefix", { error: errorText(e) });
+  }
+}
+
+function bindSymbolPicker(): void {
+  $("symbol-search").addEventListener("input", () => {
+    renderSymbolTree();
+    renderSymbolGrid();
+  });
+  $("symbol-import").addEventListener("click", () => void importIconsetFile());
+  $("symbol-remove").addEventListener("click", () => void removeCurrentIconset());
+}
+
 // ---------------------------------------------------------------- series overview
 
 /** At most this many labels are drawn in the series overview. */
@@ -1570,6 +1790,7 @@ function bindUi(): void {
   });
   renderRecent();
   $("btn-series").addEventListener("click", () => void showSeries());
+  bindSymbolPicker();
   $("btn-save").addEventListener("click", saveFile);
   $("btn-undo").addEventListener("click", () => stepHistory(-1));
   $("btn-redo").addEventListener("click", () => stepHistory(1));
@@ -1685,10 +1906,7 @@ async function init(): Promise<void> {
   renderCsv();
   setPrinting(false);
   // Font scan can take a moment; fill the font pickers when it's done.
-  api.symbols().then((names) => {
-    state.symbols = names;
-    renderElements();
-  });
+  void loadIconsets();
   api.fontFamilies().then((fonts) => {
     state.fonts = fonts;
     renderElements();

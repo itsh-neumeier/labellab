@@ -1,0 +1,54 @@
+{
+  "format": "llabel-iconset",
+  "version": 1,
+  "id": "iso7010",
+  "name": {
+    "de": "ISO 7010 Sicherheitszeichen",
+    "en": "ISO 7010 safety signs"
+  },
+  "description": {
+    "de": "Sicherheitszeichen nach ISO 7010 (Warn-, Verbots-, Gebots-, Brandschutz- und Rettungszeichen). Grafiken von Wikimedia Commons, dort als gemeinfrei gekennzeichnet; Quelle und Urheber je Zeichen in den Icon-Daten.",
+    "en": "ISO 7010 safety signs (warning, prohibition, mandatory, fire and safe condition signs). Artwork from Wikimedia Commons, marked public domain there; source and author per sign in the icon data."
+  },
+  "license": "Public domain (Wikimedia Commons, per sign)",
+  "source": "https://de.wikipedia.org/wiki/ISO_7010#Liste_der_Symbole",
+  "halftone": "threshold",
+  "categories": [
+    {
+      "id": "warning",
+      "name": {
+        "de": "Warnzeichen",
+        "en": "Warning signs"
+      }
+    },
+    {
+      "id": "prohibition",
+      "name": {
+        "de": "Verbotszeichen",
+        "en": "Prohibition signs"
+      }
+    },
+    {
+      "id": "mandatory",
+      "name": {
+        "de": "Gebotszeichen",
+        "en": "Mandatory signs"
+      }
+    },
+    {
+      "id": "fire",
+      "name": {
+        "de": "Brandschutzzeichen",
+        "en": "Fire safety signs"
+      }
+    },
+    {
+      "id": "escape",
+      "name": {
+        "de": "Rettungszeichen",
+        "en": "Safe condition signs"
+      }
+    }
+  ],
+  "icons": []
+}

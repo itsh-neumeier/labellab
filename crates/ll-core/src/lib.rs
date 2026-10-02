@@ -7,6 +7,7 @@
 
 pub mod device;
 mod error;
+pub mod iconsets;
 pub mod label;
 pub mod layouts;
 pub mod print;

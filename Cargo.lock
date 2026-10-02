@@ -836,6 +836,7 @@ dependencies = [
  "qrcode",
  "resvg",
  "serde",
+ "serde_json",
  "thiserror",
  "tiny-skia",
  "usvg",
