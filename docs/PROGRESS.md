@@ -86,6 +86,9 @@
   - [x] Feste Länge (exakt, Inhalt wird abgeschnitten) zusätzlich zur Mindestlänge
   - [x] Datum/Uhrzeit als Platzhalter (`{{datum}}`, `{{zeit}}`, beim Druck aktuell)
   - [x] Bild: Helligkeit/Kontrast
+  - [x] Bild-Editor „Bild bearbeiten …“ (Nutzerwunsch 2026-10-02): Zuschneiden, Drehen 90°,
+    Spiegeln, Hintergrund entfernen (Randfarbe automatisch oder Farbe im Bild wählen,
+    Toleranz, nur zusammenhängend), Raster oder Schwelle; nicht-destruktiv (ADR-026)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
   - [x] Lineal (mm) über der Vorschau
@@ -110,7 +113,6 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
-| Bild-Editor (Nutzerwunsch 2026-10-02): Kern fertig (`ll_render::image_edit`: Drehen/Spiegeln, Zuschneiden, Hintergrund entfernen, Halbton/Schwelle; Feld `edit` am Bild-Element); offen: App-Dialog „Bild bearbeiten …“ | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
@@ -149,6 +151,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- Bild-Editor: bearbeitetes Bild (Hintergrund entfernt, Schwelle) auf Band drucken und mit
+  der Vorschau vergleichen.
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
 
 - [ ] Sicherheitszeichen auf Band: `labellab print --symbol iso7010:W012 --bt` (und z. B.
@@ -257,6 +261,21 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Bild-Editor (ADR-026)
+- `ll_render::image_edit` (`ImageEdit`: Drehung, Spiegeln, Zuschnitt in Bruchteilen,
+  `BackgroundRemoval` mit Farbe/Toleranz/zusammenhängend, Halbton Raster/Schwelle) im
+  gemeinsamen Renderpfad (`render_image_edited`, `image_in_box_edited`), Feld `edit` am
+  Bild-Element in `ll-core`. Reihenfolge: drehen/spiegeln → zuschneiden → Hintergrund →
+  auf Weiß → Grau → Helligkeit/Kontrast → Raster/Schwelle.
+- App: Befehl `image_editor_source` (Vorschaubild max. 640 px, einmal maskiert, einmal ohne
+  Maske für die Farbwahl), Dialog in `app/src/imageEditor.ts`, Knopf „Bild bearbeiten …“ in
+  der Bildkarte; Druckvorschau im Dialog über `render_preview` (nur dieses Element).
+  Neues Bild wählen setzt die Bearbeitung zurück.
+- Geprüft: Tests (4 neue), fmt/clippy (Workspace + App), Frontend-Build; GUI unter Xvfb:
+  Hintergrund automatisch entfernt (Schachbrett sichtbar), Zuschnitt per Ecken, Farbe im
+  Loch gewählt + „nur zusammenhängend“ aus → Loch transparent, Übernehmen → Vorschau.
+- Offen: Druck eines bearbeiteten Bildes auf echtem Band.
+
 ### 2026-10-02 – Claude Code, M9 Paket 3a – Arbeitsblätter, Warnung bei ungespeicherten Änderungen (ADR-025)
 - `ll_core::document` (`Document`/`Sheet`, Format v3 nur bei >1 Blatt, sonst weiter v2-Label),
   CLI `--template … --sheet <Nr|Name>`, App-Befehle `load_document`/`save_document` (ersetzen

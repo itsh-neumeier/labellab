@@ -101,6 +101,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   per Klick wieder öffnen
 - Mehrere Arbeitsblätter in einer `.llabel`-Datei (Reiter über der Vorschau; CLI
   `--sheet`), Warnung vor ungespeicherten Änderungen beim Schließen, Neu und Öffnen
+- Bild-Editor „Bild bearbeiten …“: zuschneiden, drehen, spiegeln, Hintergrund entfernen
+  (automatisch oder per Klick auf eine Farbe, mit Toleranz), Raster oder Schwelle für den
+  Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 
 ### Behoben
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb
