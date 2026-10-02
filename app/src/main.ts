@@ -10,7 +10,7 @@ import type { Connection, Device, Element, Item, Label, Rect } from "./api";
 import { bindImageEditor, openImageEditor } from "./imageEditor";
 import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { applyLang, applyStatic, currentLang, errorText, setLang, t, type Lang } from "./i18n";
-import { roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
+import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
 
 const DOTS_PER_MM = 180 / 25.4;
@@ -466,7 +466,7 @@ function renderBoxes(): void {
     tag.className = "tag";
     tag.textContent = `${index + 1}`;
     box.append(tag);
-    for (const h of ["e", "s", "se"]) {
+    for (const h of ["n", "s", "e", "w", "ne", "nw", "se", "sw"]) {
       const handle = document.createElement("div");
       handle.className = `handle h-${h}`;
       handle.dataset.handle = h;
@@ -525,20 +525,12 @@ function startDrag(e: PointerEvent, index: number): void {
     if (!handle) {
       ({ rect: next, guides } = snapMove({ ...start, x_mm: start.x_mm + dx, y_mm: start.y_mm + dy }, snapTargets, threshold));
     } else {
-      const rx = handle.includes("e");
-      const ry = handle.includes("s");
-      const resized = {
-        ...start,
-        w_mm: rx ? Math.max(MIN_BOX_MM, start.w_mm + dx) : start.w_mm,
-        h_mm: ry ? Math.max(MIN_BOX_MM, start.h_mm + dy) : start.h_mm,
-      };
-      if (rx && ry && ev.shiftKey && start.w_mm > 0 && start.h_mm > 0) {
-        // Keep the aspect ratio: follow the larger relative change.
-        const f = Math.max(resized.w_mm / start.w_mm, resized.h_mm / start.h_mm);
-        resized.w_mm = Math.max(MIN_BOX_MM, start.w_mm * f);
-        resized.h_mm = Math.max(MIN_BOX_MM, start.h_mm * f);
-      }
-      ({ rect: next, guides } = snapResize(resized, snapTargets, threshold, rx, ry));
+      const edges = handleEdges(handle);
+      const resized = resizeRect(start, dx, dy, edges, MIN_BOX_MM, ev.shiftKey);
+      // No snapping while keeping the ratio: snapping one edge would break it.
+      ({ rect: next, guides } = ev.shiftKey
+        ? { rect: resized, guides: { x: [], y: [] } }
+        : snapResize(resized, snapTargets, threshold, edges));
     }
     item.rect = roundRect(next);
     placeBox(box, item.rect);

@@ -97,6 +97,7 @@
     Markierung) (Nutzerwunsch 2026-10-02, ADR-029)
   - [x] Rand links/rechts getrennt einstellbar, in der Vorschau als Zonen, Ausrichten/
     Einrasten daran, Hinweis bei Elementen im Rand (Nutzerwunsch 2026-10-02)
+  - [x] Boxen an allen vier Seiten und Ecken ziehbar (Nutzerwunsch 2026-10-02)
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
@@ -274,6 +275,13 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Größe an allen Seiten ändern
+- Acht Griffe je Box (n/s/e/w und Ecken); `snap.ts`: `handleEdges`, `resizeRect` (Gegenkante
+  fest, Mindestgröße, Umschalt an Ecken = Seitenverhältnis, linke Kante nicht vor 0) und
+  `snapResize` für die bewegte Kante (auch links/oben). Nummernschild der Box nach rechts
+  versetzt, damit es den Eckgriff nicht verdeckt.
+- Geprüft: Frontend-Build, Tests; GUI unter Xvfb (linke und obere Kante gezogen).
+
 ### 2026-10-02 – Claude Code, Rand links/rechts
 - `Label::padding_start_mm` (fehlt = `padding_mm`); Fluss-Inhalt beginnt nach dem linken
   Rand, `padding_mm` bleibt rechter Rand. Boxen behalten ihre Position (Format unverändert).
