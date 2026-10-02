@@ -108,7 +108,10 @@ export interface Label {
   /** With `min_length_mm`: exactly that long, content beyond is cut off. */
   fixed_length?: boolean;
   gap_mm: number;
+  /** Right margin; also the left one unless `padding_start_mm` is set. */
   padding_mm: number;
+  /** Left margin; absent = `padding_mm`. */
+  padding_start_mm?: number | null;
   min_length_mm?: number | null;
   /** Solid border (older files); `border` takes precedence. */
   frame: boolean;

@@ -69,7 +69,9 @@
 
         <h2 data-i18n="layout.title"></h2>
         <div class="grid">
-          <label for="padding" data-i18n="layout.padding"></label>
+          <label for="padding-start" data-i18n="layout.paddingStart" data-i18n-title="layout.marginHint"></label>
+          <input id="padding-start" type="number" min="0" step="0.5" />
+          <label for="padding" data-i18n="layout.padding" data-i18n-title="layout.marginHint"></label>
           <input id="padding" type="number" min="0" step="0.5" />
           <label for="min-length" data-i18n="layout.minLength"></label>
           <input id="min-length" type="number" min="0" step="1" data-i18n-placeholder="layout.auto" />
@@ -176,6 +178,8 @@
               <img id="preview" alt="" draggable="false" hidden />
               <div id="ink" class="ink"></div>
               <div id="strip-lines" class="strip-lines"></div>
+              <div id="margin-start" class="margin-zone"></div>
+              <div id="margin-end" class="margin-zone"></div>
               <div id="boxes" class="boxes"></div>
             </div>
           </div>

@@ -94,6 +94,29 @@ function tapeMarginMm(): number {
   return tape ? Math.max(0, (tape.width_mm - tape.printable_mm) / 2) : 0;
 }
 
+/** Left margin of the label in mm (falls back to the right one). */
+function startPad(): number {
+  return state.label.padding_start_mm ?? state.label.padding_mm;
+}
+
+function endPad(): number {
+  return state.label.padding_mm;
+}
+
+/** Elements (1-based) reaching into the left margin, or the right one of a fixed-length label. */
+function marginViolations(): number[] {
+  const l = state.label;
+  const fixed = l.fixed_length && l.min_length_mm ? l.min_length_mm : null;
+  const eps = 0.05;
+  return l.elements.flatMap((item, i) => {
+    const r = item.rect;
+    if (!r || item.type === "fill") return [];
+    const left = r.x_mm < startPad() - eps;
+    const right = fixed !== null && r.x_mm + r.w_mm > fixed - endPad() + eps;
+    return left || right ? [i + 1] : [];
+  });
+}
+
 function labelHeightMm(): number {
   return tapeMm() * strips();
 }
@@ -240,9 +263,13 @@ async function updatePreview(): Promise<void> {
     img.src = url;
     overflowing = new Set(preview.overflowing);
     markOverflow();
-    msg.textContent = preview.overflowing.length
-      ? t("preview.overflow", { items: preview.overflowing.map((i) => i + 1).join(", ") })
-      : "";
+    const inMargin = marginViolations();
+    msg.textContent = [
+      preview.overflowing.length ? t("preview.overflow", { items: preview.overflowing.map((i) => i + 1).join(", ") }) : "",
+      inMargin.length ? t("preview.inMargin", { items: inMargin.join(", ") }) : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   } catch (e) {
     if (seq !== previewSeq) return;
     $("ink").classList.add("stale");
@@ -266,6 +293,16 @@ function layoutStage(): void {
   const stage = $("stage");
   stage.style.width = `${width}px`;
   stage.style.height = `${height}px`;
+  // Left/right margins as marked zones at both label ends.
+  const zone = (id: string, left: number, w: number) => {
+    const z = $(id).style;
+    z.left = `${left}px`;
+    z.width = `${Math.max(0, w)}px`;
+    z.display = w > 0 ? "" : "none";
+  };
+  const lengthPx = inkWidth; // rendered label length (fixed length cuts boxes beyond it)
+  zone("margin-start", 0, startPad() * ppm);
+  zone("margin-end", lengthPx - endPad() * ppm, endPad() * ppm);
   // Show the whole tape: grey bands for what the print head can't reach.
   $("tape-frame").style.paddingBlock = `${tapeMarginMm() * ppm}px`;
   const lines = $("strip-lines");
@@ -472,6 +509,9 @@ function startDrag(e: PointerEvent, index: number): void {
   const startY = e.clientY;
   const others = state.label.elements.filter((_, i) => i !== index && state.label.elements[i].rect).map((i) => i.rect!);
   const snapTargets = targets(others, labelHeightMm());
+  snapTargets.x.push(startPad());
+  const fixedLength = state.label.fixed_length ? state.label.min_length_mm : null;
+  if (fixedLength) snapTargets.x.push(fixedLength - endPad());
   for (let k = 1; k < strips(); k++) snapTargets.y.push(k * tapeMm());
   box.setPointerCapture(e.pointerId);
 
@@ -534,7 +574,7 @@ function select(index: number): void {
 function newRect(type: Element["type"]): Rect {
   const h = labelHeightMm();
   const end = Math.max(0, ...state.label.elements.map((i) => (i.rect ? i.rect.x_mm + i.rect.w_mm : 0)));
-  const x = state.label.elements.length ? end + NEW_ITEM_GAP_MM : state.label.padding_mm;
+  const x = state.label.elements.length ? end + NEW_ITEM_GAP_MM : startPad();
   const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5 }[type];
   return roundRect({ x_mm: x, y_mm: 0, w_mm: w, h_mm: h });
 }
@@ -865,16 +905,15 @@ function alignItem(index: number, how: "left" | "hcenter" | "right" | "top" | "v
   const r = { ...item.rect };
   const height = labelHeightMm();
   const length = labelLengthWithout(index, r.w_mm);
-  const pad = state.label.padding_mm;
   switch (how) {
     case "left":
-      r.x_mm = pad;
+      r.x_mm = startPad();
       break;
     case "hcenter":
       r.x_mm = (length - r.w_mm) / 2;
       break;
     case "right":
-      r.x_mm = Math.max(0, length - pad - r.w_mm);
+      r.x_mm = Math.max(0, length - endPad() - r.w_mm);
       break;
     case "top":
       r.y_mm = 0;
@@ -907,7 +946,7 @@ function labelLengthWithout(index: number, ownWidth: number): number {
   );
   const min = l.min_length_mm ?? 0;
   if (l.fixed_length && min > 0) return min;
-  return Math.max(others + l.padding_mm, min, ownWidth + 2 * l.padding_mm);
+  return Math.max(others + endPad(), min, ownWidth + startPad() + endPad());
 }
 
 function alignRow(index: number): HTMLElement {
@@ -1014,6 +1053,7 @@ function defaultElement(type: Element["type"]): Element {
 function renderLayout(): void {
   const l = state.label;
   $<HTMLInputElement>("padding").value = String(l.padding_mm);
+  $<HTMLInputElement>("padding-start").value = String(l.padding_start_mm ?? l.padding_mm);
   $<HTMLInputElement>("min-length").value = l.min_length_mm ? String(l.min_length_mm) : "";
   $<HTMLInputElement>("fixed-length").checked = !!l.fixed_length;
   renderBorder();
@@ -1038,6 +1078,18 @@ function bindLayout(): void {
       changed();
     });
   };
+  // Changing the left margin moves the boxes along, so the content keeps
+  // its distance to the margin instead of sliding into it.
+  num("padding-start", (v) => {
+    const before = startPad();
+    state.label.padding_start_mm = v;
+    const delta = startPad() - before;
+    for (const item of state.label.elements) {
+      if (item.rect) item.rect = roundRect({ ...item.rect, x_mm: Math.max(0, item.rect.x_mm + delta) });
+    }
+    renderBoxes();
+    state.label.elements.forEach((_, i) => updateRectInputs(i));
+  });
   num("padding", (v) => (state.label.padding_mm = v ?? 0));
   num("min-length", (v) => (state.label.min_length_mm = v && v > 0 ? v : null));
   $<HTMLInputElement>("fixed-length").addEventListener("change", (e) => {

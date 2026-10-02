@@ -106,6 +106,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- Rand links und rechts getrennt einstellbar (statt nur „Rand am Ende“); die Vorschau
+  zeigt die Ränder als Zonen an beiden Enden, Ausrichten und Einrasten halten sie ein,
+  Elemente im Rand werden gemeldet
 - Knopf „Wach halten“: fragt alle 2 Minuten den Druckerstatus ab, damit sich der Drucker
   nicht automatisch ausschaltet (beim Start aus; Wirkung am Gerät noch ungeprüft)
 - Einzelne Textteile fett oder kursiv: Text markieren und F/K (Strg+B/Strg+I) drücken;
