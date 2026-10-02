@@ -395,6 +395,7 @@ pub fn fuse_box(spec: &FuseBox, tape_mm: f32) -> Label {
             reverse: false,
             size_pt: None,
             align: TextAlign::Center,
+            line_spacing: None,
             font: None,
             bold: false,
             italic: false,

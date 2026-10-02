@@ -54,6 +54,8 @@ export type Element =
       reverse?: boolean;
       size_pt?: number | null;
       align?: TextAlign;
+      /** Multiple of the normal line height (0.5–3); absent = 1. */
+      line_spacing?: number | null;
       font?: string | null;
       bold?: boolean;
       italic?: boolean;

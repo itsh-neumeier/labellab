@@ -325,6 +325,17 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Verteilerbeschriftung: mehrzeilig, Ausrichtung; Reihenklemmen, LSA-Leiste
+- Nutzerwünsche: Feldtexte mehrzeilig mit fett/kursiv für Teile, Zeilenabstand, Ausrichtung
+  waagerecht/senkrecht; „Sicherungskasten“ heißt in der Oberfläche „Verteilerbeschriftung“;
+  „Anschlussblock“ = LSA-Leiste und Reihenklemmen-Beschriftung.
+- `Element::FuseBox::line_spacing`, `valign` aus dem Item (wie Text); Feldtexte als Textarea
+  mit F/K/Strg+B/I. Galerie: Tiles mit eigener `id` und Feld-Voreinstellungen (gleicher
+  Generator `fuse_box`): Reihenklemmen 20 × 5,2 mm senkrecht, LSA-Leiste 10 × 10 mm.
+  Kategorie „Spezial-Elemente“; „Klemmblock / LSA“ heißt jetzt „Klemmblock (2 Reihen)“.
+- Offen: Raster der LSA-Leiste mit Nutzer abgleichen (Standard 10 mm angenommen); Element-
+  Typname in der Ebenenliste ist für alle drei „Verteilerbeschriftung“.
+
 ### 2026-10-02 – Claude Code, Rahmen-Paint (ADR-035), „Vorlagen / Spezial-Elemente“
 - Rahmen-Editor: Zeichenfläche je Teil (`app/src/framePaint.ts`), Werkzeuge, Bild einfügen
   über den Bild-Editor + Platzieren (Größe/Schwelle/Raster), Breite wächst mit; SVG-Code

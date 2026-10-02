@@ -519,7 +519,7 @@ function boxCaption(item: Item): string {
     case "shape":
       return `${elementTitle(item)}: ${t(`shape.${item.shape}`)}`;
     case "fuse_box":
-      return item.fields.map((f) => f.text).join(" | ") || elementTitle(item);
+      return item.fields.map((f) => stripMarkup(f.text).replace(/\n/g, " ")).join(" | ") || elementTitle(item);
   }
 }
 
@@ -867,8 +867,11 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
     item.font = family;
     changed(true);
   });
+  // Field text last edited: with a selection there, F/K style just that part.
+  let lastArea: HTMLTextAreaElement | null = null;
   const toggle = (label: string, title: string, key: "bold" | "italic") => {
     const b = makeButton(label, title, () => {
+      if (lastArea?.isConnected && toggleMark(lastArea, key === "bold" ? BOLD_MARK : ITALIC_MARK)) return;
       item[key] = !item[key];
       b.classList.toggle("on", !!item[key]);
       changed();
@@ -880,10 +883,21 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
   };
   const style = document.createElement("div");
   style.className = "row font-row";
-  style.append(field("elements.font", font), toggle("F", t("elements.bold"), "bold"), toggle("K", t("elements.italic"), "italic"));
+  const boldButton = toggle("F", t("elements.boldHint"), "bold");
+  const italicButton = toggle("K", t("elements.italicHint"), "italic");
+  style.append(field("elements.font", font), boldButton, italicButton);
+  const spacing = numberInput(item.line_spacing, 0.1, "1.0", (v) => {
+    item.line_spacing = v && v > 0 ? Math.min(3, Math.max(0.5, v)) : null;
+  });
+  spacing.min = "0.5";
+  spacing.max = "3";
+  spacing.title = t("elements.lineSpacingHint");
   const sizeField = document.createElement("div");
   sizeField.className = "row";
-  sizeField.append(field("elements.size", size), field("fuse.separator", separator));
+  sizeField.append(field("elements.size", size), field("elements.lineSpacing", spacing));
+  const sepRow = document.createElement("div");
+  sepRow.className = "row";
+  sepRow.append(field("fuse.separator", separator));
 
   function renderList(): void {
     list.replaceChildren();
@@ -894,13 +908,23 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
       const num = document.createElement("span");
       num.className = "muted";
       num.textContent = String(i + 1);
-      const text = document.createElement("input");
-      text.type = "text";
+      // Several lines (Enter); **bold** / __italic__ for parts, like text elements.
+      const text = document.createElement("textarea");
+      text.rows = Math.min(4, Math.max(1, f.text.split("\n").length));
       text.value = f.text;
       text.addEventListener("input", () => {
         f.text = text.value;
+        text.rows = Math.min(4, Math.max(1, text.value.split("\n").length));
         syncBoxCaption();
         changed();
+      });
+      text.addEventListener("focus", () => (lastArea = text));
+      text.addEventListener("keydown", (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+        const key = e.key.toLowerCase();
+        if (key !== "b" && key !== "i") return;
+        e.preventDefault();
+        (key === "b" ? boldButton : italicButton).click();
       });
       trackField(text, (v) => (f.text = v));
       const ratio = document.createElement("select");
@@ -942,7 +966,7 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
     });
   }
   renderList();
-  return [sizeRow, sizeField, optRow, style, list];
+  return [sizeRow, sepRow, optRow, style, sizeField, list];
 }
 
 function contentFields(item: Item): HTMLElement[] {
@@ -1242,14 +1266,15 @@ function alignRow(index: number): HTMLElement {
 
 /** Content alignment inside the box: horizontal and vertical, three each. */
 function contentAlignRow(item: Item): HTMLElement | null {
-  const aligned = ["text", "qr", "barcode", "image", "symbol"];
+  const aligned = ["text", "qr", "barcode", "image", "symbol", "fuse_box"];
   if (!aligned.includes(item.type)) return null;
   const row = document.createElement("div");
   row.className = "align-row";
   const label = document.createElement("span");
   label.textContent = t("content.title");
   row.append(label);
-  const h = (): api.TextAlign => (item.type === "text" ? item.align : (item.halign ?? "center"));
+  const h = (): api.TextAlign =>
+    item.type === "text" ? item.align : item.type === "fuse_box" ? (item.align ?? "center") : (item.halign ?? "center");
   const v = (): api.VAlign => item.valign ?? "middle";
   const buttons: [string, string, () => boolean, () => void][] = [
     ["⇤", "content.left", () => h() === "left", () => setH("left")],
@@ -1260,7 +1285,7 @@ function contentAlignRow(item: Item): HTMLElement | null {
     ["⤓", "content.bottom", () => v() === "bottom", () => (item.valign = "bottom")],
   ];
   function setH(a: api.TextAlign): void {
-    if (item.type === "text") item.align = a;
+    if (item.type === "text" || item.type === "fuse_box") item.align = a;
     else item.halign = a === "center" ? null : a;
   }
   for (const [icon, key, on, apply] of buttons) {
@@ -3143,20 +3168,28 @@ function bindPairing(): void {
 const num = (id: string) => Number($<HTMLInputElement>(id).value) || 0;
 
 /** Template tiles in the gallery: kind, i18n key, category key, mini drawing. */
-const TEMPLATES: { kind: api.Layout["kind"]; name: string; cat: string; svg: string }[] = [
-  { kind: "cable_flag", name: "wizard.cableFlag", cat: "wizard.catCable",
+/** Gallery tiles; `id` tells tiles of the same generator apart (field presets). */
+const TEMPLATES: { id: string; kind: api.Layout["kind"]; name: string; cat: string; svg: string }[] = [
+  { id: "cable_flag", kind: "cable_flag", name: "wizard.cableFlag", cat: "wizard.catCable",
     svg: '<rect x="2" y="8" width="26" height="16" rx="2"/><rect x="31" y="13" width="10" height="6"/><rect x="44" y="8" width="26" height="16" rx="2"/>' },
-  { kind: "single_flag", name: "wizard.singleFlag", cat: "wizard.catCable",
+  { id: "single_flag", kind: "single_flag", name: "wizard.singleFlag", cat: "wizard.catCable",
     svg: '<rect x="4" y="13" width="14" height="6"/><rect x="20" y="8" width="48" height="16" rx="2"/>' },
-  { kind: "cable_wrap", name: "wizard.cableWrap", cat: "wizard.catCable",
+  { id: "cable_wrap", kind: "cable_wrap", name: "wizard.cableWrap", cat: "wizard.catCable",
     svg: '<rect x="6" y="6" width="60" height="20" rx="10"/><path d="M20 6v20M36 6v20M52 6v20"/>' },
-  { kind: "patch_panel", name: "wizard.patchPanel", cat: "wizard.catPanel",
+  { id: "patch_panel", kind: "patch_panel", name: "wizard.patchPanel", cat: "wizard.catPanel",
     svg: '<rect x="2" y="8" width="68" height="16"/><path d="M19 8v16M36 8v16M53 8v16"/>' },
-  { kind: "terminal_block", name: "wizard.terminalBlock", cat: "wizard.catPanel",
+  { id: "terminal_block", kind: "terminal_block", name: "wizard.terminalBlock", cat: "wizard.catPanel",
     svg: '<rect x="2" y="4" width="68" height="24"/><path d="M2 16h68M19 4v24M36 4v24M53 4v24"/>' },
-  { kind: "fuse_box", name: "wizard.fuseBox", cat: "wizard.catPanel",
+  { id: "fuse_box", kind: "fuse_box", name: "wizard.fuseBox", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="6" width="68" height="20"/><path d="M22 6v20M34 6v20M46 6v20M58 6v20"/><path d="M28 10v12M40 10v12M52 10v12M64 10v12" stroke-width="2"/>' },
+  { id: "terminal_strip", kind: "fuse_box", name: "wizard.terminalStrip", cat: "wizard.catSpecial",
+    svg: '<rect x="2" y="8" width="68" height="16"/><path d="M8.8 8v16M15.6 8v16M22.4 8v16M29.2 8v16M36 8v16M42.8 8v16M49.6 8v16M56.4 8v16M63.2 8v16"/>' },
+  { id: "lsa_strip", kind: "fuse_box", name: "wizard.lsaStrip", cat: "wizard.catSpecial",
+    svg: '<rect x="2" y="8" width="68" height="16"/><path d="M15.6 8v3M29.2 8v3M42.8 8v3M56.4 8v3M15.6 21v3M29.2 21v3M42.8 21v3M56.4 21v3"/><path d="M8 13h3v6M21 13h4v3h-4v3h4M35 13h4v6h-4M48 13h4M50 13v6"/>' },
 ];
+
+/** Tile chosen in the gallery (see `TEMPLATES`). */
+let wizardTile = "cable_flag";
 
 function renderGallery(): void {
   const gallery = $("wz-gallery");
@@ -3171,14 +3204,15 @@ function renderGallery(): void {
     for (const tp of TEMPLATES.filter((x) => x.cat === cat)) {
       const tile = document.createElement("button");
       tile.type = "button";
-      tile.className = `wz-tile${tp.kind === current ? " active" : ""}`;
+      tile.className = `wz-tile${tp.id === wizardTile && tp.kind === current ? " active" : ""}`;
       tile.innerHTML = `<svg viewBox="0 0 72 32" fill="none" stroke="currentColor" stroke-width="1.5">${tp.svg}</svg>`;
       const label = document.createElement("span");
       label.textContent = t(tp.name);
       tile.append(label);
       tile.addEventListener("click", () => {
-        if ($<HTMLInputElement>("wz-kind").value !== tp.kind) {
-          applyFieldDefaults(tp.kind);
+        if (wizardTile !== tp.id || $<HTMLInputElement>("wz-kind").value !== tp.kind) {
+          wizardTile = tp.id;
+          applyFieldDefaults(tp.id);
           fbSpans = [];
           fbTexts = [];
         }
@@ -3194,20 +3228,31 @@ function renderGallery(): void {
   }
 }
 
-/** Typical count/pitch/prefix per template (19" patch panel, LSA strip, DIN module). */
-const FIELD_DEFAULTS: Partial<Record<api.Layout["kind"], [number, number, string]>> = {
-  patch_panel: [24, 12.7, ""],
-  terminal_block: [6, 15, "1A-A"],
-  fuse_box: [12, 17.5, "F"],
+/**
+ * Typical fields per tile: count, pitch (mm), prefix, digits and for the
+ * field-row element main switch text and vertical text. Pitches are common
+ * values (19" patch panel 12.7, DIN module 17.5, 2.5 mm² terminal 5.2,
+ * LSA strip 10 pairs); every value stays editable.
+ */
+const FIELD_DEFAULTS: Record<string, { count: number; pitch: number; prefix: string; digits?: number; main?: string; vertical?: boolean }> = {
+  patch_panel: { count: 24, pitch: 12.7, prefix: "" },
+  terminal_block: { count: 6, pitch: 15, prefix: "1A-A", digits: 2 },
+  fuse_box: { count: 12, pitch: 17.5, prefix: "F", main: "HAUPTSCHALTER", vertical: true },
+  terminal_strip: { count: 20, pitch: 5.2, prefix: "", main: "", vertical: true },
+  lsa_strip: { count: 10, pitch: 10, prefix: "", main: "", vertical: false },
 };
 
-function applyFieldDefaults(kind: api.Layout["kind"]): void {
-  const d = FIELD_DEFAULTS[kind];
+function applyFieldDefaults(tile: string): void {
+  const d = FIELD_DEFAULTS[tile];
   if (!d) return;
-  $<HTMLInputElement>("wz-count").value = String(d[0]);
-  $<HTMLInputElement>("wz-pitch").value = String(d[1]);
-  $<HTMLInputElement>("wz-prefix").value = d[2];
-  $<HTMLInputElement>("wz-digits").value = kind === "terminal_block" ? "2" : "0";
+  $<HTMLInputElement>("wz-count").value = String(d.count);
+  $<HTMLInputElement>("wz-pitch").value = String(d.pitch);
+  $<HTMLInputElement>("wz-prefix").value = d.prefix;
+  $<HTMLInputElement>("wz-digits").value = String(d.digits ?? 0);
+  $<HTMLInputElement>("wz-start").value = "1";
+  $<HTMLInputElement>("wz-step").value = "1";
+  if (d.main !== undefined) $<HTMLInputElement>("wz-main").value = d.main;
+  if (d.vertical !== undefined) $<HTMLInputElement>("wz-fb-vertical").checked = d.vertical;
 }
 
 function fieldSpec(): api.FieldSpec {
@@ -3290,6 +3335,7 @@ function renderFbFields(): void {
 /** Fills the wizard from a stored template (editing it again). */
 function fillWizard(layout: api.Layout): void {
   $<HTMLInputElement>("wz-kind").value = layout.kind;
+  wizardTile = layout.kind;
   const set = (id: string, v: string | number) => ($<HTMLInputElement>(id).value = String(v));
   const check = (id: string, v: boolean) => ($<HTMLInputElement>(id).checked = v);
   if ("text" in layout) set("wz-text", layout.text);
@@ -3594,7 +3640,7 @@ function bindWizard(): void {
         if (item.rect) item.rect = roundRect(item.rect);
       }
       const target = $<HTMLSelectElement>("wz-target").value;
-      const name = t(TEMPLATES.find((tp) => tp.kind === label.source?.kind)?.name ?? "wizard.title");
+      const name = t(TEMPLATES.find((tp) => tp.id === wizardTile)?.name ?? "wizard.title");
       if (target === "file") {
         if (!(await confirmDiscard())) return;
         dialog.close();

@@ -65,7 +65,9 @@ Editor
 - Rahmen > Deko-Rahmen > "Neuer Rahmen ...": Anfang, Mitte und Ende wie in Paint
   zeichnen (linke Maustaste zeichnet, rechte radiert) oder ein Bild einfuegen,
   zuschneiden und nachzeichnen. 1 Pixel = 1 Druckpunkt.
-- "Vorlagen / Spezial-Elemente" > Sicherungskasten: ein Element mit Feldern. Rechts in den
+- "Vorlagen / Spezial-Elemente" > Verteilerbeschriftung, Reihenklemmen oder
+  LSA-Leiste: ein Element mit Feldern. Feldtexte koennen mehrzeilig sein (Enter),
+  Teile fett/kursiv (markieren, dann F/K). Ausrichtung in der Zeile "Inhalt:". Rechts in den
   Eigenschaften: Anzahl Felder, Raster (mm), Trennzeichen, Text senkrecht, Umkehren und
   je Feld Text, Breite (1x, 2x ...) und "<=>" zum Verbinden mit dem naechsten Feld.
 - Vorlagen > Sicherungskasten: "<=>" zwischen zwei Feldern verbindet sie (Geraet ueber
