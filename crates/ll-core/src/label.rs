@@ -212,6 +212,10 @@ pub enum Element {
         bold: bool,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         italic: bool,
+        /// Line spacing as a multiple of the font's normal line height
+        /// (0.5–3); `None` = 1.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        line_spacing: Option<f32>,
     },
     Qr {
         data: String,
@@ -273,6 +277,7 @@ impl Element {
             font: None,
             bold: false,
             italic: false,
+            line_spacing: None,
         }
     }
 }
@@ -512,12 +517,14 @@ fn render_flow_element(
             font,
             bold,
             italic,
+            line_spacing,
         } => {
             let font = fonts.face(font, *bold, *italic)?;
             let size_px = size_pt.map(|pt| canvas.pt(pt));
-            let width = boxed::text_natural_width(text, font, pins, size_px)?;
+            let spacing = line_spacing.unwrap_or(1.0);
+            let width = boxed::text_natural_width(text, font, pins, size_px, spacing)?;
             let (local, clipped) =
-                boxed::text_in_box_checked(text, font, width, pins, size_px, *align)?;
+                boxed::text_in_box_checked(text, font, width, pins, size_px, *align, spacing)?;
             *overflow |= clipped;
             let mut out = Bitmap::new(head, width);
             out.blit(&local, offset as i32, 0, offset..offset + pins);
@@ -602,6 +609,7 @@ fn render_boxed_element(
             font,
             bold,
             italic,
+            line_spacing,
         } => {
             let (bitmap, clipped) = boxed::text_in_box_checked(
                 text,
@@ -610,6 +618,7 @@ fn render_boxed_element(
                 h,
                 size_pt.map(|pt| canvas.pt(pt)),
                 *align,
+                line_spacing.unwrap_or(1.0),
             )?;
             *overflow |= clipped;
             bitmap
@@ -972,6 +981,7 @@ mod tests {
                         font: Some("DejaVu Sans".into()),
                         bold: true,
                         italic: false,
+                        line_spacing: None,
                     },
                     rect: Some(Rect {
                         x_mm: 1.0,
@@ -1202,6 +1212,7 @@ mod tests {
             font: None,
             bold: true,
             italic: true,
+            line_spacing: None,
         });
         let bitmap = render_label(&label, model, geometry).unwrap();
         assert!(!ink_lines(&bitmap).is_empty());
@@ -1392,6 +1403,7 @@ mod tests {
                 font: None,
                 bold: false,
                 italic: false,
+                line_spacing: None,
             },
             rect: Some(Rect {
                 x_mm: 0.0,

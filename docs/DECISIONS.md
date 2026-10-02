@@ -539,3 +539,19 @@ Vorlage:
 - Konsequenzen: Ein Label mit eingefügtem Bild ist nur zusammen mit dem Datenordner
   vollständig (wie bisher bei Bildern aus anderen Ordnern). Einbetten von Bildern in die
   `.llabel`-Datei bleibt eine mögliche spätere Erweiterung.
+
+## ADR-028: Bandrand in der Vorschau, Zeilenabstand, Vorschau-Caches
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: Vorschau in echter Bandbreite mit sichtbarem nicht bedruckbarem
+  Rand, einstellbarer Zeilenabstand, Vorschau bei viel Inhalt zu langsam (Fenster hing).
+- Entscheidung: Der Rand wird nur im Frontend gezeichnet (Rahmen um die Bühne), Werte aus
+  der Modelltabelle (`width_mm`, `printable_mm`); die Bühne bleibt der bedruckbare
+  Bereich, damit Koordinaten, Druck und gespeicherte Labels unverändert bleiben.
+  Zeilenabstand als Faktor `line_spacing` am Text-Element (0,5–3), direkt als
+  fontdue-`line_height`. Performance: prozessweite Caches in den Bibliotheken
+  (gerenderte Bildboxen, geparste Schriften) statt Neuladen je Render; Cache-Schlüssel
+  enthält Dateigröße und Änderungszeit, damit geänderte Dateien neu gelesen werden.
+  `render_preview` läuft asynchron auf einem Blocking-Thread.
+- Konsequenzen: Speicherbedarf für bis zu 64 Bildboxen (Bitmaps, je Box wenige hundert KB
+  bei hoher Vorschauauflösung). Der Rand entlang der Länge (Vorlauf vor dem Schnitt) wird
+  nicht gezeigt, da unverifiziert.

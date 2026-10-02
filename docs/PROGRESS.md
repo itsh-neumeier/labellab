@@ -91,6 +91,8 @@
     Toleranz, nur zusammenhängend), Raster oder Schwelle; nicht-destruktiv (ADR-026)
   - [x] Strg+V fügt Bilder und Texte aus der Zwischenablage ein, Strg+C/X/V für Elemente;
     Oberflächentexte nicht markierbar (Nutzerwunsch 2026-10-02, ADR-027)
+  - [x] Vorschau in voller Bandbreite mit grauem, nicht bedruckbarem Rand; Zeilenabstand für
+    Text; schnellere Vorschau bei viel Inhalt (Nutzerwunsch 2026-10-02, ADR-028)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
   - [x] Lineal (mm) über der Vorschau
@@ -115,7 +117,6 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
-| Nutzerwunsch 2026-10-02: Vorschau in echter Bandbreite mit grauem nicht druckbarem Rand; Zeilenabstand für Text; Render-Performance bei viel Inhalt | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
@@ -266,6 +267,24 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Bandrand, Zeilenabstand, Vorschau-Performance (ADR-028)
+- Fix: Abdunklung des Zuschnitt-Rahmens im Bild-Editor lag über dem ganzen Dialog
+  (`box-shadow` nicht beschnitten) → `.ie-stage { overflow: hidden }`, Griffe innen.
+- Vorschau: `#tape-frame` um die Bühne, Polsterung oben/unten = (Bandbreite − bedruckbar) / 2
+  aus der Modelltabelle (`Tape.printable_mm`), grau schraffiert über der Bandfarbe.
+  Koordinaten der Bühne unverändert (bedruckbarer Bereich). Bei Mehrband nur außen.
+- Text: `line_spacing` (Vielfaches, 0,5–3, fehlt = 1) → fontdue `LayoutSettings::line_height`,
+  auch in der Auto-Größe berücksichtigt; Feld „Zeilenabstand“ in der Textkarte.
+- Performance (Beispiel `cargo run --release -p ll-core --example bench_preview -- <datei>`):
+  schweres Testlabel (12 Texte, 4 Fotos 2400×1800, QR, 24 mm, glatt) ~700 ms → ~75 ms je
+  Aktualisierung. Cache gerenderter Bildboxen (Schlüssel: Pfad, Dateigröße/-zeit, Box,
+  Korrektur, Bearbeitung; max. 64), Schriften einmal pro Prozess geparst,
+  `render_preview` als async-Befehl auf Blocking-Worker (Fenster friert nicht mehr ein),
+  Frontend hält höchstens einen Render gleichzeitig. Schnellere PNG-Kompression getestet:
+  kaum Gewinn, größere Daten → verworfen.
+- Geprüft: Tests (1 neuer), fmt/clippy, Frontend-Build; GUI unter Xvfb (grauer Rand auf
+  12 mm, Zeilenabstand 1,8, Bild-Editor-Abdunklung nur im Bild).
+
 ### 2026-10-02 – Claude Code, Einfügen per Strg+V, nicht markierbare Oberfläche (ADR-027)
 - `ll_core::pasted`: eingefügte Bilder landen in `<Datenordner>/pasted/<FNV-Hash>.<ext>`
   (gleiches Bild = gleiche Datei). App-Befehle `save_pasted_image` (Bilddaten aus dem

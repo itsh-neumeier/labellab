@@ -36,6 +36,17 @@ const SYNTHETIC_BOLD_PX_PER_DOT: f32 = 24.0;
 /// Smallest font size (px = print dots per em) the auto-fit tries.
 const MIN_AUTO_FONT_PX: f32 = 4.0;
 
+/// Allowed line spacing (multiple of the font's normal line height).
+pub const LINE_SPACING_RANGE: (f32, f32) = (0.5, 3.0);
+
+fn clamp_line_spacing(v: f32) -> f32 {
+    if v.is_finite() {
+        v.clamp(LINE_SPACING_RANGE.0, LINE_SPACING_RANGE.1)
+    } else {
+        1.0
+    }
+}
+
 /// Horizontal alignment of text lines inside their box.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -58,8 +69,14 @@ impl From<TextAlign> for HorizontalAlign {
 
 /// Layout settings shared by measuring and rendering, so a size that
 /// measured as fitting renders exactly the same way.
-fn settings(max_w: Option<f32>, max_h: Option<f32>, align: TextAlign) -> LayoutSettings {
+fn settings(
+    max_w: Option<f32>,
+    max_h: Option<f32>,
+    align: TextAlign,
+    line_spacing: f32,
+) -> LayoutSettings {
     LayoutSettings {
+        line_height: line_spacing,
         max_width: max_w,
         max_height: max_h,
         horizontal_align: align.into(),
@@ -95,22 +112,34 @@ fn hard_lines(text: &str) -> usize {
 
 /// Whether `text` at `px` fits `max_w` x `max_h` without any automatic
 /// word wrap (`max_w = None`: height only).
-fn fits(font: &Font, text: &str, px: f32, max_w: Option<f32>, max_h: f32) -> bool {
-    let l = layout(font, text, px, &settings(max_w, None, TextAlign::Left));
+fn fits(
+    font: &Font,
+    text: &str,
+    px: f32,
+    max_w: Option<f32>,
+    max_h: f32,
+    line_spacing: f32,
+) -> bool {
+    let l = layout(
+        font,
+        text,
+        px,
+        &settings(max_w, None, TextAlign::Left, line_spacing),
+    );
     let lines = l.lines().map_or(0, Vec::len);
     l.height() <= max_h && lines <= hard_lines(text) && max_w.is_none_or(|w| ink_width(&l) <= w)
 }
 
 /// Largest font size at which `text` (explicit line breaks only) fits
 /// `max_w` x `max_h` dots. `max_w = None` fits the height only.
-fn auto_font_px(font: &Font, text: &str, max_w: Option<f32>, max_h: f32) -> f32 {
+fn auto_font_px(font: &Font, text: &str, max_w: Option<f32>, max_h: f32, line_spacing: f32) -> f32 {
     let (mut lo, mut hi) = (MIN_AUTO_FONT_PX, max_h.max(MIN_AUTO_FONT_PX) * 1.5);
-    if !fits(font, text, lo, max_w, max_h) {
+    if !fits(font, text, lo, max_w, max_h, line_spacing) {
         return lo;
     }
     for _ in 0..14 {
         let mid = (lo + hi) / 2.0;
-        if fits(font, text, mid, max_w, max_h) {
+        if fits(font, text, mid, max_w, max_h, line_spacing) {
             lo = mid;
         } else {
             hi = mid;
@@ -127,10 +156,16 @@ pub fn text_natural_width(
     face: &Face,
     box_h: u16,
     size_px: Option<f32>,
+    line_spacing: f32,
 ) -> Result<u32, RenderError> {
     let font = &face.font;
-    let px = size_px.unwrap_or_else(|| auto_font_px(font, text, None, box_h as f32));
-    let l = layout(font, text, px, &settings(None, None, TextAlign::Left));
+    let px = size_px.unwrap_or_else(|| auto_font_px(font, text, None, box_h as f32, line_spacing));
+    let l = layout(
+        font,
+        text,
+        px,
+        &settings(None, None, TextAlign::Left, line_spacing),
+    );
     Ok(ink_width(&l).ceil().max(1.0) as u32 + 1)
 }
 
@@ -146,7 +181,7 @@ pub fn text_in_box(
     size_px: Option<f32>,
     align: TextAlign,
 ) -> Result<Bitmap, RenderError> {
-    Ok(text_in_box_checked(text, face, box_w, box_h, size_px, align)?.0)
+    Ok(text_in_box_checked(text, face, box_w, box_h, size_px, align, 1.0)?.0)
 }
 
 /// Ink this many dots outside the box still counts as fitting (glyph
@@ -162,14 +197,18 @@ pub fn text_in_box_checked(
     box_h: u16,
     size_px: Option<f32>,
     align: TextAlign,
+    line_spacing: f32,
 ) -> Result<(Bitmap, bool), RenderError> {
+    let line_spacing = clamp_line_spacing(line_spacing);
     let mut bitmap = Bitmap::new(box_h, box_w);
     let mut clipped = false;
     if text.trim().is_empty() || box_w == 0 || box_h == 0 {
         return Ok((bitmap, clipped));
     }
     let font = &face.font;
-    let px = size_px.unwrap_or_else(|| auto_font_px(font, text, Some(box_w as f32), box_h as f32));
+    let px = size_px.unwrap_or_else(|| {
+        auto_font_px(font, text, Some(box_w as f32), box_h as f32, line_spacing)
+    });
     // Synthetic italic: shear glyph pixels right by this fraction of their
     // height above the baseline. Synthetic bold: one extra dot of stroke
     // width per this many dots of font size (at least one).
@@ -188,7 +227,7 @@ pub fn text_in_box_checked(
         font,
         text,
         px,
-        &settings(Some(box_w as f32), Some(box_h as f32), align),
+        &settings(Some(box_w as f32), Some(box_h as f32), align, line_spacing),
     );
 
     let baselines: Vec<f32> = layout
@@ -483,12 +522,12 @@ mod tests {
     #[test]
     fn reports_clipped_text() {
         let font = require_font!();
-        let fits = text_in_box_checked("Hi", &font, 300, 60, Some(20.0), TextAlign::Left);
+        let fits = text_in_box_checked("Hi", &font, 300, 60, Some(20.0), TextAlign::Left, 1.0);
         assert!(!fits.unwrap().1);
-        let auto = text_in_box_checked("Hallo Welt", &font, 300, 60, None, TextAlign::Left);
+        let auto = text_in_box_checked("Hallo Welt", &font, 300, 60, None, TextAlign::Left, 1.0);
         assert!(!auto.unwrap().1);
         // 80 px text in a 40-dot-high box cannot fit.
-        let tall = text_in_box_checked("Hallo", &font, 300, 40, Some(80.0), TextAlign::Left);
+        let tall = text_in_box_checked("Hallo", &font, 300, 40, Some(80.0), TextAlign::Left, 1.0);
         assert!(tall.unwrap().1);
     }
 
@@ -508,6 +547,26 @@ mod tests {
         let two = text_in_box("AB\nAB", &font, 300, 100, Some(30.0), TextAlign::Left).unwrap();
         let h = |b: &Bitmap| pin_extent(b).map(|(a, z)| z - a).unwrap();
         assert!(h(&two) > h(&one) + 20);
+    }
+
+    #[test]
+    fn line_spacing_spreads_lines() {
+        let font = require_font!();
+        let at = |spacing: f32| {
+            let (b, _) = text_in_box_checked(
+                "AB\nAB",
+                &font,
+                300,
+                200,
+                Some(30.0),
+                TextAlign::Left,
+                spacing,
+            )
+            .unwrap();
+            pin_extent(&b).map(|(a, z)| z - a).unwrap()
+        };
+        assert!(at(2.0) > at(1.0) + 20);
+        assert!(at(0.7) < at(1.0));
     }
 
     #[test]
@@ -532,7 +591,7 @@ mod tests {
         let font = require_font!();
         // Box exactly as wide as the natural text: must stay one line and
         // keep ink away from the top/bottom edges.
-        let w = text_natural_width("LabelLab", &font, 70, None).unwrap();
+        let w = text_natural_width("LabelLab", &font, 70, None, 1.0).unwrap();
         let bmp = text_in_box("LabelLab", &font, w, 70, None, TextAlign::Center).unwrap();
         let (top, bottom) = pin_extent(&bmp).unwrap();
         assert!(top > 0 && bottom < 69, "clipped: {top}..{bottom}");

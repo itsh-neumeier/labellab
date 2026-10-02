@@ -35,6 +35,8 @@ export type Element =
       font?: string | null;
       bold?: boolean;
       italic?: boolean;
+      /** Multiple of the normal line height (0.5–3); absent = 1. */
+      line_spacing?: number | null;
     }
   | { type: "qr"; data: string }
   | { type: "barcode"; symbology: Symbology; data: string }

@@ -76,11 +76,21 @@ main { flex: 1; display: flex; min-height: 0; }
 
 /* ---- free-layout canvas ---- */
 .tape-wrap { flex-direction: column; gap: 8px; }
+/* Whole tape width; the padding (set from the tape geometry) is the area
+   the print head can't reach, shown greyed over the tape color. */
+.tape-frame {
+  flex: none;
+  --tape-bg: #fff;
+  background:
+    repeating-linear-gradient(45deg, rgba(90, 90, 90, 0.18) 0 3px, transparent 3px 7px),
+    linear-gradient(rgba(130, 130, 130, 0.45), rgba(130, 130, 130, 0.45)),
+    var(--tape-bg);
+  box-shadow: 0 0 0 1px var(--border), 0 2px 8px rgba(0, 0, 0, 0.15);
+}
 .stage {
   position: relative;
   flex: none;
   background: #fff;
-  box-shadow: 0 0 0 1px var(--border), 0 2px 8px rgba(0, 0, 0, 0.15);
   user-select: none;
 }
 .stage #preview { position: absolute; left: 0; top: 0; box-shadow: none; pointer-events: none; }
