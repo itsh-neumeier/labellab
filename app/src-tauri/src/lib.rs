@@ -685,6 +685,12 @@ fn save_frame(mut frame: ll_render::decor::FrameDef) -> Result<String, AppError>
     Ok(format!("{}:{id}", ll_core::frames::USER_SET_ID))
 }
 
+/// Writes a generated text file (e.g. a sample CSV) chosen by the user.
+#[tauri::command]
+fn save_text_file(path: PathBuf, content: String) -> Result<(), AppError> {
+    std::fs::write(&path, content).map_err(|e| err(ll_core::CoreError::from(e)))
+}
+
 /// Reads an SVG file for the frame editor (cleaned up, text as paths).
 #[tauri::command]
 fn read_svg(path: PathBuf) -> Result<String, AppError> {
@@ -819,6 +825,7 @@ pub fn run() {
             frame_sets,
             frame_preview,
             read_svg,
+            save_text_file,
             save_frame,
             delete_frame,
             import_frame_set,

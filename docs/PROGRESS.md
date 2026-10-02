@@ -118,7 +118,7 @@
     Ende / Kettendruck (kein Vorschub nach dem letzten) / kein Schnitt (Spezialband) /
     Schnittmarken drucken / alle N Etiketten schneiden (per Seiten-Schnittflag im Kettenauftrag,
     TODO(verify)) / Spiegeldruck. Halbschnitt am PT-P710BT unverifiziert → erst Hardware-Test.
-  - [ ] Daten (CSV): Beispieldatei erzeugen und speichern lassen (Nutzerwunsch 2026-10-02)
+  - [x] Daten (CSV): Beispieldatei erzeugen und speichern lassen (Nutzerwunsch 2026-10-02)
   - [x] Automatisches Speichern (wie Office): Schalter, nach dem ersten Speichern standardmäßig
     an; Rückgängig/Wiederholen als Symbol-Knöpfe (Nutzerwunsch 2026-10-02)
   - [x] Editor-Aufbau wie Ebenen in Bildbearbeitung: links nur Elementliste (Name, Sperren,
@@ -155,9 +155,9 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-- Reihenfolge der offenen Nutzerwünsche (2026-10-02): ~~1. Auto-Speichern~~,
-  ~~2. Ebenen/Eigenschaften~~, 3. senkrechte Bandausrichtung, 4. Segment-Rahmen + Editor,
-  5. `.lbx`-Import.
+- Offene Nutzerwünsche (Stand 2026-10-02 abends): `.lbx`-Import (Plan `docs/IMPORT-LBX.md`),
+  Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
+  Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
   Bandausrichtung im Editor, Akkuanzeige nach Rohdaten-Test, macOS-Build (Tauri kann es,
   braucht macOS-Runner in CI + Bluetooth über CoreBluetooth/IOBluetooth — neuer Transport),
@@ -318,6 +318,12 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Beispiel-CSV
+- „Beispiel-CSV …“ unter Daten (CSV): Spalten = vom Label genutzte `{{Platzhalter}}` (ohne
+  n/a/A/datum/zeit), sonst „Name;Raum;Nummer“; 3 Beispielzeilen, `;`-getrennt; Speicherort
+  per Dialog, danach direkt geladen. App-Befehl `save_text_file`.
+- Geprüft: Build; GUI unter Xvfb (Datei erzeugt und geladen).
+
 ### 2026-10-02 – Claude Code, Schnittoptionen
 - Druckleiste: Auswahl „Schnitt“ (jedes Etikett / Schnitt am Ende / alle N Etiketten /
   Kettendruck ohne Schnitt / kein Schnitt) statt zwei Häkchen, dazu „Schnittmarken“ und
