@@ -67,24 +67,83 @@ export function snapMove(rect: Rect, t: Targets, threshold: number): SnapResult 
 }
 
 /** Snaps the right edge (`dx`) and/or bottom edge (`dy`) of a resized box. */
-export function snapResize(rect: Rect, t: Targets, threshold: number, dx: boolean, dy: boolean): SnapResult {
+/** Which edges of a box a resize handle moves. */
+export interface Edges {
+  left: boolean;
+  right: boolean;
+  top: boolean;
+  bottom: boolean;
+}
+
+/** Edges moved by a handle named by compass letters ("n", "se", "w", …). */
+export function handleEdges(handle: string): Edges {
+  return {
+    left: handle.includes("w"),
+    right: handle.includes("e"),
+    top: handle.includes("n"),
+    bottom: handle.includes("s"),
+  };
+}
+
+/** Snaps the moving edges of a resized box; the opposite edges stay put. */
+export function snapResize(rect: Rect, t: Targets, threshold: number, edges: Edges): SnapResult {
   const out = { ...rect };
   const guides: Guides = { x: [], y: [] };
-  if (dx) {
+  if (edges.right) {
     const s = nearest([rect.x_mm + rect.w_mm], t.x, threshold);
     if (s) {
       out.w_mm += s.shift;
       guides.x.push(s.line);
     }
+  } else if (edges.left) {
+    const s = nearest([rect.x_mm], t.x, threshold);
+    if (s) {
+      out.x_mm += s.shift;
+      out.w_mm -= s.shift;
+      guides.x.push(s.line);
+    }
   }
-  if (dy) {
+  if (edges.bottom) {
     const s = nearest([rect.y_mm + rect.h_mm], t.y, threshold);
     if (s) {
       out.h_mm += s.shift;
       guides.y.push(s.line);
     }
+  } else if (edges.top) {
+    const s = nearest([rect.y_mm], t.y, threshold);
+    if (s) {
+      out.y_mm += s.shift;
+      out.h_mm -= s.shift;
+      guides.y.push(s.line);
+    }
   }
   return { rect: out, guides };
+}
+
+/**
+ * Resizes `start` by a pointer delta on the given edges, keeping the
+ * opposite edges fixed and every side at least `min`. `keepRatio` (corner
+ * handles) scales both sides by the larger relative change.
+ */
+export function resizeRect(start: Rect, dx: number, dy: number, edges: Edges, min: number, keepRatio: boolean): Rect {
+  let w = start.w_mm + (edges.right ? dx : edges.left ? -dx : 0);
+  let h = start.h_mm + (edges.bottom ? dy : edges.top ? -dy : 0);
+  const corner = (edges.left || edges.right) && (edges.top || edges.bottom);
+  if (keepRatio && corner && start.w_mm > 0 && start.h_mm > 0) {
+    const f = Math.max(w / start.w_mm, h / start.h_mm);
+    w = start.w_mm * f;
+    h = start.h_mm * f;
+  }
+  w = Math.max(min, w);
+  h = Math.max(min, h);
+  // The left edge can't go before the label start.
+  if (edges.left) w = Math.min(w, start.x_mm + start.w_mm);
+  return {
+    x_mm: edges.left ? start.x_mm + start.w_mm - w : start.x_mm,
+    y_mm: edges.top ? start.y_mm + start.h_mm - h : start.y_mm,
+    w_mm: w,
+    h_mm: h,
+  };
 }
 
 /**

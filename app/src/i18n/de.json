@@ -51,7 +51,7 @@
   "file.saved": "Gespeichert: {path}",
   "file.filter": "LabelLab-Vorlage",
   "file.imageFilter": "Bilder",
-  "preview.hint": "Ziehen zum Verschieben, Ecke zum Skalieren · Alt: ohne Einrasten · Pfeiltasten: 0,5 mm (Umschalt: 5 mm) · Ecke mit Umschalt: Seitenverhältnis halten · Grau: nicht bedruckbarer Bandrand",
+  "preview.hint": "Ziehen zum Verschieben, Seiten und Ecken zum Skalieren · Alt: ohne Einrasten · Pfeiltasten: 0,5 mm (Umschalt: 5 mm) · Ecke mit Umschalt: Seitenverhältnis halten · Grau: nicht bedruckbarer Bandrand",
   "elements.duplicate": "Duplizieren (Strg+D)",
   "elements.lineSpacing": "Zeilenabstand",
   "elements.lineSpacingHint": "Abstand zwischen den Zeilen als Vielfaches (1,0 = normal, 0,5–3)",

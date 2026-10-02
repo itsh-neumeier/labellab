@@ -33,6 +33,8 @@ Editor
 - Strg+V fuegt ein Bild (z. B. Screenshot) oder Text aus der Zwischenablage als neues
   Element ein. Strg+C / Strg+X / Strg+V kopieren das gewaehlte Element. Eingefuegte Bilder
   liegen unter %APPDATA%\LabelLab\pasted.
+- Boxen: an jeder Seite und Ecke ziehen = Groesse aendern (Umschalt an einer Ecke:
+  Seitenverhaeltnis halten).
 - Rand links / Rand rechts: Abstand zwischen Schnitt und Inhalt, in der Vorschau
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
 - "Wach halten" (neben "Status lesen"): fragt alle 2 Minuten den Status ab, damit
