@@ -12,6 +12,7 @@ pub mod history;
 pub mod iconsets;
 pub mod label;
 pub mod layouts;
+pub mod pasted;
 pub mod print;
 pub mod series;
 

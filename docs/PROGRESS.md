@@ -89,6 +89,8 @@
   - [x] Bild-Editor „Bild bearbeiten …“ (Nutzerwunsch 2026-10-02): Zuschneiden, Drehen 90°,
     Spiegeln, Hintergrund entfernen (Randfarbe automatisch oder Farbe im Bild wählen,
     Toleranz, nur zusammenhängend), Raster oder Schwelle; nicht-destruktiv (ADR-026)
+  - [x] Strg+V fügt Bilder und Texte aus der Zwischenablage ein, Strg+C/X/V für Elemente;
+    Oberflächentexte nicht markierbar (Nutzerwunsch 2026-10-02, ADR-027)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
   - [x] Lineal (mm) über der Vorschau
@@ -151,6 +153,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- Windows: Bild (Screenshot, Bild aus dem Browser) und Text mit Strg+V einfügen,
+  Element mit Strg+C/Strg+V kopieren.
 - Bild-Editor: bearbeitetes Bild (Hintergrund entfernt, Schwelle) auf Band drucken und mit
   der Vorschau vergleichen.
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
@@ -261,6 +265,21 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Einfügen per Strg+V, nicht markierbare Oberfläche (ADR-027)
+- `ll_core::pasted`: eingefügte Bilder landen in `<Datenordner>/pasted/<FNV-Hash>.<ext>`
+  (gleiches Bild = gleiche Datei). App-Befehle `save_pasted_image` (Bilddaten aus dem
+  Paste-Ereignis, WebView2) und `paste_clipboard_image` (Rückfall über
+  `tauri-plugin-clipboard-manager`, weil WebKitGTK Bilder nicht an die Seite gibt).
+- Frontend: Strg+V fügt Bild (Seitenverhältnis übernommen), kopierte Elemente oder Text
+  (neues Textelement) ein; Strg+C/X kopiert/schneidet das gewählte Element
+  (`application/x-labellab+json`, Text-Rückfall mit Marker `labellab-elements`). Nicht in
+  Eingabefeldern und Dialogen. Verstecktes `#paste-catcher` (contenteditable) bekommt bei
+  Strg+C/X/V kurz den Fokus, sonst feuert WebKitGTK keine Clipboard-Ereignisse.
+- CSS: `body { user-select: none }`, Eingabefelder bleiben markierbar.
+- Geprüft: Tests (1 neuer), fmt/clippy, Frontend-Build; GUI unter Xvfb mit `xclip`: PNG und
+  Text einfügen, Element kopieren/einfügen, Dreifachklick auf Hinweistext markiert nichts.
+  **Nicht geprüft:** Windows (WebView2) — Screenshot mit Win+Umschalt+S und Strg+V testen.
+
 ### 2026-10-02 – Claude Code, Bild-Editor (ADR-026)
 - `ll_render::image_edit` (`ImageEdit`: Drehung, Spiegeln, Zuschnitt in Bruchteilen,
   `BackgroundRemoval` mit Farbe/Toleranz/zusammenhängend, Halbton Raster/Schwelle) im

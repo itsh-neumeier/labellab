@@ -288,3 +288,11 @@ export interface ImageEdit {
 
 export const imageEditorSource = (path: string, edit: ImageEdit) =>
   invoke<{ masked: string; plain: string; width: number; height: number }>("image_editor_source", { path, edit });
+
+/** Stores a pasted image (base64) in the data folder; returns the file path. */
+export const savePastedImage = (data: string, extension: string) =>
+  invoke<string>("save_pasted_image", { data, extension });
+
+/** Image from the system clipboard, stored as PNG; `null` without an image. */
+export const pasteClipboardImage = () =>
+  invoke<{ path: string; width: number; height: number } | null>("paste_clipboard_image");

@@ -30,6 +30,9 @@ Editor
   Ausrichten-Knoepfe je Element, Schloss = sperren, Umschalt an der Ecke = Seitenverhaeltnis.
   {{datum}} und {{zeit}} im Text werden beim Druck mit Datum/Uhrzeit gefuellt.
   "Laenge fest": Label genau so lang wie die Mindestlaenge.
+- Strg+V fuegt ein Bild (z. B. Screenshot) oder Text aus der Zwischenablage als neues
+  Element ein. Strg+C / Strg+X / Strg+V kopieren das gewaehlte Element. Eingefuegte Bilder
+  liegen unter %APPDATA%\LabelLab\pasted.
 - Bild bearbeiten ...: Rahmen ziehen zum Zuschneiden, drehen/spiegeln, Hintergrund
   entfernen (Randfarbe automatisch oder "Farbe im Bild waehlen"), Raster fuer Fotos oder
   Schwelle fuer Logos. Das Originalbild bleibt unveraendert.
