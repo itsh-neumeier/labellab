@@ -106,6 +106,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Druck, mit Druckvorschau; das Originalbild bleibt unverändert
 - Strg+V fügt Bilder und Texte aus der Zwischenablage als neue Elemente ein; Strg+C, Strg+X
   und Strg+V kopieren, schneiden und fügen das gewählte Element ein
+- Inhalt in der Box ausrichten: links/mitte/rechts und oben/mitte/unten für Text, Codes,
+  Bilder und Symbole (Zeile „Inhalt:“)
+- Rahmen: Abstand für jede Seite einzeln; der Rahmen liegt innerhalb von Rand links/rechts
+- Senkrechtes Lineal links der Vorschau (mm über die ganze Bandbreite)
 - Element-Boxen lassen sich an allen Seiten und Ecken in der Größe ändern (vorher nur
   rechts, unten und unten rechts)
 - Rand links und rechts getrennt einstellbar (statt nur „Rand am Ende“); die Vorschau

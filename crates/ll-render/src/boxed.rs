@@ -68,12 +68,88 @@ impl From<TextAlign> for HorizontalAlign {
     }
 }
 
+/// Vertical alignment of content inside its box.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VAlign {
+    Top,
+    #[default]
+    Middle,
+    Bottom,
+}
+
+impl From<VAlign> for VerticalAlign {
+    fn from(a: VAlign) -> Self {
+        match a {
+            VAlign::Top => VerticalAlign::Top,
+            VAlign::Middle => VerticalAlign::Middle,
+            VAlign::Bottom => VerticalAlign::Bottom,
+        }
+    }
+}
+
+/// Moves the ink of a box-local bitmap (`box_h` pins high) to the requested
+/// side of the box; `None` keeps that axis as rendered (centered). Used for
+/// codes, images and symbols, which render centered.
+pub fn align_content(
+    bitmap: &Bitmap,
+    box_h: u16,
+    halign: Option<TextAlign>,
+    valign: Option<VAlign>,
+) -> Bitmap {
+    if halign.is_none() && valign.is_none() {
+        return bitmap.clone();
+    }
+    let len = bitmap.height_dots();
+    let mut lines = (u32::MAX, 0u32);
+    let mut pins = (u16::MAX, 0u16);
+    for line in 0..len {
+        for pin in 0..box_h {
+            if bitmap.pixel(pin, line) {
+                lines = (lines.0.min(line), lines.1.max(line));
+                pins = (pins.0.min(pin), pins.1.max(pin));
+            }
+        }
+    }
+    if lines.0 == u32::MAX {
+        return bitmap.clone(); // no ink
+    }
+    let shift = |lo: i64, hi: i64, size: i64, align: u8| -> i64 {
+        let extent = hi - lo + 1;
+        match align {
+            0 => -lo,
+            2 => size - extent - lo,
+            _ => (size - extent) / 2 - lo,
+        }
+    };
+    let dx = halign.map_or(0, |a| {
+        let a = match a {
+            TextAlign::Left => 0,
+            TextAlign::Center => 1,
+            TextAlign::Right => 2,
+        };
+        shift(lines.0 as i64, lines.1 as i64, len as i64, a)
+    });
+    let dy = valign.map_or(0, |a| {
+        let a = match a {
+            VAlign::Top => 0,
+            VAlign::Middle => 1,
+            VAlign::Bottom => 2,
+        };
+        shift(pins.0 as i64, pins.1 as i64, box_h as i64, a)
+    });
+    let mut out = Bitmap::new(bitmap.width_pins(), len);
+    out.blit(bitmap, dy as i32, dx as i32, 0..box_h);
+    out
+}
+
 /// Layout settings shared by measuring and rendering, so a size that
 /// measured as fitting renders exactly the same way.
 fn settings(
     max_w: Option<f32>,
     max_h: Option<f32>,
     align: TextAlign,
+    valign: VAlign,
     line_spacing: f32,
 ) -> LayoutSettings {
     LayoutSettings {
@@ -82,7 +158,7 @@ fn settings(
         max_height: max_h,
         horizontal_align: align.into(),
         vertical_align: if max_h.is_some() {
-            VerticalAlign::Middle
+            valign.into()
         } else {
             VerticalAlign::Top
         },
@@ -145,7 +221,7 @@ fn fits(
         faces,
         runs,
         px,
-        &settings(max_w, None, TextAlign::Left, line_spacing),
+        &settings(max_w, None, TextAlign::Left, VAlign::Top, line_spacing),
     );
     let lines = l.lines().map_or(0, Vec::len);
     l.height() <= max_h && lines <= hard_lines(runs) && max_w.is_none_or(|w| ink_width(&l) <= w)
@@ -192,7 +268,7 @@ pub fn text_natural_width(
         faces,
         &runs,
         px,
-        &settings(None, None, TextAlign::Left, line_spacing),
+        &settings(None, None, TextAlign::Left, VAlign::Top, line_spacing),
     );
     Ok(ink_width(&l).ceil().max(1.0) as u32 + 1)
 }
@@ -210,7 +286,30 @@ pub fn text_in_box(
     align: TextAlign,
 ) -> Result<Bitmap, RenderError> {
     let faces = FaceSet::single(face);
-    Ok(text_in_box_checked(text, &faces, box_w, box_h, size_px, align, 1.0)?.0)
+    Ok(text_in_box_checked(
+        text,
+        &faces,
+        box_w,
+        box_h,
+        &TextLayout {
+            size_px,
+            align,
+            valign: VAlign::Middle,
+            line_spacing: 1.0,
+        },
+    )?
+    .0)
+}
+
+/// How text is set inside its box.
+#[derive(Debug, Clone, Copy)]
+pub struct TextLayout {
+    /// Font size in dots; `None` = largest size that fits.
+    pub size_px: Option<f32>,
+    pub align: TextAlign,
+    pub valign: VAlign,
+    /// Multiple of the normal line height.
+    pub line_spacing: f32,
 }
 
 /// Ink this many dots outside the box still counts as fitting (glyph
@@ -225,10 +324,14 @@ pub fn text_in_box_checked(
     faces: &FaceSet,
     box_w: u32,
     box_h: u16,
-    size_px: Option<f32>,
-    align: TextAlign,
-    line_spacing: f32,
+    style: &TextLayout,
 ) -> Result<(Bitmap, bool), RenderError> {
+    let TextLayout {
+        size_px,
+        align,
+        valign,
+        line_spacing,
+    } = *style;
     let line_spacing = clamp_line_spacing(line_spacing);
     let mut bitmap = Bitmap::new(box_h, box_w);
     let mut clipped = false;
@@ -260,7 +363,13 @@ pub fn text_in_box_checked(
         faces,
         &runs,
         px,
-        &settings(Some(box_w as f32), Some(box_h as f32), align, line_spacing),
+        &settings(
+            Some(box_w as f32),
+            Some(box_h as f32),
+            align,
+            valign,
+            line_spacing,
+        ),
     );
 
     let baselines: Vec<f32> = layout
@@ -562,9 +671,12 @@ mod tests {
             &FaceSet::single(&font),
             300,
             60,
-            Some(20.0),
-            TextAlign::Left,
-            1.0,
+            &TextLayout {
+                size_px: Some(20.0),
+                align: TextAlign::Left,
+                valign: VAlign::Middle,
+                line_spacing: 1.0,
+            },
         );
         assert!(!fits.unwrap().1);
         let auto = text_in_box_checked(
@@ -572,9 +684,12 @@ mod tests {
             &FaceSet::single(&font),
             300,
             60,
-            None,
-            TextAlign::Left,
-            1.0,
+            &TextLayout {
+                size_px: None,
+                align: TextAlign::Left,
+                valign: VAlign::Middle,
+                line_spacing: 1.0,
+            },
         );
         assert!(!auto.unwrap().1);
         // 80 px text in a 40-dot-high box cannot fit.
@@ -583,9 +698,12 @@ mod tests {
             &FaceSet::single(&font),
             300,
             40,
-            Some(80.0),
-            TextAlign::Left,
-            1.0,
+            &TextLayout {
+                size_px: Some(80.0),
+                align: TextAlign::Left,
+                valign: VAlign::Middle,
+                line_spacing: 1.0,
+            },
         );
         assert!(tall.unwrap().1);
     }
@@ -616,9 +734,19 @@ mod tests {
         };
         let faces = FaceSet::new(&font, &bold, &font, &bold);
         let ink = |text: &str| {
-            let (b, _) =
-                text_in_box_checked(text, &faces, 400, 60, Some(40.0), TextAlign::Left, 1.0)
-                    .unwrap();
+            let (b, _) = text_in_box_checked(
+                text,
+                &faces,
+                400,
+                60,
+                &TextLayout {
+                    size_px: Some(40.0),
+                    align: TextAlign::Left,
+                    valign: VAlign::Middle,
+                    line_spacing: 1.0,
+                },
+            )
+            .unwrap();
             (0..b.height_dots())
                 .flat_map(|l| (0..60).map(move |p| (p, l)))
                 .filter(|&(p, l)| b.pixel(p, l))
@@ -633,6 +761,45 @@ mod tests {
     }
 
     #[test]
+    fn vertical_alignment_moves_text() {
+        let font = require_font!();
+        let faces = FaceSet::single(&font);
+        let top_pin = |valign| {
+            let (b, _) = text_in_box_checked(
+                "H",
+                &faces,
+                200,
+                120,
+                &TextLayout {
+                    size_px: Some(30.0),
+                    align: TextAlign::Left,
+                    valign,
+                    line_spacing: 1.0,
+                },
+            )
+            .unwrap();
+            pin_extent(&b).unwrap().0
+        };
+        assert!(top_pin(VAlign::Top) < top_pin(VAlign::Middle));
+        assert!(top_pin(VAlign::Middle) < top_pin(VAlign::Bottom));
+    }
+
+    #[test]
+    fn align_content_moves_ink_to_the_sides() {
+        let mut b = Bitmap::new(40, 100);
+        for line in 40..60 {
+            for pin in 15..25 {
+                b.set_pixel(pin, line, true);
+            }
+        }
+        let a = align_content(&b, 40, Some(TextAlign::Left), Some(VAlign::Top));
+        assert!(a.pixel(0, 0) && !a.pixel(0, 20) && !a.pixel(10, 0));
+        let a = align_content(&b, 40, Some(TextAlign::Right), Some(VAlign::Bottom));
+        assert!(a.pixel(39, 99) && a.pixel(30, 80) && !a.pixel(29, 99));
+        assert_eq!(align_content(&b, 40, None, None), b);
+    }
+
+    #[test]
     fn line_spacing_spreads_lines() {
         let font = require_font!();
         let at = |spacing: f32| {
@@ -641,9 +808,12 @@ mod tests {
                 &FaceSet::single(&font),
                 300,
                 200,
-                Some(30.0),
-                TextAlign::Left,
-                spacing,
+                &TextLayout {
+                    size_px: Some(30.0),
+                    align: TextAlign::Left,
+                    valign: VAlign::Middle,
+                    line_spacing: spacing,
+                },
             )
             .unwrap();
             pin_extent(&b).map(|(a, z)| z - a).unwrap()

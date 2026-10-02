@@ -59,8 +59,29 @@ pub struct Border {
     pub sides: BorderSides,
     /// Dash length (`Dashed`) or stripe width (`Striped`).
     pub pattern: u32,
-    /// Distance between the label edge and the border.
-    pub inset: u32,
+    /// Distance between each label edge and the border.
+    pub inset: Insets,
+}
+
+/// Distances from the four edges, in dots. `top`/`bottom` are along the
+/// tape width (low/high pins), `left`/`right` along the length.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Insets {
+    pub top: u32,
+    pub bottom: u32,
+    pub left: u32,
+    pub right: u32,
+}
+
+impl Insets {
+    pub fn uniform(dots: u32) -> Self {
+        Self {
+            top: dots,
+            bottom: dots,
+            left: dots,
+            right: dots,
+        }
+    }
 }
 
 /// Draws a solid `thickness`-dot border on all four sides of the rectangle
@@ -76,7 +97,7 @@ pub fn draw_border(bitmap: &mut Bitmap, pin_offset: u16, pin_count: u16, thickne
             thickness,
             sides: BorderSides::ALL,
             pattern: 1,
-            inset: 0,
+            inset: Insets::default(),
         },
     );
 }
@@ -113,11 +134,9 @@ pub fn draw_border_styled(bitmap: &mut Bitmap, pin_offset: u16, pin_count: u16, 
         return;
     }
     // Inner rectangle the border lines run along: pins p0..p1, lines l0..l1.
-    let (p0, p1) = (
-        border.inset,
-        (pin_count as u32).saturating_sub(border.inset),
-    );
-    let (l0, l1) = (border.inset, height.saturating_sub(border.inset));
+    let i = border.inset;
+    let (p0, p1) = (i.top, (pin_count as u32).saturating_sub(i.bottom));
+    let (l0, l1) = (i.left, height.saturating_sub(i.right));
     if p0 >= p1 || l0 >= l1 {
         return;
     }
@@ -173,7 +192,7 @@ mod tests {
             thickness: 4,
             sides,
             pattern: 6,
-            inset: 0,
+            inset: Insets::default(),
         }
     }
 
@@ -223,7 +242,7 @@ mod tests {
     fn inset_moves_the_border_inwards() {
         let mut bmp = Bitmap::new(128, 100);
         let mut border = styled(BorderStyle::Solid, BorderSides::ALL);
-        border.inset = 5;
+        border.inset = Insets::uniform(5);
         draw_border_styled(&mut bmp, 39, 50, &border);
         assert!(!pixel(&bmp, 39, 50));
         assert!(pixel(&bmp, 44, 50));

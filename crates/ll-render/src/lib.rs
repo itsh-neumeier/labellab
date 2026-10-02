@@ -25,10 +25,10 @@ pub mod text;
 
 pub use barcode::{render_qr, QrErrorCorrection};
 pub use bitmap::Bitmap;
-pub use boxed::TextAlign;
+pub use boxed::{align_content, TextAlign, VAlign};
 pub use error::RenderError;
 pub use fonts::{Face, FaceSet};
-pub use frame::{draw_border, draw_border_styled, Border, BorderSides, BorderStyle};
+pub use frame::{draw_border, draw_border_styled, Border, BorderSides, BorderStyle, Insets};
 pub use iconset::{Halftone, IconSet, ICONSET_EXTENSION};
 pub use image_edit::ImageEdit;
 pub use linear_barcode::{render_barcode, render_barcode_with_module, render_code128, Symbology};
