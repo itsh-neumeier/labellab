@@ -2,11 +2,11 @@ LabelLab (Vorabversion) - Windows x64, portabel
 ===============================================
 
 LabelLab.exe   Oberflaeche. Doppelklick genuegt, keine Installation noetig.
-labellab.exe   Kommandozeile, z. B. in PowerShell:
-                 .\labellab.exe devices
-                 .\labellab.exe status --bt --device "PT-P710BT5265"
-                 .\labellab.exe print "TEST" --bt --device "PT-P710BT5265"
-                 .\labellab.exe print --template vorlage.llabel --csv daten.csv --rows 1-10 --bt --device "PT-P710BT5265"
+labellab-cli.exe   Kommandozeile, z. B. in PowerShell:
+                 .\labellab-cli.exe devices
+                 .\labellab-cli.exe status --bt --device "PT-P710BT5265"
+                 .\labellab-cli.exe print "TEST" --bt --device "PT-P710BT5265"
+                 .\labellab-cli.exe print --template vorlage.llabel --csv daten.csv --rows 1-10 --bt --device "PT-P710BT5265"
 
 Editor
 - Elemente (Text, QR-Code, Barcode, Bild) sind Boxen: ziehen zum Verschieben,
@@ -19,6 +19,11 @@ Editor
   Datensaetze oder von/bis. CSV mit ; oder , getrennt (Excel-Export geht).
 - Drucken: "Abschneiden" und "Fortlaufend" (alle Labels ohne Schnitt
   dazwischen, mit "Abschneiden" nur ein Schnitt am Ende).
+- Rahmen: Stil (durchgezogen, gestrichelt, gepunktet, doppelt, gestreift),
+  Linienstaerke, Abstand und Seiten (z. B. nur oben oder oben + unten) frei waehlbar.
+- Schriftauswahl zeigt jede Schrift in ihrem Schriftbild, mit Suchfeld.
+- "Zuletzt verwendet" in der Werkzeugleiste, "Serie ansehen ..." zeigt alle Labels
+  einer Serie.
 - Assistent: Kabelfahne, Kabelwickel und Patchpanel-Labels fertig erzeugen.
 - Nummerierung: Anzahl/Start/Schritt; {{n}}, {{n:03}}, {{A}} im Text zaehlen hoch.
 - Elemente drehen (Knopf mit Pfeil), Linie/Flaeche fuer Trennstriche.

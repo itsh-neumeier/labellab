@@ -7,7 +7,7 @@
 - **Kurzfassung (2026-10-01):** CLI und Windows-GUI drucken per nativem Bluetooth auf echtem
   PT-P710BT (hardware-bestätigt: Text, QR, Code128-Optik, GUI-Druck, Serie mit 2 Labels,
   Bluetooth-Gerätename „PT-P710BT5265“). Auslieferung als **portable** `LabelLab.exe` +
-  `labellab.exe` (GitHub Actions „Windows build“, ADR-015).
+  `labellab-cli.exe` (GitHub Actions „Windows build“, ADR-015).
 - **GUI (M6, weit fortgeschritten):** freies Layout mit Boxen + Einrasten, Text mehrzeilig mit
   pt-Größe/Ausrichtung/Systemschrift/fett/kursiv, QR/Barcode/Bild, Bandfarben-Vorschau
   (automatisch aus Status), glatte 4×-Vorschau oder Druckraster, Mehrband 1×–4×, CSV-Serien,
@@ -225,6 +225,13 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Fix Windows-Paket
+- Befund: Im Artefakt „LabelLab-windows-x64-portable“ war `LabelLab.exe` in Wahrheit die CLI —
+  `Copy-Item … labellab.exe` überschrieb auf NTFS (ohne Groß-/Kleinschreibung) die GUI.
+  Seit ADR-015 betroffen. Fix: CLI wird als `labellab-cli.exe` gepackt (Workflow, LIESMICH,
+  README). Stolperstein für künftige Pakete: Dateinamen nie nur in Groß-/Kleinschreibung
+  unterscheiden.
+
 ### 2026-10-01 – Claude Code, Rahmenstile und Schriftauswahl (ADR-022)
 - `ll-render`: `draw_border_styled` mit `BorderStyle` (durchgezogen, gestrichelt, gepunktet,
   doppelt, gestreift), Stärke, Muster, Abstand, frei wählbaren Seiten. `ll-core`:
