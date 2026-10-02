@@ -11,6 +11,7 @@
       <button id="btn-new" data-i18n="toolbar.new"></button>
       <button id="btn-open" data-i18n="toolbar.open"></button>
       <select id="recent" aria-label="Zuletzt verwendet"></select>
+      <button id="btn-history" data-i18n="history.open"></button>
       <button id="btn-save" data-i18n="toolbar.save"></button>
       <span class="sep"></span>
       <button id="btn-undo" data-i18n="toolbar.undo" data-i18n-title="toolbar.undoHint"></button>
@@ -228,6 +229,17 @@
       </form>
     </dialog>
 
+    <dialog id="history-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="history.title"></h2>
+        <p id="history-msg" class="muted hint"></p>
+        <ul id="history-list" class="history-list"></ul>
+        <div class="row end">
+          <button value="close" data-i18n="history.close"></button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="series-dialog">
       <form method="dialog" class="wizard">
         <h2 data-i18n="series.title"></h2>
@@ -242,25 +254,21 @@
     <dialog id="wizard">
       <form method="dialog" class="wizard">
         <h2 data-i18n="wizard.title"></h2>
-        <label><span data-i18n="wizard.kind"></span>
-          <select id="wz-kind">
-            <option value="cable_flag" data-i18n="wizard.cableFlag"></option>
-            <option value="cable_wrap" data-i18n="wizard.cableWrap"></option>
-            <option value="patch_panel" data-i18n="wizard.patchPanel"></option>
-          </select>
-        </label>
-        <div class="wz-group" data-kind="cable_flag cable_wrap">
+        <input id="wz-kind" type="hidden" value="cable_flag" />
+        <div id="wz-gallery" class="wz-gallery"></div>
+        <div id="wz-preview" class="wz-preview"><img id="wz-preview-img" alt="" /></div>
+        <div class="wz-group" data-kind="cable_flag cable_wrap single_flag">
           <label><span data-i18n="wizard.text"></span><input id="wz-text" type="text" value="Kabel 1" /></label>
           <label><span data-i18n="wizard.diameter"></span><input id="wz-diameter" type="number" min="0.5" step="0.5" value="6" /></label>
         </div>
-        <div class="wz-group" data-kind="cable_flag">
+        <div class="wz-group" data-kind="cable_flag single_flag">
           <label><span data-i18n="wizard.flag"></span><input id="wz-flag" type="number" min="5" step="1" value="25" /></label>
         </div>
         <div class="wz-group" data-kind="cable_wrap">
           <label><span data-i18n="wizard.repeats"></span><input id="wz-repeats" type="number" min="0" step="1" value="0" data-i18n-placeholder="layout.auto" /></label>
           <label class="check"><input id="wz-vertical" type="checkbox" checked /> <span data-i18n="wizard.vertical"></span></label>
         </div>
-        <div class="wz-group" data-kind="patch_panel">
+        <div class="wz-group" data-kind="patch_panel terminal_block fuse_box">
           <label><span data-i18n="wizard.count"></span><input id="wz-count" type="number" min="1" value="24" /></label>
           <label><span data-i18n="wizard.pitch"></span><input id="wz-pitch" type="number" min="1" step="0.1" value="12.7" /></label>
           <label><span data-i18n="wizard.prefix"></span><input id="wz-prefix" type="text" value="" /></label>
@@ -269,6 +277,17 @@
           <label><span data-i18n="wizard.digits"></span><input id="wz-digits" type="number" min="0" max="6" value="0" /></label>
           <label><span data-i18n="wizard.margin"></span><input id="wz-margin" type="number" min="0" step="0.5" value="0" /></label>
           <label class="check"><input id="wz-separators" type="checkbox" checked /> <span data-i18n="wizard.separators"></span></label>
+        </div>
+        <div class="wz-group" data-kind="terminal_block">
+          <label><span data-i18n="wizard.rows"></span>
+            <select id="wz-rows"><option value="1">1</option><option value="2" selected>2</option></select>
+          </label>
+        </div>
+        <div class="wz-group" data-kind="fuse_box">
+          <label class="check"><input id="wz-fb-vertical" type="checkbox" checked /> <span data-i18n="wizard.verticalText"></span></label>
+          <label><span data-i18n="wizard.mainSwitch"></span><input id="wz-main" type="text" value="HAUPTSCHALTER" /></label>
+          <label><span data-i18n="wizard.mainSwitchWidth"></span><input id="wz-main-width" type="number" min="5" step="0.5" value="35" /></label>
+          <label class="check"><input id="wz-main-right" type="checkbox" /> <span data-i18n="wizard.mainSwitchRight"></span></label>
         </div>
         <p class="muted hint" id="wz-info"></p>
         <div class="row end">

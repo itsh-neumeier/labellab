@@ -90,12 +90,15 @@
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
   - [x] Lineal (mm) über der Vorschau
   Paket 2 – Vorlagen-Startseite:
-  - [ ] Startseite/Galerie mit Vorlagen nach Kategorien (Fähnchen, Einzelfähnchen, Umlauf,
-    Selbstlaminierend, Schrumpfschlauch, Anschlüsse/Patchpanel, Verteiler/Sicherungskasten mit
-    senkrechter Beschriftung und Hauptschalter, Klemmblock zweireihig, Anschlussblock)
+  - [x] Vorlagen-Galerie („Vorlagen …“, früher „Assistent“) mit Kategorien, Kacheln und
+    Live-Vorschau: Kabelfahne, Einzelfähnchen, Kabelwickel, Patchpanel/Ports, Klemmblock/LSA
+    (1–2 Reihen), Sicherungskasten/Verteiler (senkrecht, Hauptschalter). Offen daraus:
+    Selbstlaminierend und Schrumpfschlauch (brauchen eigene Bandgeometrie, s. u.)
   - [ ] Selbstlaminierende Bänder (bedruckbarer Teil + transparente Wickelzone) und
     Schrumpfschlauch-Bänder (HS 5,8–23,6 mm) — Geometrie/Medientypen `TODO(verify)`
-  - [ ] „Erstellte Labels“: zuletzt verwendet mit Vorschaubild, Druckverlauf (Datum, Band)
+  - [x] „Erstellte Labels“: Druckverlauf (`ll_core::history`, Datenordner `history/`, max. 50,
+    Vorschaubild, Datum, Band, Anzahl; „Verlauf …“ in der Werkzeugleiste, Öffnen stellt die
+    Bandbreite wieder ein). „Zuletzt verwendet“ (Pfade) gab es schon.
   Paket 3 – Dokument/Layout:
   - [ ] Mehrere Labels in einer Datei (Reiter), Hochformat (ganzes Label gedreht)
   - [ ] Tabellen (Zellen mit Text), dekorative Rahmen-Bibliothek (als Icon-Set-artige
@@ -147,6 +150,7 @@
 
 - [ ] Sicherheitszeichen auf Band: `labellab print --symbol iso7010:W012 --bt` (und z. B.
   `iso7010:M001`, `iec60417:5017`) — sind Piktogramme auf 9/12 mm noch erkennbar?
+- [ ] Druckverlauf: nach einem echten Druck erscheint der Eintrag unter „Verlauf …“?
 - [ ] Rahmenstile auf Band: `labellab print "TEST" --border striped --border-sides ou
   --border-width 1 --bt` (und dashed/dotted/double) — Muster sauber, Streifen nicht verwaschen?
 - [ ] M4: Kopplung unter Windows: Drucker in den Windows-Einstellungen entfernen, dann
@@ -248,6 +252,37 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, M9 Paket 2b – Druckverlauf
+- `ll_core::history` (`record`/`list`/`load`/`preview`; Tests mit eigenem Ordner statt
+  Umgebungsvariable, damit parallele Tests sich nicht stören), App-Befehle `history`,
+  `record_history` (nach erfolgreichem Druck, Fehler dabei werden verschluckt),
+  `load_history`; Dialog „Verlauf …“ mit Vorschau, Datum, Band, Anzahl, „Öffnen“.
+- Geprüft: Tests, fmt/clippy, Frontend-Build; GUI unter Xvfb mit eingetragenem Verlaufseintrag
+  (Klemmblock 24 mm → Öffnen stellt 24 mm ein). Echter Druck → Eintrag: nur am Gerät prüfbar.
+- Nächster Schritt: 2c SL-/Schrumpfschlauch-Bänder (Bandgeometrie `TODO(verify)`), sonst
+  Paket 3 (mehrere Labels pro Datei, Hochformat, Tabellen, Deko-Rahmen).
+
+### 2026-10-02 – Claude Code, M9 Paket 2a (Teil 1) – neue Generatoren
+- `ll_core::layouts`: `SingleFlag` (Einzelfähnchen: Wickelbereich + ein Fähnchen),
+  `TerminalBlock` (Klemmblock/LSA, 1–2 Reihen, zweireihig unten 2i, oben 2i+1 wie im Vorbild),
+  `FuseBox` (Sicherungskasten/Verteiler: Modulfelder, Text senkrecht 270° = von unten nach oben,
+  optional Hauptschalter-Feld links/rechts). CLI `generate single-flag|terminal-block|fuse-box`.
+- Geprüft: Tests (je ein Test pro Generator), CLI-Renders (Klemmblock 6×2 auf 24 mm, Verteiler
+  mit HAUPT + F1–F6 auf 12 mm).
+- 2a Teil 2 erledigt: „Vorlagen …“-Dialog als Galerie (Kategorien Kabel / Verteiler & Netzwerk,
+  Kacheln mit Mini-Zeichnung, Live-Vorschau über `generate_layout` + `render_preview`,
+  typische Raster je Vorlage: 12,7 / 15 / 17,5 mm). Unter Xvfb geprüft.
+- Stolperstein: Container-Platte voll (`app/src-tauri/target` 14 GB) → alte Build-Ordner
+  gelöscht; bei „No space left on device“ zuerst `target/*windows*`, `*/release`, App-`target`.
+- Nächster Schritt: Paket 2b „Erstellte Labels“ (zuletzt verwendet mit Vorschaubild,
+  Druckverlauf), danach 2c SL-/Schrumpfschlauch-Bänder (Protokoll `TODO(verify)`).
+
+### 2026-10-02 – Nutzer-Test Windows (Stand `main` nach PR itsh-neumeier/labellab#7)
+- Nutzer meldet: „alle Funktionen funktionieren perfekt“ (Icon-Sets/Symbolauswahl, Formen,
+  Ausrichten/Sperren, `{{datum}}`/`{{zeit}}`, feste Länge, Bildregler, Lineal).
+- Arbeitsweise ab jetzt (Nutzerwunsch): kleine Schritte, nach jedem Schritt Commit + Push und
+  `PROGRESS.md` aktualisieren, damit eine spätere (kostenlose) Session nahtlos weitermacht.
+
 ### 2026-10-02 – Claude Code, M9 Paket 1 – Editor-Grundlagen (ADR-024)
 - Anlass: Nutzer schickte Screenshots des Hersteller-Editors (ODT, nicht im Repo; enthält
   persönliche Daten). Daraus Roadmap M9 (3 Pakete) in „Meilensteine“.

@@ -422,6 +422,49 @@ async fn pair_bluetooth(id: String) -> Result<(), AppError> {
     }
 }
 
+/// One print history entry with its preview (base64 PNG mask, may be empty).
+#[derive(Serialize)]
+struct HistoryDto {
+    #[serde(flatten)]
+    entry: ll_core::history::Entry,
+    preview: String,
+}
+
+/// Print history, newest first.
+#[tauri::command]
+fn history() -> Result<Vec<HistoryDto>, AppError> {
+    Ok(ll_core::history::list()
+        .map_err(err)?
+        .into_iter()
+        .map(|entry| HistoryDto {
+            preview: ll_core::history::preview(&entry.id)
+                .map(|png| base64::engine::general_purpose::STANDARD.encode(png))
+                .unwrap_or_default(),
+            entry,
+        })
+        .collect())
+}
+
+/// Adds a printed label to the history.
+#[tauri::command]
+fn record_history(
+    label: Label,
+    model: String,
+    width_mm: u8,
+    name: String,
+    count: usize,
+) -> Result<(), AppError> {
+    ll_core::history::record(&label, find_model(&model)?, width_mm, &name, count)
+        .map(|_| ())
+        .map_err(err)
+}
+
+/// The label stored with history entry `id`.
+#[tauri::command]
+fn load_history(id: String) -> Result<Label, AppError> {
+    ll_core::history::load(&id).map_err(err)
+}
+
 /// An icon set for the symbol picker (all icons incl. SVG).
 #[derive(Serialize)]
 struct IconSetDto {
@@ -505,6 +548,9 @@ pub fn run() {
             clear_csv,
             font_families,
             iconsets,
+            history,
+            record_history,
+            load_history,
             import_iconset,
             remove_iconset,
             generate_layout,

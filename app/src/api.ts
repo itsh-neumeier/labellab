@@ -67,7 +67,28 @@ export type Layout =
       digits: number;
       separators: boolean;
       margin_mm: number;
-    };
+    }
+  | { kind: "single_flag"; text: string; diameter_mm: number; flag_mm: number }
+  | ({ kind: "terminal_block"; rows: number } & FieldSpec)
+  | ({
+      kind: "fuse_box";
+      vertical: boolean;
+      main_switch: string;
+      main_switch_mm: number;
+      main_switch_right: boolean;
+    } & FieldSpec);
+
+/** Numbered fields in a fixed pitch (terminal block, fuse box). */
+export interface FieldSpec {
+  count: number;
+  pitch_mm: number;
+  start: number;
+  step: number;
+  prefix: string;
+  digits: number;
+  separators: boolean;
+  margin_mm: number;
+}
 
 export type BorderStyle = "solid" | "dashed" | "dotted" | "double" | "striped";
 
@@ -223,3 +244,20 @@ export interface Pairable {
 
 export const discoverBluetooth = () => invoke<Pairable[]>("discover_bluetooth");
 export const pairBluetooth = (id: string) => invoke<void>("pair_bluetooth", { id });
+
+/** A printed label in the history (`ll_core::history::Entry`) plus its preview. */
+export interface HistoryEntry {
+  id: string;
+  printed_at: string;
+  name: string;
+  model: string;
+  width_mm: number;
+  count: number;
+  /** Base64 PNG mask, empty if none. */
+  preview: string;
+}
+
+export const history = () => invoke<HistoryEntry[]>("history");
+export const recordHistory = (label: Label, model: string, widthMm: number, name: string, count: number) =>
+  invoke<void>("record_history", { label, model, widthMm, name, count });
+export const loadHistory = (id: string) => invoke<Label>("load_history", { id });

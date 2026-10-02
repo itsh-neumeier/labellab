@@ -4,7 +4,9 @@ use std::ops::RangeInclusive;
 use std::path::Path;
 
 use ll_core::label::{Element, Label};
-use ll_core::layouts::{self, CableFlag, CableWrap, Layout, PatchPanel};
+use ll_core::layouts::{
+    self, CableFlag, CableWrap, FuseBox, Layout, PatchPanel, SingleFlag, TerminalBlock,
+};
 use ll_core::series::{self, DataSet, Numbering};
 use ll_protocol::status::{StatusBlock, StatusType};
 
@@ -385,6 +387,68 @@ enum GenerateKind {
         #[arg(long, default_value_t = 0.0)]
         margin: f32,
     },
+    /// Einzelfähnchen: Wickelbereich (π × Durchmesser), dann ein Fähnchen mit Text.
+    SingleFlag {
+        text: String,
+        /// Kabeldurchmesser in mm.
+        #[arg(long)]
+        diameter: f32,
+        /// Länge des Fähnchens in mm.
+        #[arg(long, default_value_t = 25.0)]
+        flag: f32,
+    },
+    /// Klemmblock/LSA-Leiste: Felder im Raster, ein- oder zweireihig nummeriert.
+    TerminalBlock {
+        #[command(flatten)]
+        fields: FieldArgs,
+        /// Anzahl Reihen (1 oder 2).
+        #[arg(long, default_value_t = 2)]
+        rows: u8,
+    },
+    /// Sicherungskasten/Verteiler: Modulfelder (z. B. 17,5 mm), optional mit Hauptschalter-Feld.
+    FuseBox {
+        #[command(flatten)]
+        fields: FieldArgs,
+        /// Text quer zum Band (senkrecht).
+        #[arg(long)]
+        vertical: bool,
+        /// Text des Hauptschalter-Felds (leer = keins).
+        #[arg(long, default_value = "")]
+        main_switch: String,
+        /// Breite des Hauptschalter-Felds in mm.
+        #[arg(long, default_value_t = 35.0)]
+        main_switch_width: f32,
+        /// Hauptschalter-Feld am Ende statt am Anfang.
+        #[arg(long)]
+        main_switch_right: bool,
+    },
+}
+
+/// Numbered fields in a fixed pitch (terminal block, fuse box).
+#[derive(Debug, Clone, clap::Args)]
+struct FieldArgs {
+    /// Anzahl Felder.
+    #[arg(long, default_value_t = 12)]
+    count: u32,
+    /// Feldbreite in mm.
+    #[arg(long)]
+    pitch: f32,
+    #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+    start: i64,
+    #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
+    step: i64,
+    /// Text vor jeder Nummer (z. B. "F").
+    #[arg(long, default_value = "")]
+    prefix: String,
+    /// Mit Nullen auf so viele Stellen auffüllen.
+    #[arg(long, default_value_t = 0)]
+    digits: usize,
+    /// Trennstriche zwischen den Feldern.
+    #[arg(long)]
+    separators: bool,
+    /// Rand vor dem ersten und nach dem letzten Feld in mm.
+    #[arg(long, default_value_t = 0.0)]
+    margin: f32,
 }
 
 #[tokio::main]
@@ -1090,6 +1154,46 @@ fn generate(
             digits,
             separators,
             margin_mm: margin,
+        }),
+        GenerateKind::SingleFlag {
+            text,
+            diameter,
+            flag,
+        } => Layout::SingleFlag(SingleFlag {
+            text,
+            diameter_mm: diameter,
+            flag_mm: flag,
+        }),
+        GenerateKind::TerminalBlock { fields: f, rows } => Layout::TerminalBlock(TerminalBlock {
+            count: f.count,
+            pitch_mm: f.pitch,
+            start: f.start,
+            step: f.step,
+            prefix: f.prefix,
+            digits: f.digits,
+            rows,
+            separators: f.separators,
+            margin_mm: f.margin,
+        }),
+        GenerateKind::FuseBox {
+            fields: f,
+            vertical,
+            main_switch,
+            main_switch_width,
+            main_switch_right,
+        } => Layout::FuseBox(FuseBox {
+            count: f.count,
+            pitch_mm: f.pitch,
+            start: f.start,
+            step: f.step,
+            prefix: f.prefix,
+            digits: f.digits,
+            vertical,
+            main_switch,
+            main_switch_mm: main_switch_width,
+            main_switch_right,
+            separators: f.separators,
+            margin_mm: f.margin,
         }),
     };
     let label = layouts::generate(&layout, tape_mm);
