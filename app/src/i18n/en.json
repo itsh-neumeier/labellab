@@ -368,8 +368,8 @@
   "wizard.catCable": "Cable",
   "wizard.catPanel": "Distribution & network",
   "wizard.singleFlag": "Single flag",
-  "wizard.terminalBlock": "Terminal / punch-down block",
-  "wizard.fuseBox": "Fuse box / distribution board",
+  "wizard.terminalBlock": "Terminal block (2 rows)",
+  "wizard.fuseBox": "Distribution board",
   "wizard.rows": "Rows",
   "wizard.verticalText": "Vertical text",
   "wizard.mainSwitch": "Main switch text (empty = none)",
@@ -447,7 +447,7 @@
   "code.hint.upc_a": "UPC-A: 11 digits (check digit is added) or 12 with a valid check digit.",
   "code.hint.code39": "Code 39: capital letters, digits and - . $ / + % space.",
   "code.hint.itf": "ITF: an even number of digits.",
-  "elements.fuse_box": "Fuse box",
+  "elements.fuse_box": "Distribution board label",
   "fuse.addHint": "Distribution board label: fields with separators, editable afterwards",
   "fuse.count": "Fields",
   "fuse.pitch": "Pitch (mm)",
@@ -496,5 +496,8 @@
   "paint.placeOk": "Place",
   "paint.hint": "Left mouse button draws, right erases. Drag inserted images with the mouse, then \"Place\". The middle part repeats along the label.",
   "paint.noClipboardImage": "No image in the clipboard.",
-  "toolbar.wizardHint": "Templates (cables, patch panels …) and special elements like the fuse box"
+  "toolbar.wizardHint": "Templates (cables, patch panels …) and special elements like the distribution board label",
+  "wizard.catSpecial": "Special elements (editable afterwards)",
+  "wizard.terminalStrip": "Terminal block row",
+  "wizard.lsaStrip": "LSA strip"
 }

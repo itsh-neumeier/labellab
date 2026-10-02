@@ -143,6 +143,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   EAN-13, EAN-8, UPC-A, Code 39, ITF), für QR-Codes Inhalte wie WLAN-Zugang, Kontakt (vCard),
   E-Mail, Telefon oder Link ausfüllen, Live-Vorschau mit Prüfung; bestehende Codes über
   „Assistent …“ in den Eigenschaften bearbeiten (auch QR ⇄ Barcode umstellen)
+- Verteilerbeschriftung (vorher „Sicherungskasten“): Feldtexte mehrzeilig, Teile fett/kursiv
+  (markieren + F/K bzw. Strg+B/Strg+I), Zeilenabstand, Ausrichtung waagerecht und senkrecht
+  (Zeile „Inhalt:“)
+- Neue Spezial-Elemente in „Vorlagen / Spezial-Elemente“: **Reihenklemmen** (20 × 5,2 mm,
+  Nummern senkrecht) und **LSA-Leiste** (10 Felder × 10 mm); alles nachträglich änderbar
 - Rahmen-Editor mit Zeichenfläche („kleines Paint“): Anfang, Mitte und Ende pixelgenau
   zeichnen (Stift, Radierer, Linie, Rechteck, Ellipse, Füllen, Strichstärke, Rückgängig,
   Spiegeln, „Ende = Anfang gespiegelt“, Breite, Zuschneiden), Bilder aus Datei oder

@@ -368,8 +368,8 @@
   "wizard.catCable": "Kabel",
   "wizard.catPanel": "Verteiler & Netzwerk",
   "wizard.singleFlag": "Einzelfähnchen",
-  "wizard.terminalBlock": "Klemmblock / LSA",
-  "wizard.fuseBox": "Sicherungskasten / Verteiler",
+  "wizard.terminalBlock": "Klemmblock (2 Reihen)",
+  "wizard.fuseBox": "Verteiler­beschriftung",
   "wizard.rows": "Reihen",
   "wizard.verticalText": "Text senkrecht",
   "wizard.mainSwitch": "Hauptschalter-Text (leer = keins)",
@@ -447,8 +447,8 @@
   "code.hint.upc_a": "UPC-A: 11 Ziffern (Prüfziffer wird ergänzt) oder 12 mit gültiger Prüfziffer.",
   "code.hint.code39": "Code 39: Großbuchstaben, Ziffern und - . $ / + % Leerzeichen.",
   "code.hint.itf": "ITF: gerade Anzahl Ziffern.",
-  "elements.fuse_box": "Sicherungskasten",
-  "fuse.addHint": "Beschriftung für Verteiler/Sicherungskasten: Felder mit Trennlinien, nachträglich bearbeitbar",
+  "elements.fuse_box": "Verteilerbeschriftung",
+  "fuse.addHint": "Beschriftung für Verteiler: Felder mit Trennlinien, nachträglich bearbeitbar",
   "fuse.count": "Felder",
   "fuse.pitch": "Raster (mm)",
   "fuse.pitchHint": "Breite eines Feldes mit Faktor 1× (Teileinheit, z. B. 17,5 mm)",
@@ -496,5 +496,8 @@
   "paint.placeOk": "Einsetzen",
   "paint.hint": "Linke Maustaste zeichnet, rechte radiert. Eingefügte Bilder mit der Maus verschieben, dann „Einsetzen“. Das Mittelstück wird über die Länge wiederholt.",
   "paint.noClipboardImage": "Kein Bild in der Zwischenablage.",
-  "toolbar.wizardHint": "Vorlagen (Kabel, Patchpanel …) und Spezial-Elemente wie der Sicherungskasten"
+  "toolbar.wizardHint": "Vorlagen (Kabel, Patchpanel …) und Spezial-Elemente wie die Verteilerbeschriftung",
+  "wizard.catSpecial": "Spezial-Elemente (nachträglich bearbeitbar)",
+  "wizard.terminalStrip": "Reihenklemmen",
+  "wizard.lsaStrip": "LSA-Leiste"
 }

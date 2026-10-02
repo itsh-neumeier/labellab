@@ -155,6 +155,13 @@
 |---|---|---|---|
 
 ## Nächste Schritte
+- **Vorgemerkt (Nutzer 2026-10-02):** Patchfeld wie die Verteilerbeschriftung als ein
+  bearbeitbares Spezial-Element (Felder, Raster, Texte mehrzeilig/fett/kursiv, Trennzeichen,
+  Ausrichtung) – aber **ohne Verbinden** von Feldern (kein ⇔, gleiche Feldbreiten).
+- **Vorgemerkt (Nutzer 2026-10-02, bei der nächsten größeren Anpassung):** Kabelfahne /
+  Einzelfähnchen: Häkchen „Mittelstrich (Zentrierhilfe)“ – eine kaum sichtbare Linie in der
+  Mitte des Wickelbereichs, damit man das Label beim Anlegen am Kabel mittig ausrichten kann
+  (z. B. feine gepunktete Linie, 1 Druckpunkt).
 - Offene Nutzerwünsche (Stand 2026-10-02 abends): `.lbx`-Import (Plan `docs/IMPORT-LBX.md`),
   Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
   Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel,
@@ -325,6 +332,17 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Verteilerbeschriftung: mehrzeilig, Ausrichtung; Reihenklemmen, LSA-Leiste
+- Nutzerwünsche: Feldtexte mehrzeilig mit fett/kursiv für Teile, Zeilenabstand, Ausrichtung
+  waagerecht/senkrecht; „Sicherungskasten“ heißt in der Oberfläche „Verteilerbeschriftung“;
+  „Anschlussblock“ = LSA-Leiste und Reihenklemmen-Beschriftung.
+- `Element::FuseBox::line_spacing`, `valign` aus dem Item (wie Text); Feldtexte als Textarea
+  mit F/K/Strg+B/I. Galerie: Tiles mit eigener `id` und Feld-Voreinstellungen (gleicher
+  Generator `fuse_box`): Reihenklemmen 20 × 5,2 mm senkrecht, LSA-Leiste 10 × 10 mm.
+  Kategorie „Spezial-Elemente“; „Klemmblock / LSA“ heißt jetzt „Klemmblock (2 Reihen)“.
+- Offen: Raster der LSA-Leiste mit Nutzer abgleichen (Standard 10 mm angenommen); Element-
+  Typname in der Ebenenliste ist für alle drei „Verteilerbeschriftung“.
+
 ### 2026-10-02 – Claude Code, Rahmen-Paint (ADR-035), „Vorlagen / Spezial-Elemente“
 - Rahmen-Editor: Zeichenfläche je Teil (`app/src/framePaint.ts`), Werkzeuge, Bild einfügen
   über den Bild-Editor + Platzieren (Größe/Schwelle/Raster), Breite wächst mit; SVG-Code

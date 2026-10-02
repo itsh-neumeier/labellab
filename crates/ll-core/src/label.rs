@@ -421,6 +421,9 @@ pub enum Element {
         size_pt: Option<f32>,
         #[serde(default)]
         align: TextAlign,
+        /// Line spacing of multi-line field texts (0.5–3); `None` = 1.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        line_spacing: Option<f32>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         font: Option<String>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -798,7 +801,8 @@ fn render_flow_element(
             // Natural length: the ratios in modules of `pitch_mm`.
             let units: f32 = fields.iter().map(FuseField::ratio).sum();
             let len = canvas.mm(units * pitch_mm.max(1.0)).max(1);
-            let local = render_fuse_box(element, len, pins, canvas, fonts, overflow)?;
+            let local =
+                render_fuse_box(element, len, pins, VAlign::Middle, canvas, fonts, overflow)?;
             let mut out = Bitmap::new(head, len);
             out.blit(&local, offset as i32, 0, offset..offset + pins);
             out
@@ -876,7 +880,7 @@ fn render_boxed_element(
             filled,
         } => ll_render::shape::shape_in_box(*shape, w, h, canvas.mm(*stroke_mm) as f32, *filled)?,
         Element::Symbol { name, invert } => boxed::symbol_in_box(name, w, h, *invert)?,
-        Element::FuseBox { .. } => render_fuse_box(element, w, h, canvas, fonts, overflow)?,
+        Element::FuseBox { .. } => render_fuse_box(element, w, h, valign, canvas, fonts, overflow)?,
         Element::Fill => {
             let mut b = Bitmap::new(h, w);
             b.fill();
@@ -886,12 +890,13 @@ fn render_boxed_element(
 }
 
 /// Renders a [`Element::FuseBox`] into a `w` x `h` dot box: fields by
-/// ratio, one common text size, separators on top. Sets `overflow` if a
-/// field's text was clipped.
+/// ratio, one common text size, separators on top. `valign` places the
+/// text in each field. Sets `overflow` if a field's text was clipped.
 fn render_fuse_box(
     element: &Element,
     w: u32,
     h: u16,
+    valign: VAlign,
     canvas: &Canvas,
     fonts: &mut FontCache,
     overflow: &mut bool,
@@ -904,6 +909,7 @@ fn render_fuse_box(
         reverse,
         size_pt,
         align,
+        line_spacing,
         font,
         bold,
         italic,
@@ -912,6 +918,7 @@ fn render_fuse_box(
     else {
         return Ok(out);
     };
+    let spacing = line_spacing.unwrap_or(1.0);
     let spans = fusebox::field_spans(fields, w, *reverse);
     let line = fusebox::line_dots(
         *separator,
@@ -954,7 +961,7 @@ fn render_fuse_box(
                 .iter()
                 .map(|&(i, _, len, v)| {
                     let (tw, th) = dims(len, v);
-                    boxed::text_fit_px(&fields[i].text, &faces, tw, th, 1.0)
+                    boxed::text_fit_px(&fields[i].text, &faces, tw, th, spacing)
                 })
                 .fold(f32::INFINITY, f32::min),
         };
@@ -968,8 +975,8 @@ fn render_fuse_box(
                 &TextLayout {
                     size_px: Some(px),
                     align: *align,
-                    valign: VAlign::Middle,
-                    line_spacing: 1.0,
+                    valign,
+                    line_spacing: spacing,
                 },
             )?;
             *overflow |= clipped;
@@ -1984,6 +1991,7 @@ mod tests {
             reverse: false,
             size_pt: None,
             align: TextAlign::Center,
+            line_spacing: None,
             font: None,
             bold: false,
             italic: false,
