@@ -1563,6 +1563,62 @@ function bindPrinterInfo(): void {
   });
 }
 
+// ---------------------------------------------------------------- collapsible sidebar
+
+const SECTIONS_KEY = "labellab.sections";
+/** Sections open on first start (by title key); the rest starts collapsed. */
+const SECTIONS_OPEN_BY_DEFAULT = ["elements.title", "layout.title"];
+
+/**
+ * Makes every sidebar section (an `h2` and what follows up to the next
+ * one) collapsible by clicking its title. The open/closed state is
+ * remembered per viewer. Runs before the UI is bound; it only moves nodes.
+ */
+function makeSectionsCollapsible(): void {
+  let saved: Record<string, boolean> = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "{}");
+  } catch {
+    // defaults
+  }
+  const panel = document.querySelector<HTMLElement>("aside.panel");
+  if (!panel) return;
+  for (const h2 of Array.from(panel.querySelectorAll<HTMLElement>(":scope > h2"))) {
+    const key = h2.dataset.i18n ?? "";
+    const section = document.createElement("section");
+    section.className = "side-section";
+    const body = document.createElement("div");
+    body.className = "side-body";
+    h2.before(section);
+    let next = h2.nextElementSibling;
+    while (next && next.tagName !== "H2") {
+      const after = next.nextElementSibling;
+      body.append(next);
+      next = after;
+    }
+    section.append(h2, body);
+    const open = saved[key] ?? SECTIONS_OPEN_BY_DEFAULT.includes(key);
+    section.classList.toggle("collapsed", !open);
+    h2.tabIndex = 0;
+    const toggle = () => {
+      section.classList.toggle("collapsed");
+      saved[key] = !section.classList.contains("collapsed");
+      try {
+        localStorage.setItem(SECTIONS_KEY, JSON.stringify(saved));
+      } catch {
+        // not remembered
+      }
+    };
+    h2.addEventListener("click", toggle);
+    h2.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+  }
+}
+
 // ---------------------------------------------------------------- splash / about
 
 /** Shortest time the start screen stays up, ms. */
@@ -2827,6 +2883,7 @@ function bindUi(): void {
 
 async function init(): Promise<void> {
   const started = Date.now();
+  makeSectionsCollapsible();
   applyLang(currentLang());
   bindSplash();
   bindUi();

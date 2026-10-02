@@ -55,6 +55,12 @@ main { flex: 1; display: flex; min-height: 0; }
   background: var(--panel); border-right: 1px solid var(--border);
 }
 .panel h2 { font-size: 13px; text-transform: uppercase; color: var(--muted); margin: 8px 0; }
+/* Collapsible sidebar sections (title click). */
+.side-section > h2 { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; }
+.side-section > h2::before { content: "▾"; font-size: 11px; width: 10px; }
+.side-section.collapsed > h2::before { content: "▸"; }
+.side-section.collapsed > .side-body { display: none; }
+.side-section { border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 .elements { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 8px; }
 .element { border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 .element header { display: flex; align-items: center; gap: 4px; }

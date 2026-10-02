@@ -102,6 +102,8 @@
     vertikal ausrichten; senkrechtes Lineal links (Nutzerwunsch 2026-10-02, ADR-030)
   - [x] Dialog „Druckerinfo …“ (Modell, Band, Bandtyp, Farben, Fehler im Klartext,
     Rohdaten zum Kopieren); Startbildschirm/„Über …“ mit Entwickler, Copyright, Lizenz
+  - [x] Linke Leiste: Bereiche auf-/zuklappbar (Elemente/Label offen, Rest zu; Zustand wird
+    gemerkt) (Nutzerwunsch 2026-10-02)
   - [ ] Dekorative Rahmen wie im Hersteller-Editor: Rahmen aus Start-, Wiederhol- und
     Endsegment (SVG), mitgelieferte Bibliothek + Editor/Creator (Nutzerwunsch 2026-10-02)
   - [ ] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
