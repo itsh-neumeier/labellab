@@ -6,6 +6,7 @@
 //! CLI and GUI.
 
 pub mod device;
+pub mod document;
 mod error;
 pub mod history;
 pub mod iconsets;

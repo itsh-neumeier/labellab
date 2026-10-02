@@ -107,7 +107,7 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
-| – | – | – | – |
+| M9 Paket 3a: mehrere Arbeitsblätter pro Datei (Kern+CLI fertig: `ll_core::document`, `--sheet`; offen: GUI-Reiter) + Warnung bei ungespeicherten Änderungen | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
