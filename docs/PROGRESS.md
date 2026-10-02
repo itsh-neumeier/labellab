@@ -104,8 +104,9 @@
     Rohdaten zum Kopieren); Startbildschirm/„Über …“ mit Entwickler, Copyright, Lizenz
   - [x] Linke Leiste: Bereiche auf-/zuklappbar (Elemente/Label offen, Rest zu; Zustand wird
     gemerkt) (Nutzerwunsch 2026-10-02)
-  - [ ] Dekorative Rahmen wie im Hersteller-Editor: Rahmen aus Start-, Wiederhol- und
-    Endsegment (SVG), mitgelieferte Bibliothek + Editor/Creator (Nutzerwunsch 2026-10-02)
+  - [x] Dekorative Rahmen wie im Hersteller-Editor: Rahmen aus Start-, Wiederhol- und
+    Endsegment (SVG), mitgelieferte Bibliothek + Editor/Creator (Nutzerwunsch 2026-10-02,
+    ADR-032)
   - [x] Band-Ausrichtung im Editor: waagerecht oder senkrecht bearbeiten (Nutzerwunsch
     2026-10-02, = Hochformat aus Paket 3b, ADR-031)
   - [x] Eigene Namen für Elemente (Doppelklick in der Liste, Feld „Name“)
@@ -315,6 +316,20 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Deko-Rahmen aus Segmenten (ADR-032)
+- `ll_render::decor`: Rahmen aus drei SVG-Segmenten (Anfang, Mitte wiederholt und leicht
+  gestreckt, Ende) in voller druckbarer Höhe; Sets als `.llabel-frames` mit Registry.
+  Mitgeliefertes Set „basis“ (8 eigene Rahmen, MIT): Geschweifte Klammer, Pfeilband, Welle,
+  Punktreihe, Doppellinie mit Raute, Zickzack, Banner, Abgerundet.
+- `Label::decor` (`set:frame`) zwischen den Label-Rändern; Fluss-Inhalt hält Abstand zu
+  Anfang/Ende. `ll_core::frames`: Sets aus `<Datenordner>/frames/` laden/importieren/
+  entfernen, eigene Rahmen im Set „eigene“.
+- App: „Deko-Rahmen“ unter Rahmen mit Galerie (Vorschaubilder), Rahmen-Editor (drei
+  SVG-Felder oder Dateien, Live-Vorschau, Speichern), Set-Import; beim Wählen rücken Boxen
+  hinter das Anfangsstück.
+- Geprüft: Tests (5 neue), fmt/clippy, Build; CLI-Render aller 8 Rahmen; GUI unter Xvfb
+  (Galerie, Auswahl, Editor speichern).
+
 ### 2026-10-02 – Claude Code, USB unter Windows über usbprint.sys
 - Nutzerfehler „incompatible driver is installed for this device“: `nusb` braucht WinUSB.
   Neu `ll_transport::usbprint` (Windows): SetupAPI-Suche nach `GUID_DEVINTERFACE_USBPRINT`,

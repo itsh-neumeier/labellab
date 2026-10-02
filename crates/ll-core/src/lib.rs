@@ -8,6 +8,7 @@
 pub mod device;
 pub mod document;
 mod error;
+pub mod frames;
 pub mod history;
 pub mod iconsets;
 pub mod label;

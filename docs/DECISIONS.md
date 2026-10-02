@@ -593,3 +593,15 @@ Vorlage:
   Boxen und Inhalte mit, damit der Ausdruck gleich bleibt.
 - Konsequenzen: Rahmen-Seiten (oben/unten/links/rechts) beziehen sich weiter auf das Band
   im Querformat. Fluss-Elemente ohne Box werden beim Umschalten in Boxen umgewandelt.
+
+## ADR-032: Deko-Rahmen aus drei SVG-Segmenten
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Nutzerwunsch: verzierte Rahmen wie im Hersteller-Editor, mit Editor; Aufbau aus
+  Anfangs-, Wiederhol- und Endsegment.
+- Entscheidung: Ein Rahmen = drei SVGs in voller druckbarer Höhe. Das Mittelstück wird so oft
+  wiederholt, dass eine ganze Zahl Stücke die Länge füllt (leicht gestreckt), Anfang/Ende in
+  Originalbreite. Sets als JSON `.llabel-frames` (wie Icon-Sets); mitgeliefertes Set selbst
+  gezeichnet (MIT), keine Hersteller-Grafiken. Eigene Rahmen im Set „eigene“ im Datenordner.
+  Zusätzlich zum bisherigen Linienrahmen (`border`), nicht als Ersatz.
+- Konsequenzen: Boxen werden nicht automatisch vor dem Mittelstück geschützt (nur Anfang beim
+  Wählen); Rahmen-SVGs werden beim Speichern normalisiert (Text zu Pfaden).

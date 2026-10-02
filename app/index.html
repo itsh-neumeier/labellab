@@ -89,6 +89,10 @@
         </div>
 
         <h2 data-i18n="border.title"></h2>
+        <div class="decor-row">
+          <span data-i18n="decor.label"></span>
+          <button id="btn-decor" class="decor-choose"><img id="decor-thumb" alt="" hidden /><span id="decor-name"></span></button>
+        </div>
         <div class="grid border-grid">
           <label for="border-style" data-i18n="border.style"></label>
           <select id="border-style">
@@ -299,6 +303,37 @@
         <p id="splash-hint" class="muted small" data-i18n="about.close"></p>
       </div>
     </div>
+
+    <dialog id="decor-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="decor.title"></h2>
+        <div id="decor-list" class="decor-list"></div>
+        <div class="row end">
+          <button type="button" id="decor-new" data-i18n="decor.new"></button>
+          <button type="button" id="decor-import" data-i18n="decor.import"></button>
+          <button value="close" data-i18n="history.close"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="frame-editor">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="frameEditor.title"></h2>
+        <p class="muted hint" data-i18n="frameEditor.hint"></p>
+        <label class="fe-namefield"><span data-i18n="frameEditor.name"></span><input id="fe-name" type="text" /></label>
+        <div class="fe-segments">
+          <div class="fe-seg" data-seg="start"><strong data-i18n="frameEditor.start"></strong><textarea rows="6" spellcheck="false"></textarea><button type="button" data-i18n="frameEditor.load"></button></div>
+          <div class="fe-seg" data-seg="middle"><strong data-i18n="frameEditor.middle"></strong><textarea rows="6" spellcheck="false"></textarea><button type="button" data-i18n="frameEditor.load"></button></div>
+          <div class="fe-seg" data-seg="end"><strong data-i18n="frameEditor.end"></strong><textarea rows="6" spellcheck="false"></textarea><button type="button" data-i18n="frameEditor.load"></button></div>
+        </div>
+        <div class="fe-preview"><img id="fe-preview" alt="" /></div>
+        <p id="fe-msg" class="muted hint"></p>
+        <div class="row end">
+          <button value="cancel" data-i18n="wizard.cancel"></button>
+          <button type="button" id="fe-save" class="primary" data-i18n="frameEditor.save"></button>
+        </div>
+      </form>
+    </dialog>
 
     <div id="paste-catcher" contenteditable="true" aria-hidden="true" tabindex="-1"></div>
 

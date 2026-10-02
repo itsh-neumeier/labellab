@@ -1270,6 +1270,7 @@ function renderLayout(): void {
   $<HTMLInputElement>("min-length").value = l.min_length_mm ? String(l.min_length_mm) : "";
   $<HTMLInputElement>("fixed-length").checked = !!l.fixed_length;
   $<HTMLSelectElement>("orientation").value = l.orientation ?? "landscape";
+  renderDecorButton();
   renderBorder();
   $<HTMLSelectElement>("strips").value = String(strips());
   updateStripsHint();
@@ -1739,6 +1740,217 @@ function bindPrinterInfo(): void {
       () => setStatus(t("info.copied"), "ok"),
       () => undefined,
     );
+  });
+}
+
+// ---------------------------------------------------------------- decorative frames
+
+let frameSets: api.FrameSet[] = [];
+
+async function loadFrameSets(): Promise<void> {
+  try {
+    frameSets = await api.frameSets();
+  } catch {
+    frameSets = [];
+  }
+  renderDecorButton();
+}
+
+function findFrame(name: string | null | undefined): (api.FrameDef & { preview: string }) | null {
+  if (!name) return null;
+  const [setId, frameId] = name.split(":");
+  return frameSets.find((s) => s.id === setId)?.frames.find((f) => f.id === frameId) ?? null;
+}
+
+function renderDecorButton(): void {
+  const frame = findFrame(state.label.decor);
+  const thumb = $<HTMLImageElement>("decor-thumb");
+  thumb.hidden = !frame;
+  if (frame) thumb.src = `data:image/png;base64,${frame.preview}`;
+  $("decor-name").textContent = frame ? textOf(frame.name) : state.label.decor ? `${state.label.decor} (?)` : t("decor.none");
+}
+
+/** Width : height of an SVG segment (from its width/height or viewBox). */
+function svgAspect(svg: string): number {
+  const doc = new DOMParser().parseFromString(svg, "image/svg+xml").documentElement;
+  const vb = (doc.getAttribute("viewBox") ?? "").split(/[\s,]+/).map(Number);
+  const w = parseFloat(doc.getAttribute("width") ?? "") || vb[2];
+  const h = parseFloat(doc.getAttribute("height") ?? "") || vb[3];
+  return w > 0 && h > 0 ? w / h : 0;
+}
+
+/** Moves boxes that start inside the frame's start piece to just after it. */
+function fitBoxesInsideDecor(frame: api.FrameDef): void {
+  if (portrait()) return;
+  const left = startPad() + svgAspect(frame.start) * labelHeightMm();
+  for (const item of state.label.elements) {
+    const r = item.rect;
+    if (r && r.x_mm < left) item.rect = roundRect({ ...r, x_mm: left });
+  }
+}
+
+function setDecor(name: string | null): void {
+  state.label.decor = name ?? undefined;
+  const frame = findFrame(name);
+  if (frame) fitBoxesInsideDecor(frame);
+  renderDecorButton();
+  changed(true);
+}
+
+function renderDecorList(): void {
+  const list = $("decor-list");
+  list.replaceChildren();
+  const tile = (label: string, preview: string | null, name: string | null) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `decor-tile${(state.label.decor ?? null) === name ? " on" : ""}`;
+    if (preview) {
+      const img = document.createElement("img");
+      img.src = `data:image/png;base64,${preview}`;
+      img.alt = "";
+      b.append(img);
+    }
+    const caption = document.createElement("span");
+    caption.textContent = label;
+    b.append(caption);
+    b.addEventListener("click", () => {
+      setDecor(name);
+      $<HTMLDialogElement>("decor-dialog").close();
+    });
+    return b;
+  };
+  list.append(tile(t("decor.none"), null, null));
+  for (const set of frameSets) {
+    const h = document.createElement("h3");
+    h.textContent = textOf(set.name);
+    if (!set.builtin && set.id !== "eigene") {
+      h.append(
+        makeButton("✕", t("decor.removeSet"), async () => {
+          if (!(await ask(t("decor.removeSetConfirm", { name: textOf(set.name) }), { kind: "warning" }))) return;
+          await api.removeFrameSet(set.id);
+          await loadFrameSets();
+          renderDecorList();
+        }),
+      );
+    }
+    const grid = document.createElement("div");
+    grid.className = "decor-grid";
+    for (const f of set.frames) {
+      const name = `${set.id}:${f.id}`;
+      const cell = tile(textOf(f.name), f.preview, name);
+      if (set.id === "eigene") {
+        const tools = document.createElement("span");
+        tools.className = "decor-tools";
+        tools.append(
+          makeButton("✎", t("decor.edit"), () => openFrameEditor(f)),
+          makeButton("✕", t("decor.delete"), async () => {
+            await api.deleteFrame(f.id);
+            if (state.label.decor === name) setDecor(null);
+            await loadFrameSets();
+            renderDecorList();
+          }),
+        );
+        cell.append(tools);
+      }
+      grid.append(cell);
+    }
+    list.append(h, grid);
+  }
+}
+
+/** Template for a new frame: thin lines with simple end caps. */
+const FRAME_TEMPLATE: Omit<api.FrameDef, "id" | "name"> = {
+  start:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100" viewBox="0 0 20 100"><path d="M20 4 H4 V96 H20" fill="none" stroke="#000" stroke-width="5"/></svg>',
+  middle:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100" viewBox="0 0 20 100"><path d="M0 4 H20 M0 96 H20" fill="none" stroke="#000" stroke-width="5"/></svg>',
+  end: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100" viewBox="0 0 20 100"><path d="M0 4 H16 V96 H0" fill="none" stroke="#000" stroke-width="5"/></svg>',
+};
+
+let editingFrameId: string | null = null;
+let framePreviewTimer: number | undefined;
+
+function frameSegment(seg: "start" | "middle" | "end"): HTMLTextAreaElement {
+  return document.querySelector<HTMLTextAreaElement>(`#frame-editor .fe-seg[data-seg="${seg}"] textarea`)!;
+}
+
+function editedFrame(): api.FrameDef {
+  const name = $<HTMLInputElement>("fe-name").value.trim() || t("frameEditor.untitled");
+  const slug = name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "rahmen";
+  return {
+    id: editingFrameId ?? `${slug}-${Date.now().toString(36)}`,
+    name,
+    start: frameSegment("start").value,
+    middle: frameSegment("middle").value,
+    end: frameSegment("end").value,
+  };
+}
+
+function scheduleFramePreview(): void {
+  window.clearTimeout(framePreviewTimer);
+  framePreviewTimer = window.setTimeout(async () => {
+    const msg = $("fe-msg");
+    try {
+      $<HTMLImageElement>("fe-preview").src = `data:image/png;base64,${await api.framePreview(editedFrame())}`;
+      msg.textContent = "";
+    } catch (e) {
+      msg.textContent = t("error.prefix", { error: errorText(e) });
+    }
+  }, 250);
+}
+
+function openFrameEditor(frame?: api.FrameDef): void {
+  editingFrameId = frame?.id ?? null;
+  $<HTMLInputElement>("fe-name").value = frame ? textOf(frame.name) : "";
+  const source = frame ?? FRAME_TEMPLATE;
+  frameSegment("start").value = source.start;
+  frameSegment("middle").value = source.middle;
+  frameSegment("end").value = source.end;
+  $<HTMLDialogElement>("frame-editor").showModal();
+  scheduleFramePreview();
+}
+
+function bindDecor(): void {
+  $("btn-decor").addEventListener("click", () => {
+    renderDecorList();
+    $<HTMLDialogElement>("decor-dialog").showModal();
+  });
+  $("decor-new").addEventListener("click", () => openFrameEditor());
+  $("decor-import").addEventListener("click", async () => {
+    const path = await open({ multiple: false, filters: [{ name: t("decor.fileFilter"), extensions: ["llabel-frames"] }] });
+    if (typeof path !== "string") return;
+    try {
+      await api.importFrameSet(path);
+      await loadFrameSets();
+      renderDecorList();
+    } catch (e) {
+      setStatus(t("error.prefix", { error: errorText(e) }), "error");
+    }
+  });
+  document.querySelectorAll<HTMLElement>("#frame-editor .fe-seg").forEach((seg) => {
+    seg.querySelector("textarea")!.addEventListener("input", scheduleFramePreview);
+    seg.querySelector("button")!.addEventListener("click", async () => {
+      const path = await open({ multiple: false, filters: [{ name: "SVG", extensions: ["svg"] }] });
+      if (typeof path !== "string") return;
+      try {
+        seg.querySelector("textarea")!.value = await api.readSvg(path);
+        scheduleFramePreview();
+      } catch (e) {
+        $("fe-msg").textContent = t("error.prefix", { error: errorText(e) });
+      }
+    });
+  });
+  $<HTMLInputElement>("fe-name").addEventListener("input", scheduleFramePreview);
+  $("fe-save").addEventListener("click", async () => {
+    try {
+      const name = await api.saveFrame(editedFrame());
+      $<HTMLDialogElement>("frame-editor").close();
+      await loadFrameSets();
+      setDecor(name);
+      if ($<HTMLDialogElement>("decor-dialog").open) renderDecorList();
+    } catch (e) {
+      $("fe-msg").textContent = t("error.prefix", { error: errorText(e) });
+    }
   });
 }
 
@@ -3036,6 +3248,7 @@ function bindUi(): void {
   );
   bindWizard();
   bindImageEditor();
+  bindDecor();
   bindPrinterInfo();
   bindClipboard();
   bindPairing();
@@ -3145,6 +3358,7 @@ async function init(): Promise<void> {
   setPrinting(false);
   // Font scan can take a moment; fill the font pickers when it's done.
   void loadIconsets();
+  void loadFrameSets();
   api.fontFamilies().then((fonts) => {
     state.fonts = fonts;
     renderElements();

@@ -398,6 +398,32 @@ dialog#info-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .autosave input { margin: 0; }
 .autosave:has(input:disabled) { opacity: 0.55; }
 
+/* ---- decorative frames ---- */
+.decor-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.decor-choose { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.decor-choose img, .decor-tile img { height: 26px; background: #fff; box-shadow: 0 0 0 1px var(--border); }
+.decor-choose span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+dialog#decor-dialog, dialog#frame-editor {
+  border: 1px solid var(--border); border-radius: 10px; padding: 0;
+  background: var(--panel); color: var(--text); width: min(820px, 94vw);
+}
+dialog#decor-dialog::backdrop, dialog#frame-editor::backdrop { background: rgba(0, 0, 0, 0.35); }
+.decor-list { max-height: 60vh; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.decor-list h3 { margin: 6px 0 0; font-size: 12px; text-transform: uppercase; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.decor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+.decor-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; position: relative; }
+.decor-tile.on { outline: 2px solid var(--accent); }
+.decor-tile img { height: 34px; max-width: 100%; }
+.decor-tools { position: absolute; top: 2px; right: 2px; display: flex; gap: 2px; }
+.decor-tools button { padding: 0 4px; font-size: 11px; }
+.wizard label.fe-namefield { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.fe-namefield input { width: 100%; color: var(--text); }
+.fe-segments { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fe-seg { display: flex; flex-direction: column; gap: 4px; }
+.fe-seg textarea { font-family: ui-monospace, monospace; font-size: 11px; -webkit-user-select: text; user-select: text; }
+.fe-preview { background: #eef1f4; padding: 8px; border-radius: 6px; }
+.fe-preview img { display: block; height: 48px; max-width: 100%; background: #fff; }
+
 /* ---- start screen / about ---- */
 .splash {
   position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;

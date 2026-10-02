@@ -465,6 +465,9 @@ async fn main() -> anyhow::Result<()> {
     for warning in ll_core::iconsets::load_installed() {
         eprintln!("Warnung: Icon-Set nicht geladen: {warning}");
     }
+    for warning in ll_core::frames::load_installed() {
+        eprintln!("Warnung: Rahmen-Set nicht geladen: {warning}");
+    }
 
     match cli.command {
         Command::Devices { json } => devices(json).await,
