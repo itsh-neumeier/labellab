@@ -27,8 +27,6 @@ use crate::CoreError;
 
 /// Millimeters per point.
 const MM_PER_PT: f32 = 25.4 / 72.0;
-/// Tape widths LabelLab knows; the paper width is snapped to the nearest.
-const TAPE_WIDTHS: [u8; 7] = [3, 6, 9, 12, 18, 24, 36];
 /// Line width for table grids and frames when the file gives none, mm.
 const DEFAULT_LINE_MM: f32 = 0.2;
 
@@ -152,15 +150,19 @@ fn parse_xml(xml: &str) -> Result<Node, CoreError> {
 // ---------------------------------------------------------------- import
 
 /// Imports `path`; embedded images are written to
-/// `<data dir>/imported/<file name>/`.
+/// `<data dir>/imported/<file name>-<content hash>/`, so importing another
+/// file with the same name never replaces images a saved label uses.
 pub fn import(path: &Path) -> Result<LbxImport, CoreError> {
     let stem = path
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "import".into());
-    let dir = crate::paths::data_dir()?
-        .join("imported")
-        .join(sanitize(&stem));
+    let hash = crate::pasted::fnv1a(&std::fs::read(path)?);
+    let dir = crate::paths::data_dir()?.join("imported").join(format!(
+        "{}-{:08x}",
+        sanitize(&stem),
+        hash as u32
+    ));
     import_into(path, &dir)
 }
 
@@ -345,10 +347,11 @@ fn styled_text(text: &str, base: &FontStyle, runs: &[(usize, FontStyle)]) -> Str
     out
 }
 
+/// Nearest tape width any supported model prints on (model table).
 fn nearest_tape(mm: f32) -> u8 {
-    TAPE_WIDTHS
+    ll_protocol::model::MODELS
         .iter()
-        .copied()
+        .flat_map(|m| m.tape_geometries.iter().map(|g| g.width_mm))
         .min_by(|a, b| (*a as f32 - mm).abs().total_cmp(&(*b as f32 - mm).abs()))
         .unwrap_or(12)
 }
@@ -670,7 +673,8 @@ impl<R: Read + std::io::Seek> Context<'_, R> {
         let is_bmp = name.to_ascii_lowercase().ends_with(".bmp");
         let path = if is_bmp {
             let img = image::load_from_memory(&data).map_err(err)?;
-            let path = self.image_dir.join(format!("{safe}.png"));
+            // `.bmp.png`, so it cannot clash with a `.png` of the same name.
+            let path = self.image_dir.join(format!("{safe}.bmp.png"));
             img.save(&path).map_err(err)?;
             path
         } else {

@@ -36,14 +36,15 @@ daher **unverifiziert** gegenüber einer Spezifikation.
 
 ## Umsetzung (2026-10-02, ADR-038)
 - `ll_core::lbx::import(path)` → `LbxImport { document, warnings }`; Bilder landen in
-  `llappdata/imported/<Dateiname>/` (BMP als PNG, gleiche Datei nur einmal).
+  `llappdata/imported/<Dateiname>-<Inhalts-Hash>/` (BMP als `.bmp.png`, gleiche Datei nur
+  einmal); eine andere Datei gleichen Namens überschreibt so keine Bilder gespeicherter Labels.
 - Oberfläche: „Öffnen …“ nimmt `.llabel` und `.lbx`. Eine importierte Datei ist ein neues,
   ungespeichertes Dokument; Speichern schlägt `<Name>.llabel` vor. Hinweise erscheinen als Liste.
 - CLI: `labellab import-lbx datei.lbx [-o ziel.llabel]`.
 - Das zuletzt aktive Blatt (`currentSheet`) wird das erste Blatt.
 - `text:textControl shrink="true"`: Text wird verkleinert (Schritte 8 %, min. 4 pt), bis er
   in seinen Rahmen passt – gemessen mit dem LabelLab-Renderer.
-- Bandbreite: nächste Standardbreite (3/6/9/12/18/24/36 mm).
+- Bandbreite: nächste Breite aus der Modelltabelle (`ll-protocol`).
 - Hinweise (`lbx.warn.<kind>`): `portrait`, `unknown`, `frame`, `clipart`, `font`,
   `vertical_text`, `barcode`, `image`, `crop`. Gleiche Hinweise werden nur einmal gemeldet.
 - Geprüft mit den beiden Beispieldateien des Nutzers (lokal, nicht im Repo): Werkzeug-Labels

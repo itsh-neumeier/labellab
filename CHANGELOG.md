@@ -200,6 +200,19 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- Neues, unverändertes Dokument galt nach dem Start als „ungespeichert“ (gemerkte Felder,
+  automatisch erkannte Bandbreite) – Schließen fragte unnötig nach
+- Änderungen während eines (Auto-)Speicherns galten als gespeichert und konnten verloren gehen
+- Tastenkürzel (Entf, Pfeile, Strg+Z …) wirkten bei offenem Dialog auf das Label dahinter
+- Hochformat: Duplizieren/Einfügen setzte die Kopie neben das Band statt in Längsrichtung
+- Rand links: Boxen wurden bei 0 abgeschnitten, Zurückstellen ergab andere Positionen
+- Serienübersicht: erneutes Öffnen während des Zeichnens doppelte Einträge; Hochformat verzerrt
+- Statusabfrage „Wach halten“ konnte gleichzeitig mit Druck/Schnitt den Port belegen
+- Druck-Knopf konnte bei einem Fehler gesperrt bleiben
+- CLI `print`: `--start`/`--step` wurden ohne `--count` ignoriert
+- Sehr große Eingaben (Länge, Ziffern, Anzahl) führen zu einer Fehlermeldung statt zum Absturz
+- Bilder werden für die Vorschau zwischengespeichert (flüssiges Ziehen bei großen Fotos);
+  längere Aufgaben (Import, Verlauf, Bildeditor) frieren das Fenster nicht mehr ein
 - „Kein Schnitt“ / „Kettendruck ohne Schnitt“: der Drucker schnitt am Ende trotzdem. Jetzt
   wird der Vorschub-und-Schnitt nach dem letzten Label ausdrücklich abgeschaltet (am Gerät
   noch zu bestätigen)

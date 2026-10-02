@@ -1035,7 +1035,7 @@ fn parse_rows(spec: &str) -> anyhow::Result<RangeInclusive<usize>> {
 }
 
 /// `--csv`/`--rows` or `--count` (numbering only) into a [`Series`];
-/// `None` without either.
+/// without either one label, still numbered with `--start`/`--step`.
 fn series_args(
     csv: Option<String>,
     rows: Option<&str>,
@@ -1043,9 +1043,9 @@ fn series_args(
     numbering: Numbering,
 ) -> anyhow::Result<Option<Series>> {
     let Some(path) = csv else {
-        return Ok(count.map(|n| Series {
+        return Ok(Some(Series {
             data: None,
-            rows: 1..=n.max(1),
+            rows: 1..=count.unwrap_or(1).max(1),
             numbering,
         }));
     };

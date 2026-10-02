@@ -35,7 +35,7 @@ pub fn save_image_in(dir: &Path, data: &[u8], extension: &str) -> Result<PathBuf
 }
 
 /// 64-bit FNV-1a: stable across runs and platforms (unlike `DefaultHasher`).
-fn fnv1a(data: &[u8]) -> u64 {
+pub(crate) fn fnv1a(data: &[u8]) -> u64 {
     data.iter().fold(0xcbf2_9ce4_8422_2325, |h, &b| {
         (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
     })

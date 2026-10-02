@@ -155,8 +155,7 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-- Offene Nutzerwünsche (Stand 2026-10-02 abends): weitere Sprachen mit Flaggen-Auswahl,
-  allgemeines Review, Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
+- Offene Nutzerwünsche (Stand 2026-10-02 abends): Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
   Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel,
   Code-Assistent, Sicherungskasten-Felder verbinden + „Vorlage bearbeiten“, Vorlagen-Ziel.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
@@ -328,6 +327,24 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Sprachen mit Flaggen (ADR-039), Review-Fixes
+- Sprachen fr, es, it, nl, pl, cs (maschinell übersetzt, Gegenlesen durch Muttersprachler
+  offen); Auswahl mit SVG-Flaggen (`app/src/langs.ts`), Fallback Sprache → en → de, Datum im
+  Format der Sprache. Lange Toolbar-Texte gekürzt, alle Leisten passen bei 1280 px.
+  `app/scripts/check-i18n.mjs` läuft bei `npm run build`.
+- Review (Unteragent, Befunde einzeln geprüft) – behoben: Startdokument „ungespeichert“,
+  Speichern-Wettlauf, Kürzel hinter Dialogen, Duplizieren/Einfügen im Hochformat,
+  `ensureRects` beim Blattwechsel, Rand-links-Drift, Serienübersicht (Wettlauf, Hochformat),
+  Gerätezugriffe serialisiert (Keep-alive vs. Druck), Druck-Knopf bleibt nicht gesperrt,
+  CLI `--start` ohne `--count`, Grenzen (Länge 5000 mm, Ziffern, Anzahl 500, `{{n:…}}` 32),
+  Bild-Cache in `ll-render`, schwere Tauri-Befehle auf Worker-Threads, `.lbx`-Bildordner mit
+  Inhalts-Hash, Bandbreiten aus der Modelltabelle.
+- Bewusst offen: Rasterzeilen je Seite in einem Schreibaufruf senden (weniger USB-/BT-Pakete)
+  – ändert das Timing zum Drucker, erst mit Hardware-Test; `DOTS_PER_MM` im Frontend
+  (180 dpi) könnte aus `models()` kommen.
+- Geprüft: fmt/clippy/Tests (neu: Längengrenze), App-Build, GUI unter Xvfb (alle Sprachen,
+  Tastatur in der Sprachliste, kein „•“ beim Start).
+
 ### 2026-10-02 – Claude Code, `.lbx`-Import (ADR-038)
 - `ll_core::lbx` (zip + quick-xml), Tauri-Befehl `import_lbx`, „Öffnen …“ nimmt `.lbx`
   (Hinweisliste per Dialog, Speichern schlägt `.llabel` vor), CLI `import-lbx`.

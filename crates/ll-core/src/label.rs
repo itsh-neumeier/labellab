@@ -1044,9 +1044,29 @@ fn design_height_mm(canvas: &Canvas) -> f32 {
     dots_to_mm(canvas.pins as u32) / canvas.scale as f32
 }
 
+/// Longest label LabelLab lays out, mm: a sanity limit against typos like
+/// 100000 that would allocate gigabytes (not a printer limit).
+pub const MAX_LABEL_LENGTH_MM: f32 = 5000.0;
+
 fn compose(label: &Label, canvas: &Canvas) -> Result<Composed, CoreError> {
     if label.orientation == Orientation::Portrait {
         return compose(&label.to_landscape(design_height_mm(canvas)), canvas);
+    }
+    let too_long = |mm: f32| !mm.is_finite() || mm > MAX_LABEL_LENGTH_MM;
+    if label.min_length_mm.is_some_and(too_long)
+        || [label.padding_mm, label.gap_mm]
+            .into_iter()
+            .chain(label.padding_start_mm)
+            .any(too_long)
+        || label
+            .elements
+            .iter()
+            .filter_map(|i| i.rect.as_ref())
+            .any(|r| too_long(r.x_mm.abs() + r.w_mm.abs()))
+    {
+        return Err(CoreError::Template(format!(
+            "label longer than {MAX_LABEL_LENGTH_MM} mm"
+        )));
     }
     let mut fonts = FontCache::default();
     if label.has_text() {
@@ -1388,6 +1408,17 @@ mod tests {
 
     fn p710() -> &'static ModelInfo {
         ll_protocol::model::find_by_name("PT-P710BT").unwrap()
+    }
+
+    #[test]
+    fn absurd_lengths_are_rejected_instead_of_allocated() {
+        let model = p710();
+        let geometry = geometry_for(model, 12).unwrap();
+        let mut label = Label::single(Element::Qr { data: "x".into() });
+        label.min_length_mm = Some(100_000.0);
+        assert!(render_label(&label, model, geometry).is_err());
+        label.min_length_mm = Some(100.0);
+        assert!(render_label(&label, model, geometry).is_ok());
     }
 
     fn has_font() -> bool {
