@@ -21,6 +21,11 @@ Editor
   dazwischen, mit "Abschneiden" nur ein Schnitt am Ende).
 - Rahmen: Stil (durchgezogen, gestrichelt, gepunktet, doppelt, gestreift),
   Linienstaerke, Abstand und Seiten (z. B. nur oben oder oben + unten) frei waehlbar.
+- Symbole: "Symbol waehlen ..." oeffnet die Auswahl mit Icon-Sets und Kategorien
+  (Basis-Symbole, ISO 7010 Sicherheitszeichen, IEC 60417 Geraetesymbole), Suche nach Name
+  oder Nummer. Eigene Sets (.llabel-iconset) mit "Icon-Set importieren ..." hinzufuegen;
+  erstellen aus einem SVG-Ordner: .\labellab-cli.exe iconset create <Ordner> --id meine
+  --name "Meine Icons" -o meine.llabel-iconset
 - Schriftauswahl zeigt jede Schrift in ihrem Schriftbild, mit Suchfeld.
 - "Zuletzt verwendet" in der Werkzeugleiste, "Serie ansehen ..." zeigt alle Labels
   einer Serie.

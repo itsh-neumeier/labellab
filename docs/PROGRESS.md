@@ -124,6 +124,8 @@
 ## Hardware-Tests offen
 > Tests, die nur mit echtem Drucker beantwortet werden können. Ergebnis in `PROTOCOL.md` übertragen.
 
+- [ ] Sicherheitszeichen auf Band: `labellab print --symbol iso7010:W012 --bt` (und z. B.
+  `iso7010:M001`, `iec60417:5017`) — sind Piktogramme auf 9/12 mm noch erkennbar?
 - [ ] Rahmenstile auf Band: `labellab print "TEST" --border striped --border-sides ou
   --border-width 1 --bt` (und dashed/dotted/double) — Muster sauber, Streifen nicht verwaschen?
 - [ ] M4: Kopplung unter Windows: Drucker in den Windows-Einstellungen entfernen, dann
@@ -225,6 +227,28 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Icon-Sets, ISO 7010 und IEC 60417 (ADR-023)
+- `ll-render::iconset`: Format `.llabel-iconset` (JSON, Kategorien, SVG je Icon, Lizenz/Urheber
+  je Icon), Registry (mitgeliefert + importiert), Namen `set:icon`, `normalize_svg` (usvg),
+  Halbton „threshold“ für Icon-Sets. Bisherige Symbole = Set `material` mit Kategorien.
+- `ll-core::iconsets`: Import/Entfernen im Datenordner, Laden beim Start, `from_dir`
+  (SVG-Ordner → Set, Unterordner = Kategorien). CLI `symbols --set/--search`,
+  `iconset list|import|remove|create`. App: Symbolauswahl-Dialog (Sets/Kategorien, Suche,
+  Kacheln, Import, Entfernen), Symbol-Knopf mit Vorschau.
+- ISO 7010: Liste aus de.wikipedia, Grafiken von Commons (nur gemeinfrei/CC0, 1× CC BY-SA
+  ausgelassen). Stolperstein: Wikimedia drosselt die geteilte IP der Cloud-Umgebung (HTTP 429
+  auf upload.wikimedia.org) → Dateien über einen per SHA-1 gegen Commons geprüften Mirror
+  (npm `@iso-safety-signs/assets`), Rest über den neuen Workflow „Icon sets“ auf GitHub.
+- IEC 60417 (Nutzerwunsch, Commons-Kategorie, 736 Dateien + 25 nicht einsortierte „Ref-No“-
+  Dateien wie 5007 „Ein“): 754 Symbole, 11 Themen per Stichwort (~19 % „Sonstige“), englische
+  Namen. ISO-OBP-Link des Nutzers nicht als Quelle genutzt (nicht frei lizenziert).
+- Beide Sets gebaut vom neuen Workflow „Icon sets“ auf GitHub (dort keine Drosselung): ISO 7010
+  335 Zeichen (M002 CC BY-SA ausgelassen), IEC 60417 754. Programmgröße +~4 MB.
+- Geprüft: Tests, fmt/clippy (Linux, Windows-Cross-Check, App), Frontend-Build; CLI-Renders
+  (W012, P001, M001, E003, F001, W004 sauber schwarz/weiß); GUI unter Xvfb (Kategorien, Suche
+  „elektr“ → W012, Auswahl → Vorschau).
+- Hardware offen: Sicherheitszeichen auf Band drucken (Lesbarkeit kleiner Piktogramme auf 12 mm).
+
 ### 2026-10-02 – Claude Code, Fix Windows-Paket
 - Befund: Im Artefakt „LabelLab-windows-x64-portable“ war `LabelLab.exe` in Wahrheit die CLI —
   `Copy-Item … labellab.exe` überschrieb auf NTFS (ohne Groß-/Kleinschreibung) die GUI.
