@@ -2294,6 +2294,27 @@ function setPrinting(on: boolean, text?: string): void {
   button.disabled = on;
   button.classList.toggle("busy", on);
   button.textContent = on ? (text ?? t("print.printingBusy")) : t("print.print");
+  $<HTMLButtonElement>("btn-feed-cut").disabled = on;
+}
+
+/** Feed and cut without printing (e.g. after "no cut" / chain printing). */
+async function feedCut(): Promise<void> {
+  if (state.printing) return;
+  const connection = selectedConnection();
+  if (!connection) {
+    setMessage(t("print.noDevice"), true);
+    return;
+  }
+  setPrinting(true);
+  setMessage("");
+  try {
+    await api.feedCut({ connection, model: selectedModel() });
+    setMessage(t("print.feedCutDone"));
+  } catch (e) {
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
+  } finally {
+    setPrinting(false);
+  }
 }
 
 /** Selected CSV record range for printing, null = all (or no CSV). */
@@ -3836,6 +3857,7 @@ function bindUi(): void {
   $("btn-status").addEventListener("click", readStatus);
   $("btn-keepalive").addEventListener("click", () => setKeepAlive(keepAliveTimer === undefined));
   $("btn-print").addEventListener("click", print);
+  $("btn-feed-cut").addEventListener("click", () => void feedCut());
   $("model").addEventListener("change", () => {
     fillWidths();
     tapeChanged();

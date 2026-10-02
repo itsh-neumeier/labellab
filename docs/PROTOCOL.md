@@ -61,6 +61,7 @@
 | Mehrseitiger Auftrag | Init einmal; je Seite Steuercodes (Raster-Modus, Various Mode, Rand, Druckinfo mit `n9` = 0 erste / 1 weitere Seite, Kompression), Raster, dann `0C` (weitere Seite folgt) bzw. `1A` (letzte) | dokumentiert | Raster Command Reference PT-E550W/P750W/P710BT v1.02, Kap. 2.1 |
 | „Schnitt nach je n Labels“ `ESC i A n` | vom PT-P710BT **nicht** unterstützt | dokumentiert | Raster Command Reference v1.02 („The PT-P710BT does not support this command“) — daher Kettendruck: Auto-Cut nur in den Steuercodes der letzten Seite (unverifiziert) |
 | Half-Cut (`ESC i K` Bit 2) | beim PT-P710BT nicht verwendet | dokumentiert | Raster Command Reference v1.02 |
+| Vorschub + Schnitt ohne Druck | Auftrag mit 1 leeren Rasterzeile, Auto-Cut, `ESC i K` Bit 3 = 1 | **teilweise verifiziert**: 1-Zeilen-Seite mit Auto-Cut schneidet (Vorschnitt-Test 2026-10-01); unverifiziert: genau ein Schnitt, Vorschublänge | Kein eigener Schnittbefehl beim PT-P710BT; `print::feed_and_cut` |
 | Advanced Mode Bit 3 „No chain printing“ | 1 = nach dem letzten Label vorschieben und schneiden, 0 = nicht | dokumentiert; gesendet = Auto-Cut der Seite. **Unverifiziert:** dass mit 0 am Ende nicht geschnitten wird | Raster Command Reference v1.02; Nutzer 2026-10-02: ohne den Befehl schnitt der Drucker trotz „Kein Schnitt“ am Ende (Werkseinstellung offenbar „no chain printing“) |
 
 ## Band- und Schriftfarbe (Statusbyte 24/25)

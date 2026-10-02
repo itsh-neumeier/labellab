@@ -46,6 +46,8 @@ Editor
   rosa schraffiert. Ragt ein Element hinein, erscheint ein Hinweis.
 - Daten (CSV) > "Beispiel-CSV ...": legt eine passende CSV-Vorlage an (Spalten aus den
   {{Platzhaltern}} des Labels) und laedt sie.
+- "Schnitt" (Knopf neben "Drucken"): schiebt das Band vor und schneidet, ohne zu
+  drucken - z. B. nach "Kein Schnitt", wenn das letzte Label noch im Drucker steckt.
 - Druckleiste "Schnitt": jedes Etikett / am Ende / alle N / Kettendruck / kein Schnitt;
   "Schnittmarken" druckt Linien zum Schneiden von Hand, "Spiegeln" spiegelt das Label.
 - Rahmen > Deko-Rahmen: Rahmen aus der Galerie waehlen oder mit "Neuer Rahmen ..."

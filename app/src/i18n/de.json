@@ -463,5 +463,8 @@
   "fuse.reverse": "Umkehren",
   "fuse.ratio": "Breite (Vielfaches des Rasters)",
   "fuse.direction": "Textrichtung: · wie oben, → waagerecht, ↑ senkrecht",
-  "fuse.merge": "Mit dem nächsten Feld verbinden"
+  "fuse.merge": "Mit dem nächsten Feld verbinden",
+  "print.feedCut": "✂ Schnitt",
+  "print.feedCutHint": "Band vorschieben und abschneiden, ohne zu drucken (z. B. nach „Kein Schnitt“)",
+  "print.feedCutDone": "Band vorgeschoben und geschnitten."
 }

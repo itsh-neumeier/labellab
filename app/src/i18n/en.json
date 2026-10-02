@@ -463,5 +463,8 @@
   "fuse.reverse": "Reverse",
   "fuse.ratio": "Width (multiple of the pitch)",
   "fuse.direction": "Text direction: · as above, → horizontal, ↑ vertical",
-  "fuse.merge": "Merge with the next field"
+  "fuse.merge": "Merge with the next field",
+  "print.feedCut": "✂ Cut",
+  "print.feedCutHint": "Feed and cut the tape without printing (e.g. after \"no cut\")",
+  "print.feedCutDone": "Tape fed and cut."
 }

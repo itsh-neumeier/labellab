@@ -199,6 +199,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- **Knopf „✂ Schnitt“ (2026-10-02):** nach „Kein Schnitt“ drücken → Band wird vorgeschoben
+  und genau einmal geschnitten? Wie viel leeres Band kommt heraus?
 - **Kein Schnitt (2026-10-02):** Schnitt „Kein Schnitt“ und „Kettendruck ohne Schnitt“
   drucken → darf am Ende **nicht** schneiden (neu: `ESC i K` Bit 3 = 0). Gegenprobe „Jedes
   Etikett“ → schneidet weiter wie bisher. Bleibt das Band nach „Kein Schnitt“ im Drucker,
@@ -323,6 +325,11 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Knopf „✂ Schnitt“ (Vorschub + Schnitt ohne Druck)
+- Nutzerfrage: Schnitt ohne Druck. Kein eigener Befehl im Protokoll → `print::feed_and_cut`
+  sendet einen Auftrag mit einer leeren Rasterzeile und Auto-Cut. App-Befehl `feed_cut`,
+  Knopf neben „Drucken“. Test (Befehlsbytes); Hardware-Test eingetragen.
+
 ### 2026-10-02 – Claude Code, Sicherungskasten als Element (ADR-034)
 - Nutzer-Screenshots aus dem Hersteller-Editor: Sicherungskasten ist ein Element mit
   Eigenschaften. Neu: `Element::FuseBox` (`ll-core/src/fusebox.rs` Modell + Trennlinien,
