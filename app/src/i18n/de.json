@@ -250,5 +250,12 @@
   "wizard.mainSwitch": "Hauptschalter-Text (leer = keins)",
   "wizard.mainSwitchWidth": "Breite Hauptschalter (mm)",
   "wizard.mainSwitchRight": "Hauptschalter rechts",
-  "wizard.length": "Länge: {length} mm"
+  "wizard.length": "Länge: {length} mm",
+  "history.open": "Verlauf …",
+  "history.title": "Gedruckte Labels",
+  "history.close": "Schließen",
+  "history.empty": "Noch nichts gedruckt.",
+  "history.reopen": "Öffnen",
+  "history.meta": "{date} · {width} mm · {count} Label",
+  "history.untitled": "Label"
 }

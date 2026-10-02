@@ -250,5 +250,12 @@
   "wizard.mainSwitch": "Main switch text (empty = none)",
   "wizard.mainSwitchWidth": "Main switch width (mm)",
   "wizard.mainSwitchRight": "Main switch on the right",
-  "wizard.length": "Length: {length} mm"
+  "wizard.length": "Length: {length} mm",
+  "history.open": "History …",
+  "history.title": "Printed labels",
+  "history.close": "Close",
+  "history.empty": "Nothing printed yet.",
+  "history.reopen": "Open",
+  "history.meta": "{date} · {width} mm · {count} label(s)",
+  "history.untitled": "Label"
 }

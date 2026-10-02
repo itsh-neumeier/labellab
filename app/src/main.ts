@@ -1359,11 +1359,80 @@ async function print(): Promise<void> {
         numbering: numbering(),
       },
     });
+    // History is a convenience: a failure to record it must not look like a print error.
+    api
+      .recordHistory(state.label, selectedModel(), selectedWidth(), historyName(), seriesNumbers()?.length ?? 1)
+      .catch(() => {});
   } catch (e) {
     setMessage(t("error.prefix", { error: errorText(e) }), true);
   } finally {
     unlisten();
     setPrinting(false);
+  }
+}
+
+/** Name for the history: file name, else the first text, else a generic name. */
+function historyName(): string {
+  const file = state.filePath?.split(/[\\/]/).pop();
+  if (file) return file;
+  const text = state.label.elements.find((i) => i.type === "text");
+  const first = text && text.type === "text" ? text.text.split("\n")[0].trim() : "";
+  return first.slice(0, 60) || t("history.untitled");
+}
+
+async function showHistory(): Promise<void> {
+  const dialog = $<HTMLDialogElement>("history-dialog");
+  const list = $("history-list");
+  const msg = $("history-msg");
+  list.replaceChildren();
+  msg.textContent = "";
+  dialog.showModal();
+  try {
+    const entries = await api.history();
+    if (!entries.length) msg.textContent = t("history.empty");
+    for (const e of entries) {
+      const li = document.createElement("li");
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const name = document.createElement("strong");
+      name.textContent = e.name;
+      const info = document.createElement("div");
+      info.className = "muted";
+      info.textContent = t("history.meta", { date: e.printed_at, width: e.width_mm, count: e.count });
+      meta.append(name, info);
+      const open = makeButton(t("history.reopen"), "", async () => {
+        try {
+          state.label = await api.loadHistory(e.id);
+          for (const item of state.label.elements) if (item.rect) item.rect = roundRect(item.rect);
+          state.filePath = null;
+          if (e.model === selectedModel()) {
+            fillWidths(e.width_mm);
+            fitZoom();
+          }
+          state.selected = -1;
+          await ensureRects();
+          resetHistory();
+          dialog.close();
+          renderAll();
+        } catch (err) {
+          msg.textContent = t("error.prefix", { error: errorText(err) });
+        }
+      });
+      open.type = "button";
+      li.append(meta, open);
+      if (e.preview) {
+        const thumb = document.createElement("div");
+        thumb.className = "thumb";
+        const img = document.createElement("img");
+        img.alt = "";
+        img.src = `data:image/png;base64,${e.preview}`;
+        thumb.append(img);
+        li.append(thumb);
+      }
+      list.append(li);
+    }
+  } catch (err) {
+    msg.textContent = t("error.prefix", { error: errorText(err) });
   }
 }
 
@@ -2054,6 +2123,7 @@ function bindUi(): void {
   });
   renderRecent();
   $("btn-series").addEventListener("click", () => void showSeries());
+  $("btn-history").addEventListener("click", () => void showHistory());
   bindSymbolPicker();
   $("btn-save").addEventListener("click", saveFile);
   $("btn-undo").addEventListener("click", () => stepHistory(-1));

@@ -97,6 +97,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Vorlagen-Galerie („Vorlagen …“) mit Live-Vorschau und neuen Vorlagen: Einzelfähnchen,
   Klemmblock/LSA-Leiste (zweireihig), Sicherungskasten/Verteiler (senkrechte Beschriftung,
   Hauptschalter-Feld); auch per `labellab generate single-flag|terminal-block|fuse-box`
+- Druckverlauf „Verlauf …“: die letzten 50 gedruckten Labels mit Vorschau, Datum und Band,
+  per Klick wieder öffnen
 
 ### Behoben
 - Windows-Paket: Die Kommandozeile heißt jetzt `labellab-cli.exe`. Vorher überschrieb

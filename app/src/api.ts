@@ -244,3 +244,20 @@ export interface Pairable {
 
 export const discoverBluetooth = () => invoke<Pairable[]>("discover_bluetooth");
 export const pairBluetooth = (id: string) => invoke<void>("pair_bluetooth", { id });
+
+/** A printed label in the history (`ll_core::history::Entry`) plus its preview. */
+export interface HistoryEntry {
+  id: string;
+  printed_at: string;
+  name: string;
+  model: string;
+  width_mm: number;
+  count: number;
+  /** Base64 PNG mask, empty if none. */
+  preview: string;
+}
+
+export const history = () => invoke<HistoryEntry[]>("history");
+export const recordHistory = (label: Label, model: string, widthMm: number, name: string, count: number) =>
+  invoke<void>("record_history", { label, model, widthMm, name, count });
+export const loadHistory = (id: string) => invoke<Label>("load_history", { id });

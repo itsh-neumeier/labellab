@@ -96,7 +96,9 @@
     Selbstlaminierend und Schrumpfschlauch (brauchen eigene Bandgeometrie, s. u.)
   - [ ] Selbstlaminierende Bänder (bedruckbarer Teil + transparente Wickelzone) und
     Schrumpfschlauch-Bänder (HS 5,8–23,6 mm) — Geometrie/Medientypen `TODO(verify)`
-  - [ ] „Erstellte Labels“: zuletzt verwendet mit Vorschaubild, Druckverlauf (Datum, Band)
+  - [x] „Erstellte Labels“: Druckverlauf (`ll_core::history`, Datenordner `history/`, max. 50,
+    Vorschaubild, Datum, Band, Anzahl; „Verlauf …“ in der Werkzeugleiste, Öffnen stellt die
+    Bandbreite wieder ein). „Zuletzt verwendet“ (Pfade) gab es schon.
   Paket 3 – Dokument/Layout:
   - [ ] Mehrere Labels in einer Datei (Reiter), Hochformat (ganzes Label gedreht)
   - [ ] Tabellen (Zellen mit Text), dekorative Rahmen-Bibliothek (als Icon-Set-artige
@@ -105,7 +107,7 @@
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
 |---|---|---|---|
-| M9 Paket 2b: Druckverlauf „Erstellte Labels“ (Kern fertig: `ll_core::history`; offen: App-Befehle + Dialog) | Claude Code | `claude/modest-euler-hx5zk9` | 2026-10-02 |
+| – | – | – | – |
 
 ## Nächste Schritte
 0. **Hardware-Test Nachlauf/Schnitt:** `labellab print --barcode "..." --bt` erneut testen —
@@ -148,6 +150,7 @@
 
 - [ ] Sicherheitszeichen auf Band: `labellab print --symbol iso7010:W012 --bt` (und z. B.
   `iso7010:M001`, `iec60417:5017`) — sind Piktogramme auf 9/12 mm noch erkennbar?
+- [ ] Druckverlauf: nach einem echten Druck erscheint der Eintrag unter „Verlauf …“?
 - [ ] Rahmenstile auf Band: `labellab print "TEST" --border striped --border-sides ou
   --border-width 1 --bt` (und dashed/dotted/double) — Muster sauber, Streifen nicht verwaschen?
 - [ ] M4: Kopplung unter Windows: Drucker in den Windows-Einstellungen entfernen, dann
@@ -249,6 +252,16 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, M9 Paket 2b – Druckverlauf
+- `ll_core::history` (`record`/`list`/`load`/`preview`; Tests mit eigenem Ordner statt
+  Umgebungsvariable, damit parallele Tests sich nicht stören), App-Befehle `history`,
+  `record_history` (nach erfolgreichem Druck, Fehler dabei werden verschluckt),
+  `load_history`; Dialog „Verlauf …“ mit Vorschau, Datum, Band, Anzahl, „Öffnen“.
+- Geprüft: Tests, fmt/clippy, Frontend-Build; GUI unter Xvfb mit eingetragenem Verlaufseintrag
+  (Klemmblock 24 mm → Öffnen stellt 24 mm ein). Echter Druck → Eintrag: nur am Gerät prüfbar.
+- Nächster Schritt: 2c SL-/Schrumpfschlauch-Bänder (Bandgeometrie `TODO(verify)`), sonst
+  Paket 3 (mehrere Labels pro Datei, Hochformat, Tabellen, Deko-Rahmen).
+
 ### 2026-10-02 – Claude Code, M9 Paket 2a (Teil 1) – neue Generatoren
 - `ll_core::layouts`: `SingleFlag` (Einzelfähnchen: Wickelbereich + ein Fähnchen),
   `TerminalBlock` (Klemmblock/LSA, 1–2 Reihen, zweireihig unten 2i, oben 2i+1 wie im Vorbild),

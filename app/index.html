@@ -11,6 +11,7 @@
       <button id="btn-new" data-i18n="toolbar.new"></button>
       <button id="btn-open" data-i18n="toolbar.open"></button>
       <select id="recent" aria-label="Zuletzt verwendet"></select>
+      <button id="btn-history" data-i18n="history.open"></button>
       <button id="btn-save" data-i18n="toolbar.save"></button>
       <span class="sep"></span>
       <button id="btn-undo" data-i18n="toolbar.undo" data-i18n-title="toolbar.undoHint"></button>
@@ -224,6 +225,17 @@
           <button id="symbol-import" type="button" data-i18n="symbol.import"></button>
           <button id="symbol-remove" type="button" data-i18n="symbol.remove" hidden></button>
           <button value="close" data-i18n="symbol.close"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="history-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="history.title"></h2>
+        <p id="history-msg" class="muted hint"></p>
+        <ul id="history-list" class="history-list"></ul>
+        <div class="row end">
+          <button value="close" data-i18n="history.close"></button>
         </div>
       </form>
     </dialog>
