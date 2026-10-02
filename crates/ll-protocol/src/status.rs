@@ -102,7 +102,67 @@ impl StatusBlock {
     pub fn text_color(&self) -> u8 {
         self.raw[25]
     }
+
+    /// Series code (offset 3); with [`Self::model_byte`] identifies the
+    /// model (see [`crate::model::find_by_status_bytes`]).
+    pub fn series_byte(&self) -> u8 {
+        self.raw[3]
+    }
+
+    /// Model code (offset 4).
+    pub fn model_byte(&self) -> u8 {
+        self.raw[4]
+    }
+
+    /// The model this status came from, if it is in the model table.
+    pub fn model(&self) -> Option<&'static crate::model::ModelInfo> {
+        crate::model::find_by_status_bytes(self.series_byte(), self.model_byte())
+    }
+
+    /// Notification number (offset 22): `0x01` cover opened, `0x02` cover
+    /// closed, `0x00` none. Documented, TODO(verify) on hardware.
+    pub fn notification(&self) -> u8 {
+        self.raw[22]
+    }
+
+    /// Ids of the error bits set in bytes 8 and 9 (see [`ERROR_BITS`]).
+    pub fn error_ids(&self) -> Vec<&'static str> {
+        ERROR_BITS
+            .iter()
+            .filter(|b| self.raw[b.byte] & b.mask != 0)
+            .map(|b| b.id)
+            .collect()
+    }
 }
+
+/// One documented error bit of the status block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ErrorBit {
+    /// Status byte offset (8 = error information 1, 9 = error information 2).
+    pub byte: usize,
+    pub mask: u8,
+    /// Stable, language-neutral id (the GUI translates it).
+    pub id: &'static str,
+}
+
+const fn bit(byte: usize, mask: u8, id: &'static str) -> ErrorBit {
+    ErrorBit { byte, mask, id }
+}
+
+/// Error bits per Brother's Raster Command Reference (PT-E550W/P750W/P710BT,
+/// status table "Error information 1/2"). Status: documented; on a real
+/// PT-P710BT only "no error" (`0x00 0x00`) is confirmed so far.
+/// TODO(verify): provoke errors (no cassette, cover open, weak battery) and
+/// compare, see `docs/PROTOCOL.md`.
+pub const ERROR_BITS: &[ErrorBit] = &[
+    bit(8, 0x01, "no_media"),
+    bit(8, 0x04, "cutter_jam"),
+    bit(8, 0x08, "weak_battery"),
+    bit(8, 0x40, "high_voltage_adapter"),
+    bit(9, 0x01, "wrong_media"),
+    bit(9, 0x10, "cover_open"),
+    bit(9, 0x20, "overheating"),
+];
 
 #[cfg(test)]
 mod tests {
@@ -115,6 +175,18 @@ mod tests {
         b[0] = 0x80;
         b[10] = 9;
         b
+    }
+
+    #[test]
+    fn decodes_model_and_documented_error_bits() {
+        let mut b = fixture();
+        b[3] = 0x30;
+        b[4] = 0x76;
+        b[8] = 0x08;
+        b[9] = 0x10;
+        let status = StatusBlock::parse(&b).unwrap();
+        assert_eq!(status.model().map(|m| m.name), Some("PT-P710BT"));
+        assert_eq!(status.error_ids(), vec!["weak_battery", "cover_open"]);
     }
 
     #[test]

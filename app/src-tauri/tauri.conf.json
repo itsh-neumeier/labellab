@@ -32,7 +32,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "publisher": "ITSH Neumeier",
+    "copyright": "© 2026 Timo Neumeier · ITSH Neumeier · MIT"
   },
   "mainBinaryName": "LabelLab"
 }

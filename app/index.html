@@ -20,6 +20,7 @@
       <button id="btn-wizard" data-i18n="toolbar.wizard"></button>
       <span class="spacer"></span>
       <span id="file-name" class="muted"></span>
+      <button id="btn-about" data-i18n="about.open"></button>
       <select id="lang" aria-label="Sprache / Language">
         <option value="de">Deutsch</option>
         <option value="en">English</option>
@@ -32,6 +33,7 @@
       </label>
       <button id="btn-refresh" data-i18n="device.refresh"></button>
       <button id="btn-status" data-i18n="device.readStatus"></button>
+      <button id="btn-info" data-i18n="info.open"></button>
       <button id="btn-keepalive" class="keepalive" data-i18n="device.keepAlive" data-i18n-title="device.keepAliveHint"></button>
       <button id="btn-pair" data-i18n="pair.open"></button>
       <span id="status" class="status"></span>
@@ -256,6 +258,36 @@
         </div>
       </form>
     </dialog>
+
+    <dialog id="info-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="info.title"></h2>
+        <p id="info-msg" class="muted hint"></p>
+        <table id="info-table" class="info-table"></table>
+        <h3 data-i18n="info.raw"></h3>
+        <pre id="info-raw" class="info-raw"></pre>
+        <p class="muted hint" data-i18n="info.rawHint"></p>
+        <div class="row end">
+          <button type="button" id="info-copy" data-i18n="info.copy"></button>
+          <button type="button" id="info-reload" data-i18n="info.reload"></button>
+          <button value="close" data-i18n="history.close"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="splash" class="splash" role="dialog" aria-modal="true">
+      <div class="splash-card">
+        <img id="splash-icon" alt="" />
+        <h1>LabelLab <span id="splash-version" class="muted"></span></h1>
+        <p data-i18n="about.tagline"></p>
+        <p class="splash-dev"><span data-i18n="about.developer"></span> <strong>ITSH Neumeier – Timo Neumeier</strong></p>
+        <p class="muted">© 2026 Timo Neumeier · ITSH Neumeier</p>
+        <p class="muted" data-i18n="about.license"></p>
+        <p class="muted small" data-i18n="about.thirdParty"></p>
+        <p class="muted small" data-i18n="about.trademarks"></p>
+        <p id="splash-hint" class="muted small" data-i18n="about.close"></p>
+      </div>
+    </div>
 
     <div id="paste-catcher" contenteditable="true" aria-hidden="true" tabindex="-1"></div>
 
