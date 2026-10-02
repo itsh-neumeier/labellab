@@ -138,7 +138,7 @@ main { flex: 1; display: flex; min-height: 0; }
 /* ---- fonts, CSV, print state ---- */
 .font-row { align-items: flex-end; }
 .toggle { flex: none; width: 2.2em; padding: 4px 0; }
-.toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.toggle.on, .keepalive.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .data { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .data .row { display: flex; gap: 6px; align-items: center; }
 .hint { font-size: 12px; margin: 0; }

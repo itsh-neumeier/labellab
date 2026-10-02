@@ -127,6 +127,10 @@ Referenz und Hardware zu prüfen — siehe `crates/ll-protocol/src/model.rs`):
 | 24 mm | 128 | 0 | unverifiziert |
 
 - TODO(verify): Half-Cut am PT-P710BT unterstützt? (vermutlich nein)
+- TODO(verify): Setzt eine Statusabfrage (`00×100, 1B 40, 1B 69 53`) den Timer der
+  automatischen Abschaltung zurück? Annahme für „Wach halten“ in der App (alle 2 min,
+  `KEEPALIVE_MS` in `app/src/main.ts`), unverifiziert; Abschaltzeit des Geräts ebenfalls
+  nicht nachgemessen.
 - TODO(verify): maximale Bluetooth-Durchsatzrate / sinnvolle Blockgröße beim Senden der Rasterdaten
 
 ## Ablauf eines Druckjobs

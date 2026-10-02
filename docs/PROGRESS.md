@@ -95,6 +95,7 @@
     Text; schnellere Vorschau bei viel Inhalt (Nutzerwunsch 2026-10-02, ADR-028)
   - [x] Einzelne Textteile fett/kursiv (`**fett**`, `__kursiv__`; F/K bzw. Strg+B/I auf die
     Markierung) (Nutzerwunsch 2026-10-02, ADR-029)
+  - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
   - [x] Lineal (mm) über der Vorschau
@@ -157,6 +158,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- „Wach halten“: einschalten, Drucker länger als seine Abschaltzeit liegen lassen — bleibt
+  er an? (Bluetooth und USB; Statusabfrage als Keep-alive ist unverifiziert, PROTOCOL.md)
 - Windows: Bild (Screenshot, Bild aus dem Browser) und Text mit Strg+V einfügen,
   Element mit Strg+C/Strg+V kopieren.
 - Bild-Editor: bearbeitetes Bild (Hintergrund entfernt, Schwelle) auf Band drucken und mit
@@ -269,6 +272,13 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Wach halten (Keep-alive)
+- Knopf „Wach halten“ in der Geräteleiste (Umschalter, beim Start immer aus): fragt alle
+  2 min still den Status ab (`api.queryStatus`), nicht während eines Drucks; Fehler in der
+  Statuszeile, letzte Abfrage im Tooltip. Ob das die Auto-Abschaltung verhindert, ist
+  unverifiziert (`TODO(verify)` in PROTOCOL.md, Hardware-Test eingetragen).
+- Geprüft: Frontend-Build, Tests; GUI unter Xvfb (Umschalter, Fehlermeldung ohne Drucker).
+
 ### 2026-10-02 – Claude Code, Fett/kursiv für Textteile (ADR-029)
 - `ll_render::richtext` (Parser `**…**`/`__…__`, ungepaarte Marker bleiben Text),
   `FaceSet` (regulär/fett/kursiv/fett-kursiv); Textfunktionen in `boxed` legen Läufe mit

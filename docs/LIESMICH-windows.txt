@@ -33,6 +33,8 @@ Editor
 - Strg+V fuegt ein Bild (z. B. Screenshot) oder Text aus der Zwischenablage als neues
   Element ein. Strg+C / Strg+X / Strg+V kopieren das gewaehlte Element. Eingefuegte Bilder
   liegen unter %APPDATA%\LabelLab\pasted.
+- "Wach halten" (neben "Status lesen"): fragt alle 2 Minuten den Status ab, damit
+  sich der Drucker nicht abschaltet. Beim Start immer aus.
 - Vorschau: grau schraffiert = Rand des Bandes, den der Drucker nicht bedrucken kann.
 - Text: Teil markieren und F oder K (Strg+B / Strg+I) = nur dieser Teil fett/kursiv.
   Im Textfeld erscheint das als **fett** und __kursiv__. Ohne Markierung gilt F/K fuer
