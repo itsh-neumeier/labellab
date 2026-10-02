@@ -593,6 +593,9 @@ Vorlage:
   Boxen und Inhalte mit, damit der Ausdruck gleich bleibt.
 - Konsequenzen: Rahmen-Seiten (oben/unten/links/rechts) beziehen sich weiter auf das Band
   im Querformat. Fluss-Elemente ohne Box werden beim Umschalten in Boxen umgewandelt.
+- Nachtrag (Elementnamen): Der eigene Name eines Elements heißt im JSON `title`, nicht
+  `name`, weil `Item` ins Element geflacht wird und `name` die Symbol-ID ist (Bugfix
+  2026-10-02).
 
 ## ADR-032: Deko-Rahmen aus drei SVG-Segmenten
 - Datum / Status: 2026-10-02 · angenommen

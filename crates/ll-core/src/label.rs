@@ -308,9 +308,11 @@ pub struct Item {
     /// Hidden in the editor's layer list: not rendered or printed.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hidden: bool,
-    /// User-given name in the layer list (no effect on rendering).
+    /// User-given name in the layer list (no effect on rendering). Stored
+    /// as `title`: the item is flattened into the element's JSON and
+    /// `name` is the symbol element's icon id.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub title: Option<String>,
 }
 
 fn is_zero(v: &u16) -> bool {
@@ -327,7 +329,7 @@ impl From<Element> for Item {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         }
     }
 }
@@ -1257,7 +1259,7 @@ mod tests {
                     halign: None,
                     valign: None,
                     hidden: false,
-                    name: None,
+                    title: None,
                 },
                 Element::Qr {
                     data: "https://example.org".into(),
@@ -1286,6 +1288,20 @@ mod tests {
         assert!(json.contains(r#""symbology": "ean13""#));
         assert!(json.contains(r#""x_mm": 1.0"#));
         assert_eq!(Label::from_json(&json).unwrap(), label);
+    }
+
+    #[test]
+    fn symbol_keeps_its_name_next_to_the_item_title() {
+        let mut item: Item = Element::Symbol {
+            name: "iso7010:P002".into(),
+            invert: false,
+        }
+        .into();
+        let json = serde_json::to_string(&item).unwrap();
+        assert_eq!(serde_json::from_str::<Item>(&json).unwrap(), item);
+        item.title = Some("Rauchverbot".into());
+        let json = serde_json::to_string(&item).unwrap();
+        assert_eq!(serde_json::from_str::<Item>(&json).unwrap(), item);
     }
 
     #[test]
@@ -1386,7 +1402,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };
@@ -1428,7 +1444,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };
@@ -1517,7 +1533,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };
@@ -1559,7 +1575,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             padding_mm: 1.0,
             ..Label::default()
@@ -1647,7 +1663,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         };
         let mut label = Label {
             elements: vec![bar(0.0), bar(40.0)],
@@ -1836,7 +1852,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         };
         let label = Label {
             elements: vec![boxed(None), boxed(Some(30.0))],
@@ -1866,7 +1882,7 @@ mod tests {
             halign: None,
             valign: None,
             hidden: false,
-            name: None,
+            title: None,
         };
         for rotation in [0, 90, 180, 270] {
             let label = Label {
@@ -1921,7 +1937,7 @@ mod tests {
                 halign: None,
                 valign: None,
                 hidden: false,
-                name: None,
+                title: None,
             }],
             ..Label::default()
         };

@@ -319,6 +319,12 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Fix Symbol-Vorschau („missing field `name`“)
+- Nutzer-Bug: Symbole ließen sich nicht rendern. Ursache: `Item::name` (eigener Elementname,
+  ADR-031) wird ins Element-JSON geflacht und schluckte den `name` des Symbols. Elementname
+  heißt jetzt `title` (Rust + TS), Regressionstest. Vor heute gespeicherte eigene Namen
+  (Schlüssel `name`) bei Nicht-Symbol-Elementen gehen verloren (nur kurz veröffentlicht).
+
 ### 2026-10-02 – Claude Code, Knopf „Code“
 - Nutzerwunsch: Code-Assistent als normaler Hinzufügen-Knopf wie Text/Bild → Beschriftung
   „Code“ (Tooltip erklärt den Assistenten). Geprüft: Build, GUI unter Xvfb.

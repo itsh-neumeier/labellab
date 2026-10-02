@@ -62,8 +62,8 @@ export type Item = Element & {
   valign?: VAlign | null;
   /** Not rendered or printed (layer list eye). */
   hidden?: boolean;
-  /** User-given name in the layer list. */
-  name?: string | null;
+  /** User-given name in the layer list (stored as `title`: `name` is the symbol icon id). */
+  title?: string | null;
 };
 
 /** Running number for `{{n}}`/`{{a}}`/`{{A}}`. */

@@ -156,6 +156,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- Symbole: „Vorschau nicht möglich … missing field `name`“ – der eigene Elementname kollidierte
+  mit dem Symbolnamen; der Elementname wird jetzt als `title` gespeichert
 - UPC-A: 11 Ziffern (oder 12 mit Prüfziffer) werden jetzt als UPC-A kodiert; vorher wurde die
   Eingabe als EAN-13 ohne führende 0 gelesen
 - USB unter Windows: Der Drucker wird jetzt über den Windows-Druckertreiber angesprochen

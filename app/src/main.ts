@@ -1147,10 +1147,10 @@ function elementCard(item: Item, index: number): HTMLLIElement {
   );
   const nameInput = document.createElement("input");
   nameInput.type = "text";
-  nameInput.value = item.name ?? "";
+  nameInput.value = item.title ?? "";
   nameInput.placeholder = t("elements.namePlaceholder");
   nameInput.addEventListener("input", () => {
-    item.name = nameInput.value.trim() || undefined;
+    item.title = nameInput.value.trim() || undefined;
     syncBoxCaption();
     commitSoon();
     updateFileName();
@@ -1165,7 +1165,7 @@ function elementCard(item: Item, index: number): HTMLLIElement {
 
 /** Layer list text: the user's name, else the content. */
 function layerCaption(item: Item): string {
-  if (item.name) return item.name;
+  if (item.title) return item.title;
   return item.type === "fill" || item.type === "shape" ? "" : boxCaption(item);
 }
 
@@ -1188,7 +1188,7 @@ function layerRow(item: Item, index: number): HTMLLIElement {
     e.stopPropagation();
     const input = document.createElement("input");
     input.type = "text";
-    input.value = item.name ?? "";
+    input.value = item.title ?? "";
     input.placeholder = boxCaption(item);
     caption.replaceWith(input);
     input.focus();
@@ -1197,7 +1197,7 @@ function layerRow(item: Item, index: number): HTMLLIElement {
     const finish = (keep: boolean) => {
       if (done) return;
       done = true;
-      if (keep) item.name = input.value.trim() || undefined;
+      if (keep) item.title = input.value.trim() || undefined;
       changed(true);
     };
     input.addEventListener("keydown", (ev) => {
