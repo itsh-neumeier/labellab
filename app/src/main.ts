@@ -1382,6 +1382,38 @@ async function readStatus(): Promise<boolean> {
   }
 }
 
+// ---------------------------------------------------------------- keep-alive
+
+/**
+ * Interval of the optional keep-alive status query. Meant to stop the
+ * printer's automatic power-off; TODO(verify): whether a status request
+ * resets the auto-off timer is unconfirmed (docs/PROTOCOL.md).
+ */
+const KEEPALIVE_MS = 2 * 60 * 1000;
+let keepAliveTimer: number | undefined;
+
+function setKeepAlive(on: boolean): void {
+  window.clearInterval(keepAliveTimer);
+  keepAliveTimer = on ? window.setInterval(() => void keepAlivePing(), KEEPALIVE_MS) : undefined;
+  const button = $<HTMLButtonElement>("btn-keepalive");
+  button.classList.toggle("on", on);
+  button.title = t("device.keepAliveHint");
+  if (on) void keepAlivePing();
+}
+
+/** Quiet status query; only failures show up in the status bar. */
+async function keepAlivePing(): Promise<void> {
+  const connection = selectedConnection();
+  if (!connection || state.printing) return;
+  try {
+    await api.queryStatus(connection);
+    const time = new Date().toLocaleTimeString(currentLang(), { hour: "2-digit", minute: "2-digit" });
+    $("btn-keepalive").title = `${t("device.keepAliveHint")}\n${t("device.keepAliveLast", { time })}`;
+  } catch (e) {
+    setStatus(t("device.keepAliveFailed", { error: errorText(e) }), "error");
+  }
+}
+
 function setPrinting(on: boolean, text?: string): void {
   state.printing = on;
   const button = $<HTMLButtonElement>("btn-print");
@@ -2507,6 +2539,7 @@ function bindUi(): void {
   for (const id of ["row-from", "row-to"]) $(id).addEventListener("input", updateCsvSummary);
   document.querySelectorAll<HTMLInputElement>('input[name="rows"]').forEach((r) => r.addEventListener("change", updateCsvSummary));
   $("btn-status").addEventListener("click", readStatus);
+  $("btn-keepalive").addEventListener("click", () => setKeepAlive(keepAliveTimer === undefined));
   $("btn-print").addEventListener("click", print);
   $("model").addEventListener("change", () => {
     fillWidths();
