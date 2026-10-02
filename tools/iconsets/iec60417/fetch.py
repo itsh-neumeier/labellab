@@ -119,7 +119,7 @@ def title(meta: dict, code: str) -> str:
         text = re.sub(r"(?i)^(?:symbol\s+)?(?:iec\s*60417\s*[-–:]?\s*)?(?:ref[- ]?no\.?\s*)?"
                       r"[0-9]{4}[a-z]?(?:-[0-9]+)?\s*(?:from iec 60417)?\s*[:\-–]?\s*", "", text)
         text = re.split(r"[;.]\s", text)[0]
-    text = text.strip(" .;:-–/")
+    text = re.sub(r'"{2,}', '"', text).strip(" .;:-–/")
     if len(text) > 80:
         text = text[:77].rsplit(" ", 1)[0] + " …"
     return text or f"Ref-No {code}"
