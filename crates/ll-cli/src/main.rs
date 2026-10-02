@@ -534,6 +534,7 @@ async fn main() -> anyhow::Result<()> {
                     auto_cut: cut,
                     chain,
                     margin_dots: margin,
+                    ..Default::default()
                 },
                 copies,
                 series_args(csv, rows.as_deref(), count, Numbering { start, step })?,

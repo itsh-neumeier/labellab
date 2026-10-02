@@ -320,6 +320,13 @@ struct PrintJob {
     /// All labels in one job without cuts in between.
     chain: bool,
     margin_dots: u16,
+    /// With chain + cut: also cut after every n-th label (0 = only at the end).
+    #[serde(default)]
+    cut_every: u32,
+    #[serde(default)]
+    cut_marks: bool,
+    #[serde(default)]
+    mirror: bool,
     /// Record numbers (1-based, inclusive) of the loaded CSV; `None`
     /// without CSV prints the label as is, with CSV all records.
     rows: Option<(usize, usize)>,
@@ -374,6 +381,9 @@ async fn print_label(
         auto_cut: job.cut,
         chain: job.chain,
         margin_dots: job.margin_dots,
+        cut_every: job.cut_every,
+        cut_marks: job.cut_marks,
+        mirror: job.mirror,
     };
 
     let mut transport = device::connect(&connection).await.map_err(err)?;

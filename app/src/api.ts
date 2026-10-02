@@ -251,6 +251,10 @@ export interface PrintJob {
   cut: boolean;
   chain: boolean;
   marginDots: number;
+  /** With chain + cut: also cut after every n-th label (0 = only at the end). */
+  cutEvery: number;
+  cutMarks: boolean;
+  mirror: boolean;
   /** 1-based inclusive record range of the loaded CSV; null = all. */
   rows: [number, number] | null;
   /** Without CSV: labels in a numbered series (null = single label). */

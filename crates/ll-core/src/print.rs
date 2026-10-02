@@ -56,6 +56,16 @@ pub struct PrintOptions {
     /// printed length equals the rendered one; less if those ends are
     /// shorter (see `trim_for_margin`).
     pub margin_dots: u16,
+    /// With [`Self::chain`] and auto-cut: also cut after every n-th label
+    /// (0 or 1 = only after the last). Uses the auto-cut flag per page of
+    /// the chained job. TODO(verify): the PT-P710BT honours per-page cut
+    /// flags inside one job (it has no `ESC i A` "cut every n").
+    pub cut_every: u32,
+    /// Print a dotted cut mark at the end of every label (for cutting by
+    /// hand when the printer doesn't cut).
+    pub cut_marks: bool,
+    /// Mirror the label along its length (mirror print).
+    pub mirror: bool,
 }
 
 impl Default for PrintOptions {
@@ -65,6 +75,9 @@ impl Default for PrintOptions {
             auto_cut: false,
             chain: false,
             margin_dots: DEFAULT_MARGIN_DOTS,
+            cut_every: 0,
+            cut_marks: false,
+            mirror: false,
         }
     }
 }
@@ -130,8 +143,18 @@ pub async fn print_labels(
     // Take that feed out of the label's own blank ends instead, so the
     // printed length matches the preview.
     let pages: Vec<(Bitmap, u16)> = pages
-        .iter()
-        .map(|p| trim_for_margin(p, options.margin_dots))
+        .into_iter()
+        .map(|p| {
+            let mut page = if options.mirror { p.mirrored() } else { p };
+            if options.cut_marks {
+                add_cut_mark(
+                    &mut page,
+                    geometry.left_offset_pins,
+                    geometry.printable_pins,
+                );
+            }
+            trim_for_margin(&page, options.margin_dots)
+        })
         .collect();
 
     let total = pages.len() as u32;
@@ -139,7 +162,8 @@ pub async fn print_labels(
     for (i, (page, margin)) in pages.iter().enumerate() {
         let last = i + 1 == pages.len();
         if options.chain {
-            let cut = options.auto_cut && last;
+            let every = options.cut_every.max(1) as usize;
+            let cut = options.auto_cut && (last || (every > 1 && (i + 1) % every == 0));
             send_page(transport, page, width_mm, cut, *margin, i == 0, last).await?;
         } else {
             if i > 0 {
@@ -265,6 +289,17 @@ async fn read_status_and_geometry<'m>(
     let width_mm = status.media_width_mm();
     Ok((width_mm, geometry_for(model, width_mm)?))
 }
+
+/// Dotted line across the printable pins on the last raster line.
+fn add_cut_mark(page: &mut Bitmap, offset: u16, pins: u16) {
+    let line = page.height_dots().saturating_sub(1);
+    for p in (0..pins).filter(|p| (p / CUT_MARK_DASH) % 2 == 0) {
+        page.set_pixel(offset + p, line, true);
+    }
+}
+
+/// Dash length of the cut mark in pins.
+const CUT_MARK_DASH: u16 = 3;
 
 /// Removes up to `max_margin` blank raster lines from each end of `page`
 /// and returns it with the feed margin to send instead: the printer adds
@@ -505,6 +540,45 @@ mod tests {
         assert_eq!(*written.last().unwrap(), 0x1A);
         // Pages 2-4 are marked as "other page" (n9 = 1).
         assert_eq!(seen.last(), Some(&(4, 4)));
+    }
+
+    #[tokio::test]
+    async fn chain_can_cut_every_n_labels() {
+        let mut transport = MockTransport::new();
+        transport.push_response(status_fixture_9mm_ok());
+        let options = PrintOptions {
+            chain: true,
+            auto_cut: true,
+            cut_every: 2,
+            ..PrintOptions::default()
+        };
+        let labels = [Label::single(Element::text("A"))];
+        print_labels(
+            &mut transport,
+            p710bt(),
+            &labels,
+            5,
+            &options,
+            &mut |_, _| {},
+        )
+        .await
+        .unwrap();
+        let written = transport.written();
+        // Pages 2, 4 and the last (5) cut.
+        assert_eq!(count(written, &[0x1B, 0x69, 0x4D, 0x40]), 3);
+        assert_eq!(count(written, &[0x1B, 0x69, 0x4D, 0x00]), 2);
+    }
+
+    #[test]
+    fn mirror_and_cut_mark() {
+        let mut page = Bitmap::new(128, 10);
+        page.set_pixel(60, 2, true);
+        let m = page.mirrored();
+        assert!(m.pixel(60, 7) && !m.pixel(60, 2));
+        assert_eq!(m.mirrored(), page);
+        add_cut_mark(&mut page, 39, 50);
+        assert!(page.pixel(39, 9) && !page.pixel(42, 9) && page.pixel(45, 9));
+        assert!(!page.pixel(38, 9) && !page.pixel(89, 9));
     }
 
     #[tokio::test]

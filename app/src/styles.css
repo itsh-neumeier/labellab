@@ -483,3 +483,4 @@ dialog#image-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .align-row button.on { background: rgba(31, 111, 235, 0.15); border-color: var(--accent); }
 .toolbar button, .devicebar button { white-space: nowrap; }
 .props .element.selected { border: 0; outline: none; box-shadow: none; background: none; }
+#cut-every-wrap[hidden] { display: none; }

@@ -113,7 +113,7 @@
   - [x] USB unter Windows: Fehler „incompatible driver is installed“ (Nutzer 2026-10-02) —
     neuer Transport `ll_transport::usbprint` über die Geräteschnittstelle des
     Windows-Druckertreibers, `nusb` nur noch Rückfall (Hardware-Test offen)
-  - [ ] Schnittoptionen wie im Hersteller-Editor (Nutzerwunsch 2026-10-02, Hilfe-Seite
+  - [x] Schnittoptionen wie im Hersteller-Editor (Nutzerwunsch 2026-10-02, Hilfe-Seite
     „Schnittoptionen“ gelesen): Auswahl statt Häkchen – jedes Etikett schneiden / Schnitt am
     Ende / Kettendruck (kein Vorschub nach dem letzten) / kein Schnitt (Spezialband) /
     Schnittmarken drucken / alle N Etiketten schneiden (per Seiten-Schnittflag im Kettenauftrag,
@@ -198,6 +198,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- Schnittoptionen: „Alle N Etiketten“ (Schnitt-Flag je Seite im Kettenauftrag), Schnittmarken,
+  Spiegeln, „Kettendruck (kein Schnitt)“ am Gerät prüfen.
 - USB unter Windows ohne Treibertausch: Status lesen und Drucken über `usbprint.sys`
   (`ll_transport::usbprint`). Klappt das Lesen des Status nicht, Fehlermeldung notieren.
 - Länge: Label mit fester Länge 100 mm (Rand links/rechts ≥ 4 mm) drucken → genau 100 mm?
@@ -316,6 +318,14 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, Schnittoptionen
+- Druckleiste: Auswahl „Schnitt“ (jedes Etikett / Schnitt am Ende / alle N Etiketten /
+  Kettendruck ohne Schnitt / kein Schnitt) statt zwei Häkchen, dazu „Schnittmarken“ und
+  „Spiegeln“; Auswahl wird gemerkt. `PrintOptions::cut_every` (Schnitt-Flag je Seite im
+  Kettenauftrag, TODO(verify)), `cut_marks` (gepunktete Linie am Ende jedes Etiketts),
+  `mirror` (`Bitmap::mirrored`). Halbschnitt nicht eingebaut (am PT-P710BT unverifiziert).
+- Geprüft: Tests (2 neue), fmt/clippy, Build; Druckleiste unter Xvfb.
+
 ### 2026-10-02 – Claude Code, Deko-Rahmen aus Segmenten (ADR-032)
 - `ll_render::decor`: Rahmen aus drei SVG-Segmenten (Anfang, Mitte wiederholt und leicht
   gestreckt, Ende) in voller druckbarer Höhe; Sets als `.llabel-frames` mit Registry.

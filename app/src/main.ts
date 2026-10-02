@@ -2036,6 +2036,43 @@ function bindSplash(): void {
   $("btn-about").addEventListener("click", showSplash);
 }
 
+// ---------------------------------------------------------------- cut options
+
+const CUT_MODE_KEY = "labellab.cutMode";
+
+/** Print settings from the cut mode select (like the cut options of other label editors). */
+function cutSettings(): Pick<api.PrintJob, "cut" | "chain" | "cutEvery" | "cutMarks" | "mirror"> {
+  const mode = $<HTMLSelectElement>("cut-mode").value;
+  const every = Math.max(2, Number($<HTMLInputElement>("cut-every").value) || 2);
+  return {
+    cut: mode === "each" || mode === "end" || mode === "every",
+    chain: mode === "end" || mode === "every" || mode === "chain",
+    cutEvery: mode === "every" ? every : 0,
+    cutMarks: $<HTMLInputElement>("cut-marks").checked,
+    mirror: $<HTMLInputElement>("mirror").checked,
+  };
+}
+
+function bindCutOptions(): void {
+  const select = $<HTMLSelectElement>("cut-mode");
+  try {
+    const saved = localStorage.getItem(CUT_MODE_KEY);
+    if (saved && Array.from(select.options).some((o) => o.value === saved)) select.value = saved;
+  } catch {
+    // default
+  }
+  const update = () => {
+    $("cut-every-wrap").hidden = select.value !== "every";
+    try {
+      localStorage.setItem(CUT_MODE_KEY, select.value);
+    } catch {
+      // not remembered
+    }
+  };
+  select.addEventListener("change", update);
+  update();
+}
+
 // ---------------------------------------------------------------- keep-alive
 
 /**
@@ -2106,8 +2143,7 @@ async function print(): Promise<void> {
       model: selectedModel(),
       job: {
         copies: Math.max(1, Number($<HTMLInputElement>("copies").value) || 1),
-        cut: $<HTMLInputElement>("cut").checked,
-        chain: $<HTMLInputElement>("chain").checked,
+        ...cutSettings(),
         marginDots: Math.max(0, Number($<HTMLInputElement>("margin").value) || 0),
         rows: selectedRows(),
         count: state.csv ? null : numberedCount() || null,
@@ -3248,6 +3284,7 @@ function bindUi(): void {
   );
   bindWizard();
   bindImageEditor();
+  bindCutOptions();
   bindDecor();
   bindPrinterInfo();
   bindClipboard();
