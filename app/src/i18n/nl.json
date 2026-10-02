@@ -558,5 +558,16 @@
   "table.rowRatio": "Relatieve hoogte van rij {n} (1 = normaal)",
   "table.hint": "Getallen boven: kolombreedtes, links: rijhoogtes (relatief). Meerdere regels met Enter, plaatshouders zoals {{n}} mogelijk.",
   "lbx.warn.table_merge": "Samengevoegde cellen – de tekst staat in de eerste cel, de lijnen blijven",
-  "elements.reorderHint": "Sleep om te herschikken – lager in de lijst = vooraan (Page Up/Down, met Shift helemaal)"
+  "elements.reorderHint": "Sleep om te herschikken – lager in de lijst = vooraan (Page Up/Down, met Shift helemaal)",
+  "wizard.assetTag": "Inventarislabel",
+  "wizard.catOffice": "Kantoor & inventaris",
+  "wizard.owner": "Eigenaar / bedrijf",
+  "wizard.ownerHint": "optioneel, bijv. bedrijfsnaam",
+  "wizard.number": "Inventarisnummer",
+  "wizard.code": "Code",
+  "wizard.codeNone": "geen",
+  "wizard.codeData": "Inhoud van de code",
+  "wizard.codeDataHint": "leeg = inventarisnummer; bijv. https://inventaris.example/{{n}}",
+  "wizard.assetHint": "{{n:05}} telt op bij het afdrukken (nummering of CSV): INV-00001, INV-00002 …",
+  "wizard.lengthMm": "Lengte (mm)"
 }

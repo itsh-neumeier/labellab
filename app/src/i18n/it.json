@@ -558,5 +558,16 @@
   "table.rowRatio": "Altezza relativa della riga {n} (1 = normale)",
   "table.hint": "Numeri in alto: larghezze delle colonne, a sinistra: altezze delle righe (relative). Più righe con Invio, segnaposto come {{n}} possibili.",
   "lbx.warn.table_merge": "Celle unite – il testo è nella prima cella, le linee restano",
-  "elements.reorderHint": "Trascina per riordinare – più in basso = in primo piano (Pag↑/Pag↓, con Maiusc fino in cima/in fondo)"
+  "elements.reorderHint": "Trascina per riordinare – più in basso = in primo piano (Pag↑/Pag↓, con Maiusc fino in cima/in fondo)",
+  "wizard.assetTag": "Etichetta inventario",
+  "wizard.catOffice": "Ufficio e inventario",
+  "wizard.owner": "Proprietario / azienda",
+  "wizard.ownerHint": "facoltativo, ad es. nome dell'azienda",
+  "wizard.number": "Numero di inventario",
+  "wizard.code": "Codice",
+  "wizard.codeNone": "nessuno",
+  "wizard.codeData": "Contenuto del codice",
+  "wizard.codeDataHint": "vuoto = numero di inventario; ad es. https://inventario.example/{{n}}",
+  "wizard.assetHint": "{{n:05}} aumenta in stampa (numerazione o CSV): INV-00001, INV-00002 …",
+  "wizard.lengthMm": "Lunghezza (mm)"
 }

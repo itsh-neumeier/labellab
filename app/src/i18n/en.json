@@ -558,5 +558,16 @@
   "table.rowRatio": "Relative height of row {n} (1 = normal)",
   "table.hint": "Numbers on top: column widths, on the left: row heights (relative). Several lines with Enter, placeholders like {{n}} work.",
   "lbx.warn.table_merge": "Merged table cells – the text is in the first cell, the lines remain",
-  "elements.reorderHint": "Drag to reorder – lower in the list is in front (Page Up/Down, with Shift all the way)"
+  "elements.reorderHint": "Drag to reorder – lower in the list is in front (Page Up/Down, with Shift all the way)",
+  "wizard.assetTag": "Asset tag",
+  "wizard.catOffice": "Office & inventory",
+  "wizard.owner": "Owner / company",
+  "wizard.ownerHint": "optional, e.g. company name",
+  "wizard.number": "Asset number",
+  "wizard.code": "Code",
+  "wizard.codeNone": "none",
+  "wizard.codeData": "Code content",
+  "wizard.codeDataHint": "empty = asset number; e.g. https://inventory.example/{{n}}",
+  "wizard.assetHint": "{{n:05}} counts up when printing (numbering or CSV): INV-00001, INV-00002 …",
+  "wizard.lengthMm": "Length (mm)"
 }

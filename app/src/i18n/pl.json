@@ -558,5 +558,16 @@
   "table.rowRatio": "Względna wysokość wiersza {n} (1 = normalna)",
   "table.hint": "Liczby u góry: szerokości kolumn, po lewej: wysokości wierszy (względne). Wiele linii klawiszem Enter, możliwe pola jak {{n}}.",
   "lbx.warn.table_merge": "Scalone komórki – tekst jest w pierwszej komórce, linie pozostają",
-  "elements.reorderHint": "Przeciągnij, aby zmienić kolejność – niżej na liście = na wierzchu (PgUp/PgDn, z Shift na sam przód/tył)"
+  "elements.reorderHint": "Przeciągnij, aby zmienić kolejność – niżej na liście = na wierzchu (PgUp/PgDn, z Shift na sam przód/tył)",
+  "wizard.assetTag": "Etykieta inwentarzowa",
+  "wizard.catOffice": "Biuro i inwentarz",
+  "wizard.owner": "Właściciel / firma",
+  "wizard.ownerHint": "opcjonalnie, np. nazwa firmy",
+  "wizard.number": "Numer inwentarzowy",
+  "wizard.code": "Kod",
+  "wizard.codeNone": "brak",
+  "wizard.codeData": "Zawartość kodu",
+  "wizard.codeDataHint": "puste = numer inwentarzowy; np. https://inwentarz.example/{{n}}",
+  "wizard.assetHint": "{{n:05}} zwiększa się przy druku (numeracja lub CSV): INV-00001, INV-00002 …",
+  "wizard.lengthMm": "Długość (mm)"
 }

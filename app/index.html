@@ -568,6 +568,20 @@
         <input id="wz-kind" type="hidden" value="cable_flag" />
         <div id="wz-gallery" class="wz-gallery"></div>
         <div id="wz-preview" class="wz-preview"><img id="wz-preview-img" alt="" /></div>
+        <div class="wz-group" data-kind="asset_tag">
+          <label><span data-i18n="wizard.owner"></span><input id="wz-owner" type="text" value="" data-i18n-placeholder="wizard.ownerHint" /></label>
+          <label><span data-i18n="wizard.number"></span><input id="wz-number" type="text" value="INV-{{n:05}}" /></label>
+          <label><span data-i18n="wizard.code"></span>
+            <select id="wz-code">
+              <option value="qr">QR</option>
+              <option value="code128">Code 128</option>
+              <option value="none" data-i18n="wizard.codeNone"></option>
+            </select>
+          </label>
+          <label><span data-i18n="wizard.codeData"></span><input id="wz-code-data" type="text" value="" data-i18n-placeholder="wizard.codeDataHint" /></label>
+          <label><span data-i18n="wizard.lengthMm"></span><input id="wz-length" type="number" min="10" step="1" value="50" /></label>
+          <p class="muted hint" data-i18n="wizard.assetHint"></p>
+        </div>
         <div class="wz-group" data-kind="cable_flag cable_wrap single_flag">
           <label><span data-i18n="wizard.text"></span><input id="wz-text" type="text" value="Kabel 1" /></label>
           <label><span data-i18n="wizard.diameter"></span><input id="wz-diameter" type="number" min="0.5" step="0.5" value="6" /></label>

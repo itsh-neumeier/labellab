@@ -558,5 +558,16 @@
   "table.rowRatio": "Relativní výška řádku {n} (1 = normální)",
   "table.hint": "Čísla nahoře: šířky sloupců, vlevo: výšky řádků (relativní). Více řádků klávesou Enter, zástupné symboly jako {{n}} fungují.",
   "lbx.warn.table_merge": "Sloučené buňky – text je v první buňce, čáry zůstávají",
-  "elements.reorderHint": "Přetažením změníte pořadí – níže v seznamu = v popředí (PgUp/PgDn, se Shiftem úplně dopředu/dozadu)"
+  "elements.reorderHint": "Přetažením změníte pořadí – níže v seznamu = v popředí (PgUp/PgDn, se Shiftem úplně dopředu/dozadu)",
+  "wizard.assetTag": "Inventární štítek",
+  "wizard.catOffice": "Kancelář a inventář",
+  "wizard.owner": "Vlastník / firma",
+  "wizard.ownerHint": "volitelné, např. název firmy",
+  "wizard.number": "Inventární číslo",
+  "wizard.code": "Kód",
+  "wizard.codeNone": "žádný",
+  "wizard.codeData": "Obsah kódu",
+  "wizard.codeDataHint": "prázdné = inventární číslo; např. https://inventar.example/{{n}}",
+  "wizard.assetHint": "{{n:05}} se při tisku zvyšuje (číslování nebo CSV): INV-00001, INV-00002 …",
+  "wizard.lengthMm": "Délka (mm)"
 }

@@ -122,7 +122,10 @@ export interface Numbering {
   step: number;
 }
 
+export type AssetCode = "qr" | "code128" | "none";
+
 export type Layout =
+  | { kind: "asset_tag"; owner: string; number: string; code: AssetCode; code_data: string; length_mm: number }
   | { kind: "cable_flag"; text: string; diameter_mm: number; flag_mm: number; center_mark?: boolean }
   | { kind: "cable_wrap"; text: string; diameter_mm: number; repeats: number | null; vertical: boolean }
   | {

@@ -5,7 +5,8 @@ use std::path::Path;
 
 use ll_core::label::{Element, Label};
 use ll_core::layouts::{
-    self, CableFlag, CableWrap, FuseBox, Layout, PatchPanel, SingleFlag, TerminalBlock,
+    self, AssetCode, AssetTag, CableFlag, CableWrap, FuseBox, Layout, PatchPanel, SingleFlag,
+    TerminalBlock,
 };
 use ll_core::series::{self, DataSet, Numbering};
 use ll_protocol::status::{StatusBlock, StatusType};
@@ -356,6 +357,25 @@ enum Command {
 
 #[derive(Subcommand)]
 enum GenerateKind {
+    /// Inventarlabel: Code (QR oder Barcode), Besitzer und Inventarnummer,
+    /// z. B. `--number "INV-{{n:05}}"` und dann mit `--count` drucken.
+    AssetTag {
+        /// Inventarnummer (Platzhalter wie {{n:05}} möglich).
+        #[arg(long, default_value = "INV-{{n:05}}")]
+        number: String,
+        /// Besitzer-/Firmenzeile über der Nummer.
+        #[arg(long, default_value = "")]
+        owner: String,
+        /// Code: qr, code128 oder none.
+        #[arg(long, default_value = "qr")]
+        code: String,
+        /// Inhalt des Codes (Standard: die Nummer), z. B. ein Link.
+        #[arg(long, default_value = "")]
+        code_data: String,
+        /// Länge in mm.
+        #[arg(long, default_value_t = 50.0)]
+        length: f32,
+    },
     /// Kabelfahne: Text zweimal, dazwischen der Wickelbereich (π × Durchmesser).
     CableFlag {
         text: String,
@@ -1186,6 +1206,24 @@ fn generate(
     let geometry = ll_core::label::geometry_for(model, width_mm)?;
     let tape_mm = ll_protocol::model::dots_to_mm(geometry.printable_pins as u32);
     let layout = match kind {
+        GenerateKind::AssetTag {
+            number,
+            owner,
+            code,
+            code_data,
+            length,
+        } => Layout::AssetTag(AssetTag {
+            owner,
+            number,
+            code: match code.to_ascii_lowercase().as_str() {
+                "qr" => AssetCode::Qr,
+                "code128" | "barcode" => AssetCode::Code128,
+                "none" | "" => AssetCode::None,
+                other => anyhow::bail!("Unbekannter Code '{other}' (qr, code128, none)"),
+            },
+            code_data,
+            length_mm: length,
+        }),
         GenerateKind::CableFlag {
             text,
             diameter,

@@ -558,5 +558,16 @@
   "table.rowRatio": "Hauteur relative de la ligne {n} (1 = normale)",
   "table.hint": "Nombres en haut : largeurs des colonnes, à gauche : hauteurs des lignes (relatives). Plusieurs lignes avec Entrée, champs comme {{n}} possibles.",
   "lbx.warn.table_merge": "Cellules fusionnées – le texte est dans la première cellule, les traits restent",
-  "elements.reorderHint": "Glisser pour réordonner – plus bas = au premier plan (Page préc./suiv., avec Maj tout en avant/arrière)"
+  "elements.reorderHint": "Glisser pour réordonner – plus bas = au premier plan (Page préc./suiv., avec Maj tout en avant/arrière)",
+  "wizard.assetTag": "Étiquette d'inventaire",
+  "wizard.catOffice": "Bureau & inventaire",
+  "wizard.owner": "Propriétaire / société",
+  "wizard.ownerHint": "facultatif, p. ex. nom de la société",
+  "wizard.number": "Numéro d'inventaire",
+  "wizard.code": "Code",
+  "wizard.codeNone": "aucun",
+  "wizard.codeData": "Contenu du code",
+  "wizard.codeDataHint": "vide = numéro d'inventaire ; p. ex. https://inventaire.example/{{n}}",
+  "wizard.assetHint": "{{n:05}} s'incrémente à l'impression (numérotation ou CSV) : INV-00001, INV-00002 …",
+  "wizard.lengthMm": "Longueur (mm)"
 }

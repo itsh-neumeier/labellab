@@ -558,5 +558,16 @@
   "table.rowRatio": "Relative Höhe von Zeile {n} (1 = normal)",
   "table.hint": "Obere Zahlen: Spaltenbreiten, linke Zahlen: Zeilenhöhen (relativ). Zellen mehrzeilig mit Enter, Platzhalter wie {{n}} möglich.",
   "lbx.warn.table_merge": "Verbundene Tabellenzellen – Text steht in der ersten Zelle, die Linien bleiben",
-  "elements.reorderHint": "Ziehen zum Umsortieren – weiter unten liegt im Vordergrund (Bild↑/Bild↓, mit Umschalt ganz nach vorne/hinten)"
+  "elements.reorderHint": "Ziehen zum Umsortieren – weiter unten liegt im Vordergrund (Bild↑/Bild↓, mit Umschalt ganz nach vorne/hinten)",
+  "wizard.assetTag": "Inventarlabel",
+  "wizard.catOffice": "Büro & Inventar",
+  "wizard.owner": "Besitzer / Firma",
+  "wizard.ownerHint": "optional, z. B. Firmenname",
+  "wizard.number": "Inventarnummer",
+  "wizard.code": "Code",
+  "wizard.codeNone": "keiner",
+  "wizard.codeData": "Inhalt des Codes",
+  "wizard.codeDataHint": "leer = Inventarnummer; z. B. https://inventar.example/{{n}}",
+  "wizard.assetHint": "{{n:05}} zählt beim Drucken hoch (Nummerierung oder CSV): INV-00001, INV-00002 …",
+  "wizard.lengthMm": "Länge (mm)"
 }

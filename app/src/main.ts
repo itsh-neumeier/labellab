@@ -3534,6 +3534,8 @@ const TEMPLATES: { id: string; kind: api.Layout["kind"]; name: string; cat: stri
     svg: '<rect x="2" y="6" width="68" height="20"/><path d="M22 6v20M34 6v20M46 6v20M58 6v20"/><path d="M28 10v12M40 10v12M52 10v12M64 10v12" stroke-width="2"/>' },
   { id: "terminal_strip", kind: "fuse_box", name: "wizard.terminalStrip", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="8" width="68" height="16"/><path d="M8.8 8v16M15.6 8v16M22.4 8v16M29.2 8v16M36 8v16M42.8 8v16M49.6 8v16M56.4 8v16M63.2 8v16"/>' },
+  { id: "asset_tag", kind: "asset_tag", name: "wizard.assetTag", cat: "wizard.catOffice",
+    svg: '<rect x="2" y="4" width="68" height="24" rx="2"/><path d="M7 9h5v5H7zM15 9h3M7 17h3v6H7zM14 18h4v5M18 14v3"/><path d="M26 12h22" stroke-width="1"/><path d="M26 21h38" stroke-width="3.5"/>' },
   { id: "lsa_strip", kind: "fuse_box", name: "wizard.lsaStrip", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="8" width="68" height="16"/><path d="M15.6 8v3M29.2 8v3M42.8 8v3M56.4 8v3M15.6 21v3M29.2 21v3M42.8 21v3M56.4 21v3"/><path d="M8 13h3v6M21 13h4v3h-4v3h4M35 13h4v6h-4M48 13h4M50 13v6"/>' },
 ];
@@ -3707,6 +3709,13 @@ function fillWizard(layout: api.Layout): void {
     check("wz-separators", layout.separators);
   }
   if (layout.kind === "terminal_block") $<HTMLSelectElement>("wz-rows").value = String(layout.rows);
+  if (layout.kind === "asset_tag") {
+    set("wz-owner", layout.owner);
+    set("wz-number", layout.number);
+    $<HTMLSelectElement>("wz-code").value = layout.code;
+    set("wz-code-data", layout.code_data);
+    set("wz-length", layout.length_mm);
+  }
   if (layout.kind === "fuse_box") {
     check("wz-fb-vertical", layout.vertical);
     set("wz-main", layout.main_switch);
@@ -3723,6 +3732,15 @@ function wizardLayout(): api.Layout {
   const text = $<HTMLInputElement>("wz-text").value;
   const diameter_mm = Math.max(0.5, num("wz-diameter"));
   switch (kind) {
+    case "asset_tag":
+      return {
+        kind,
+        owner: $<HTMLInputElement>("wz-owner").value,
+        number: $<HTMLInputElement>("wz-number").value,
+        code: $<HTMLSelectElement>("wz-code").value as api.AssetCode,
+        code_data: $<HTMLInputElement>("wz-code-data").value,
+        length_mm: Math.min(500, Math.max(10, num("wz-length"))),
+      };
     case "cable_flag":
     case "single_flag":
       return {
@@ -3958,7 +3976,8 @@ function updateWizard(): void {
   void (async () => {
     try {
       const label = await api.generateLayout(layout, selectedModel(), selectedWidth());
-      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), null, null, 2);
+      // First label of the series: placeholders like {{n:05}} show a real number.
+      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), 1, numbering(), 2);
       if (seq !== wizardSeq) return;
       $<HTMLImageElement>("wz-preview-img").src = `data:image/png;base64,${preview.png}`;
       const length = label.min_length_mm ?? 0;
