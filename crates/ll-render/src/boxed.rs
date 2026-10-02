@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::iconset::Halftone;
 use crate::linear_barcode::encode_modules;
-use crate::picture::{halftone_bits, load_gray, render_svg_to_gray};
+use crate::picture::{halftone_bits, load_gray, render_svg_to_gray, ImageAdjust};
 use crate::{render_qr, Bitmap, Face, QrErrorCorrection, RenderError, Symbology};
 
 /// Alpha threshold (0-255) above which a rasterized pixel counts as ink.
@@ -286,13 +286,20 @@ pub fn image_in_box(
     box_h: u16,
     invert: bool,
 ) -> Result<Bitmap, RenderError> {
-    gray_in_box(
-        &load_gray(path, box_h)?,
-        box_w,
-        box_h,
-        invert,
-        Halftone::Dither,
-    )
+    image_in_box_adjusted(path, box_w, box_h, invert, ImageAdjust::default())
+}
+
+/// [`image_in_box`] with brightness/contrast correction.
+pub fn image_in_box_adjusted(
+    path: &Path,
+    box_w: u32,
+    box_h: u16,
+    invert: bool,
+    adjust: ImageAdjust,
+) -> Result<Bitmap, RenderError> {
+    let mut gray = load_gray(path, box_h)?;
+    adjust.apply(&mut gray);
+    gray_in_box(&gray, box_w, box_h, invert, Halftone::Dither)
 }
 
 /// Renders a symbol from a registered icon set (see [`crate::iconset`])

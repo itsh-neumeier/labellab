@@ -26,6 +26,10 @@ Editor
   oder Nummer. Eigene Sets (.llabel-iconset) mit "Icon-Set importieren ..." hinzufuegen;
   erstellen aus einem SVG-Ordner: .\labellab-cli.exe iconset create <Ordner> --id meine
   --name "Meine Icons" -o meine.llabel-iconset
+- Form: Linie, Rechteck, abgerundetes Rechteck, Oval (Linienstaerke, gefuellt).
+  Ausrichten-Knoepfe je Element, Schloss = sperren, Umschalt an der Ecke = Seitenverhaeltnis.
+  {{datum}} und {{zeit}} im Text werden beim Druck mit Datum/Uhrzeit gefuellt.
+  "Laenge fest": Label genau so lang wie die Mindestlaenge.
 - Schriftauswahl zeigt jede Schrift in ihrem Schriftbild, mit Suchfeld.
 - "Zuletzt verwendet" in der Werkzeugleiste, "Serie ansehen ..." zeigt alle Labels
   einer Serie.

@@ -471,3 +471,25 @@ Vorlage:
   als gemeinfrei (u. a. „zu einfach für Schutz“) bzw. CC0 eingestuft — diese Einstufung wird
   übernommen und je Zeichen dokumentiert.
 
+## ADR-024: Editor-Ausbau Paket 1 – Formen, feste Länge, Datum/Zeit, Bildkorrektur, Ausrichten/Sperren
+- Datum / Status: 2026-10-02 · angenommen
+- Kontext: Funktionsvergleich mit dem Hersteller-Editor (Screenshots des Nutzers, nur als
+  Anregung; keine Grafiken oder Dateien daraus im Repo). Roadmap M9 in `PROGRESS.md`.
+- Entscheidung:
+  - **Element `shape`** (`ll_render::shape`, tiny-skia): `line`, `rectangle`,
+    `rounded_rectangle` (Radius 25 % der kürzeren Seite), `ellipse`; `stroke_mm` (Standard
+    0,3 mm), `filled`. Kanten per Schwellwert (Alpha ≥ 50 %), im Fluss ein Quadrat der Bandhöhe.
+  - **`Label::fixed_length`:** mit `min_length_mm` ist das Label genau so lang, Inhalt darüber
+    hinaus wird abgeschnitten (`Bitmap::truncate`); Rahmen folgt der festen Länge.
+  - **Platzhalter `{{datum}}`/`{{date}}`, `{{zeit}}`/`{{time}}`** mit optionalem
+    strftime-Format (`{{datum:%Y-%m-%d}}`), lokale Zeit über `chrono` (MIT/Apache, war im
+    App-Baum schon vorhanden). Ungültiges Format → Platzhalter bleibt sichtbar. Die CLI füllt
+    Platzhalter jetzt auch beim Einzeldruck (Vorschau = Druck).
+  - **Bild:** `brightness`/`contrast` (−100…100) vor dem Dithering (`ImageAdjust`).
+  - **`Item::locked`:** nur Editor-Verhalten (kein Verschieben/Skalieren, keine Griffe).
+  - GUI: Ausrichten am Label/Band (Start/Mitte/Ende, oben/Mitte/unten, ganze Bandhöhe; Länge
+    ohne das Element selbst gemessen), Umschalt beim Ecken-Skalieren hält das
+    Seitenverhältnis, mm-Lineal über der Vorschau, Chips `{{datum}}`/`{{zeit}}`.
+- Konsequenzen: `.llabel` bleibt Version 2 (alle neuen Felder optional). Z-Reihenfolge ist bei
+  reinem Schwarz-Druck (Tinte wird nur hinzugefügt) wirkungslos und entfällt vorerst.
+

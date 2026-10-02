@@ -214,6 +214,8 @@ pub async fn print_image(
     let label = Label::single(Element::Image {
         path: path.into(),
         invert,
+        brightness: 0,
+        contrast: 0,
     });
     print_label(transport, model, &label, options).await
 }

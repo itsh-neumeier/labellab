@@ -201,14 +201,33 @@ fn resolve(name: &str, rec: &Record<'_>) -> Option<String> {
         }
         "a" => letters(value, false),
         "A" => letters(value, true),
+        "datum" | "date" => now_formatted(format.unwrap_or("%d.%m.%Y")),
+        "zeit" | "time" => now_formatted(format.unwrap_or("%H:%M")),
         _ => None,
     }
+}
+
+/// Current local date/time in a strftime `format`; `None` (placeholder
+/// stays visible) if the format is invalid.
+fn now_formatted(format: &str) -> Option<String> {
+    use chrono::format::{Item, StrftimeItems};
+    let items: Vec<Item> = StrftimeItems::new(format).collect();
+    if items.iter().any(|i| matches!(i, Item::Error)) {
+        return None;
+    }
+    Some(
+        chrono::Local::now()
+            .format_with_items(items.into_iter())
+            .to_string(),
+    )
 }
 
 /// Replaces placeholders in `text`: `{{Column}}` (CSV, case-insensitive,
 /// spaces ignored), `{{#}}` (position in the series), `{{n}}` / `{{n:03}}`
 /// (running number, optionally zero-padded), `{{a}}` / `{{A}}` (letter
-/// sequence a..z, aa..). Unknown placeholders stay as written so they're
+/// sequence a..z, aa..), `{{datum}}` / `{{zeit}}` (current local date
+/// `31.12.2026` / time `14:05`, optional strftime format such as
+/// `{{datum:%Y-%m-%d}}`). Unknown placeholders stay as written so they're
 /// visible on the preview.
 pub fn fill(text: &str, rec: &Record<'_>) -> String {
     let mut out = String::with_capacity(text.len());
@@ -263,7 +282,7 @@ pub fn apply(label: &Label, data: Option<&DataSet>, number: usize, numbering: Nu
                 }
             }
             Element::Symbol { name, .. } => *name = f(name),
-            Element::Fill => {}
+            Element::Fill | Element::Shape { .. } => {}
         }
     }
     out
@@ -292,7 +311,7 @@ pub fn placeholders(label: &Label) -> Vec<String> {
             Element::Qr { data } | Element::Barcode { data, .. } => scan(data),
             Element::Image { path, .. } => scan(&path.to_string_lossy()),
             Element::Symbol { name, .. } => scan(name),
-            Element::Fill => {}
+            Element::Fill | Element::Shape { .. } => {}
         }
     }
     names
@@ -348,6 +367,22 @@ mod tests {
             &rec(&d, 2, Numbering::default()),
         );
         assert_eq!(s, "Switch / Keller #2 {{fehlt}}");
+    }
+
+    #[test]
+    fn date_and_time_placeholders() {
+        let d = data();
+        let r = rec(&d, 1, Numbering::default());
+        let date = fill("{{datum}}", &r);
+        assert!(
+            date.len() == 10 && date.as_bytes()[2] == b'.' && date.as_bytes()[5] == b'.',
+            "{date}"
+        );
+        let time = fill("{{zeit}}", &r);
+        assert!(time.len() == 5 && time.as_bytes()[2] == b':', "{time}");
+        assert_eq!(fill("{{date:%Y}}", &r).len(), 4);
+        // An invalid format leaves the placeholder visible.
+        assert_eq!(fill("{{datum:%Q}}", &r), "{{datum:%Q}}");
     }
 
     #[test]

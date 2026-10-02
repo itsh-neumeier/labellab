@@ -17,6 +17,7 @@ pub mod iconset;
 pub mod linear_barcode;
 pub mod picture;
 pub mod png;
+pub mod shape;
 pub mod symbols;
 pub mod text;
 
@@ -28,6 +29,7 @@ pub use fonts::Face;
 pub use frame::{draw_border, draw_border_styled, Border, BorderSides, BorderStyle};
 pub use iconset::{Halftone, IconSet, ICONSET_EXTENSION};
 pub use linear_barcode::{render_barcode, render_barcode_with_module, render_code128, Symbology};
-pub use picture::{render_image, render_svg_bytes};
+pub use picture::{render_image, render_image_adjusted, render_svg_bytes, ImageAdjust};
+pub use shape::ShapeKind;
 pub use symbols::{render_symbol, SYMBOL_NAMES};
 pub use text::{render_text, render_text_with_font};

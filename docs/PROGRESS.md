@@ -79,6 +79,27 @@
   --step`; GUI „Assistent …“, Bereich „Nummerierung“. Noch nicht: Vorschau aller Datensätze
   als Liste, Half-Cut (vom P710BT nicht unterstützt).
 - [ ] **M8 – Release v1.0.0:** Installer, Doku, Screenshots
+- [ ] **M9 – Editor-Ausbau nach Funktionsvergleich** (Nutzerwunsch 2026-10-02: Screenshots des
+  Hersteller-Editors als Anregung; nur Funktionsideen übernommen, keine Grafiken/Dateien des
+  Herstellers ins Repo). Paket 1 – Editor-Grundlagen:
+  - [x] Formen: Linie, Rechteck, abgerundetes Rechteck, Oval (Kontur/gefüllt, Linienstärke)
+  - [x] Feste Länge (exakt, Inhalt wird abgeschnitten) zusätzlich zur Mindestlänge
+  - [x] Datum/Uhrzeit als Platzhalter (`{{datum}}`, `{{zeit}}`, beim Druck aktuell)
+  - [x] Bild: Helligkeit/Kontrast
+  - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
+    beim Skalieren fixieren, Element sperren (nicht verschiebbar)
+  - [x] Lineal (mm) über der Vorschau
+  Paket 2 – Vorlagen-Startseite:
+  - [ ] Startseite/Galerie mit Vorlagen nach Kategorien (Fähnchen, Einzelfähnchen, Umlauf,
+    Selbstlaminierend, Schrumpfschlauch, Anschlüsse/Patchpanel, Verteiler/Sicherungskasten mit
+    senkrechter Beschriftung und Hauptschalter, Klemmblock zweireihig, Anschlussblock)
+  - [ ] Selbstlaminierende Bänder (bedruckbarer Teil + transparente Wickelzone) und
+    Schrumpfschlauch-Bänder (HS 5,8–23,6 mm) — Geometrie/Medientypen `TODO(verify)`
+  - [ ] „Erstellte Labels“: zuletzt verwendet mit Vorschaubild, Druckverlauf (Datum, Band)
+  Paket 3 – Dokument/Layout:
+  - [ ] Mehrere Labels in einer Datei (Reiter), Hochformat (ganzes Label gedreht)
+  - [ ] Tabellen (Zellen mit Text), dekorative Rahmen-Bibliothek (als Icon-Set-artige
+    Sammlung), Z-Reihenfolge, Objektnamen
 
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
@@ -227,6 +248,19 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-02 – Claude Code, M9 Paket 1 – Editor-Grundlagen (ADR-024)
+- Anlass: Nutzer schickte Screenshots des Hersteller-Editors (ODT, nicht im Repo; enthält
+  persönliche Daten). Daraus Roadmap M9 (3 Pakete) in „Meilensteine“.
+- Umgesetzt: Element „Form“ (Linie/Rechteck/abgerundet/Oval, Linienstärke, gefüllt), „Länge
+  fest“, `{{datum}}`/`{{zeit}}` (chrono), Bild-Helligkeit/-Kontrast, Sperren, Ausrichten-Knöpfe,
+  Seitenverhältnis mit Umschalt, mm-Lineal.
+- Geprüft: 141 Tests, fmt/clippy (Linux, Windows-Cross-Check, App), Frontend-Build; GUI unter
+  Xvfb (Form hinzufügen → Oval gefüllt, waagerecht mittig = (37,8 − 14,8)/2, Sperren blendet
+  Griffe/Ausrichten aus, Lineal deckungsgleich); CLI `render "Geprüft {{datum}} {{zeit}}"`.
+- Stolperstein: Mittig-Ausrichten muss die Labellänge **ohne** das Element selbst messen, sonst
+  zählt seine alte Position mit.
+- Offen: Paket 2 (Vorlagen-Startseite, SL-/Schrumpfschlauch-Bänder, Druckverlauf), Paket 3.
+
 ### 2026-10-02 – Claude Code, Icon-Sets, ISO 7010 und IEC 60417 (ADR-023)
 - `ll-render::iconset`: Format `.llabel-iconset` (JSON, Kategorien, SVG je Icon, Lizenz/Urheber
   je Icon), Registry (mitgeliefert + importiert), Namen `set:icon`, `normalize_svg` (usvg),
