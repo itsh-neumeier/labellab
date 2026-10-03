@@ -1,0 +1,36 @@
+LabelLab 1.0 - Linux x64
+========================
+
+Pakete (GitHub -> Releases):
+- LabelLab_<Version>_amd64.AppImage   Oberflaeche, portabel: ausfuehrbar machen und starten
+                                     chmod +x LabelLab_*.AppImage && ./LabelLab_*.AppImage
+- LabelLab_<Version>_amd64.deb        Oberflaeche als Paket (Debian/Ubuntu/Mint):
+                                     sudo apt install ./LabelLab_*.deb
+                                     Installiert auch die udev-Regel fuer USB.
+- LabelLab-<Version>-linux-x64-cli.tar.gz   Kommandozeile "labellab", z. B.:
+                                     ./labellab devices
+                                     ./labellab status --bt --device "PT-P710BT5265"
+                                     ./labellab print "TEST" --bt --device "PT-P710BT5265"
+
+Voraussetzungen
+- 64-Bit-Linux mit glibc 2.35 oder neuer (z. B. Ubuntu 22.04, Debian 12).
+- Oberflaeche: WebKitGTK 4.1 (beim .deb automatisch, bei der AppImage enthalten).
+- Bluetooth: BlueZ. Drucker einmal koppeln: bluetoothctl -> scan on -> pair <MAC> -> trust <MAC>
+  (oder "Koppeln ..." in LabelLab). Nur eine Bluetooth-Verbindung gleichzeitig: Handy trennen.
+
+USB ohne root
+- Die Datei 60-labellab.rules (im CLI-Archiv, beim .deb bereits installiert) nach
+  /etc/udev/rules.d/ kopieren, dann:
+  sudo udevadm control --reload && sudo udevadm trigger
+  Drucker danach neu einstecken.
+
+Einstellungen
+- AppImage und .deb: verschluesselt in ~/.local/share/labellab (eigene Rahmen, Icon-Sets,
+  Verlauf usw. im Ordner "llappdata" daneben). Ist der Programmordner beschreibbar (z. B. das
+  entpackte CLI-Archiv), liegen sie dort. Umgebungsvariablen LABELLAB_DATA_DIR und
+  LABELLAB_SETTINGS ueberschreiben die Pfade.
+
+Die Bedienung ist dieselbe wie unter Windows (siehe LIESMICH fuer Windows im Repository,
+docs/LIESMICH-windows.txt).
+
+Unabhaengiges Projekt, nicht mit Brother Industries, Ltd. verbunden. Lizenz: MIT.

@@ -3,7 +3,14 @@
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionierung nach [SemVer](https://semver.org/lang/de/).
 
 ## [Unreleased]
+
+## [1.0.0] – 2026-10-03
+Erste stabile Version.
+
 ### Hinzugefügt
+- Release-Pakete für alle Plattformen unter GitHub → Releases: Windows x64 portabel (ZIP mit
+  `LabelLab.exe`, `labellab-cli.exe`), Linux x64 als AppImage und `.deb` (mit udev-Regel für
+  USB ohne root) sowie Kommandozeile als `.tar.gz`; Prüfsummen in `SHA256SUMS.txt`
 - Schrift D-DIN (freie Nachbildung der DIN 1451, SIL OFL 1.1) wird mitgeliefert und ist ohne
   Installation in der Schriftauswahl verfügbar; Rohrleitungsschilder nutzen sie standardmäßig
 - Rohrleitungsschilder: eigene Farben für Hintergrund, Schrift/Rand und Spitzen (Zusatzfarbe)

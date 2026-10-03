@@ -34,8 +34,13 @@ Für Menschen und KI-Agenten. Jede Aufgabe hier hat eine Checkliste. Erst abhake
 
 ## 5. Release erstellen
 - [ ] `PROGRESS.md` und `CHANGELOG.md` aktuell, `[Unreleased]` → `[x.y.z] – Datum`
-- [ ] Version in `Cargo.toml` (Workspace), `app/src-tauri/tauri.conf.json`, `app/package.json` gleich setzen
-- [ ] Tag `vX.Y.Z` pushen → CI baut MSI/NSIS (Windows) und AppImage/.deb (Linux)
+- [ ] Version gleich setzen: `Cargo.toml` (Workspace), `app/src-tauri/Cargo.toml`,
+  `app/src-tauri/tauri.conf.json`, `app/package.json` (`npm version X.Y.Z --no-git-tag-version`),
+  danach `cargo check` in beiden Workspaces (aktualisiert die `Cargo.lock`)
+- [ ] Auf `main` mergen, dann Tag `vX.Y.Z` auf den Merge-Commit pushen → Workflow „Release“
+  prüft die Versionen und den CHANGELOG-Abschnitt, baut Windows-ZIP (portabel), Linux-AppImage,
+  `.deb` und CLI-Archiv und veröffentlicht das Release mit den Notizen aus `CHANGELOG.md`.
+  Fehlgeschlagen? Workflow „Release“ manuell mit dem Tag erneut starten.
 - [ ] Release-Artefakte auf beiden Plattformen kurz testen (Start, Status, ein Druck)
 - [ ] Release-Notes aus `CHANGELOG.md`
 

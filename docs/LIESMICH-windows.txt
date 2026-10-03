@@ -1,5 +1,5 @@
-LabelLab (Vorabversion) - Windows x64, portabel
-===============================================
+LabelLab 1.0 - Windows x64, portabel
+====================================
 
 LabelLab.exe   Oberflaeche. Doppelklick genuegt, keine Installation noetig.
 labellab-cli.exe   Kommandozeile, z. B. in PowerShell:

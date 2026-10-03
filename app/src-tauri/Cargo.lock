@@ -2213,7 +2213,7 @@ dependencies = [
 
 [[package]]
 name = "labellab-app"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "image",
@@ -2311,7 +2311,7 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "ll-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chacha20poly1305",
  "chrono",
@@ -2329,14 +2329,14 @@ dependencies = [
 
 [[package]]
 name = "ll-protocol"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "ll-render"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "barcoders",
  "fontdb",
@@ -2353,7 +2353,7 @@ dependencies = [
 
 [[package]]
 name = "ll-transport"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "bluer",
