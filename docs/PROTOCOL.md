@@ -116,8 +116,17 @@ Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); 
   PT-P710BT, 10 = 24 mm, 25 `0x08` = schwarz. Beobachtet: Medientyp (11) `0x14` — nicht in
   der dokumentierten Tabelle (unbekannt, evtl. Flex-Band; TODO(verify)), Byte 12 `0x01`,
   Bandfarbe (24) `0x90` = laut Tabelle „Weiß (Flex)“. Fehlerbytes 0.
-- TODO(verify): Status-Byte für Akkustand vorhanden? Rohdaten im Dialog „Druckerinfo“ am
-  Ladekabel und im Akkubetrieb vergleichen. (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
+- Rohdaten vom Nutzer (2026-10-03), dasselbe Band einmal über Bluetooth, einmal über USB
+  gelesen: **beide Blöcke byte-gleich** und gleich dem Block vom 2026-10-02. Der Statusblock
+  hängt also nicht von der Verbindung ab (verifiziert). Laut Nutzer ist das Band
+  „laminiert 24 mm, transparent“ mit weißer Schrift; die Kassette meldet aber Medientyp `0x14`,
+  Bandfarbe `0x90` (Weiß Flex-ID) und Schriftfarbe `0x08` (Schwarz). Die Kassettenkennung
+  stimmt hier also nicht mit dem Band überein (vermutlich kompatible Kassette, unverifiziert) –
+  die App merkt sich deshalb eine vom Nutzer korrigierte Bandfarbe je gemeldetem Code-Paar.
+- TODO(verify): Status-Byte für Akkustand vorhanden? Der Vergleich BT/USB sagt dazu nichts,
+  entscheidend ist der Stromzustand: einmal mit eingestecktem Ladekabel, einmal nur Akku
+  (Kabel ab, über Bluetooth lesen). Bisher in keinem Byte ein Unterschied. Dokumentiert ist nur
+  das Fehlerbit „Akku schwach“ (Byte 8, `0x08`). (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
 - TODO(verify): Code-Bedeutung Medientyp `0x01`, Bandfarbe `0x01`, Schriftfarbe `0x08` (vermutlich
   laminiert/schwarz auf weiß, gegen Brothers Farbcode-Tabelle prüfen)
 

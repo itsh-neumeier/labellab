@@ -212,6 +212,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- Bandfarbe: meldet eine Kassette andere Farben als sie hat (z. B. kompatible Bänder), wird die
+  von Hand gewählte Bandfarbe für genau diese Kassettenkennung gemerkt und beim nächsten
+  „Status lesen“ nicht mehr überschrieben
 - Neues, unverändertes Dokument galt nach dem Start als „ungespeichert“ (gemerkte Felder,
   automatisch erkannte Bandbreite) – Schließen fragte unnötig nach
 - Änderungen während eines (Auto-)Speicherns galten als gespeichert und konnten verloren gehen

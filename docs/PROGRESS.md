@@ -328,6 +328,12 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-03 – Claude Code, Rohdaten BT/USB, Bandfarben-Korrektur
+- Nutzer schickte Statusblock über BT und USB: byte-gleich (auch zum 2026-10-02). Kassette meldet
+  Flex-ID weiß/schwarz (`0x14`/`0x90`/`0x08`), eingelegt ist laut Nutzer laminiert transparent
+  mit weißer Schrift → App merkt sich die Korrektur je Code-Paar (`labellab.tapeFix.*`).
+- Akku: weiterhin offen – nötig ist der Vergleich Ladekabel dran / nur Akku (nicht BT/USB).
+
 ### 2026-10-03 – Claude Code, autonome Features: Tabelle, Mehrfachauswahl, Inventarlabel
 - Nutzerwunsch: „Code checken und neue Features entwickeln, überraschen“.
 - Neu: Tabellen-Element (`ll_core::table`, ADR-040, `.lbx`-Tabellen → Tabelle), Ebenen
