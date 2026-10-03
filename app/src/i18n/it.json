@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Lunghezza (mm)",
   "export.png": "Come immagine …",
   "export.pngHint": "Salva il foglio corrente come PNG nei colori del nastro (720 dpi), ad es. per la documentazione",
-  "export.saved": "Immagine salvata: {path}"
+  "export.saved": "Immagine salvata: {path}",
+  "group.count": "{n} elementi selezionati",
+  "group.align": "Tra loro:",
+  "group.left": "Allinea i bordi sinistri",
+  "group.hcenter": "Centra orizzontalmente",
+  "group.right": "Allinea i bordi destri",
+  "group.top": "Allinea i bordi superiori",
+  "group.vcenter": "Centra verticalmente",
+  "group.bottom": "Allinea i bordi inferiori",
+  "group.hspread": "Distribuisci orizzontalmente",
+  "group.vspread": "Distribuisci verticalmente",
+  "group.hint": "Maiusc o Ctrl + clic seleziona altri elementi. Trascinamento, frecce e Canc agiscono su tutti; sotto le proprietà dell'ultimo scelto."
 }

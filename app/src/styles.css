@@ -601,3 +601,7 @@ dialog#a4-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .layer-grip { cursor: grab; color: var(--muted); padding: 0 2px; touch-action: none; }
 .layer.dragging { opacity: 0.5; }
 .layer-drop { height: 3px; border-radius: 2px; background: var(--accent); list-style: none; margin: -1px 0; }
+
+/* Several selected elements: head of the properties panel. */
+.group-card { border: 1px solid var(--accent); border-radius: 8px; padding: 8px; margin-bottom: 10px; background: rgba(31, 111, 235, 0.05); }
+.group-head { margin: 0 0 6px; font-weight: 600; }

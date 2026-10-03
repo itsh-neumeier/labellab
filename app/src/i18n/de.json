@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Länge (mm)",
   "export.png": "Als Bild …",
   "export.pngHint": "Aktuelles Blatt als PNG in Bandfarben speichern (720 dpi), z. B. für Dokumentation oder Angebote",
-  "export.saved": "Bild gespeichert: {path}"
+  "export.saved": "Bild gespeichert: {path}",
+  "group.count": "{n} Elemente ausgewählt",
+  "group.align": "Aneinander:",
+  "group.left": "Linke Kanten bündig",
+  "group.hcenter": "Waagerecht mittig zueinander",
+  "group.right": "Rechte Kanten bündig",
+  "group.top": "Obere Kanten bündig",
+  "group.vcenter": "Senkrecht mittig zueinander",
+  "group.bottom": "Untere Kanten bündig",
+  "group.hspread": "Waagerecht gleichmäßig verteilen",
+  "group.vspread": "Senkrecht gleichmäßig verteilen",
+  "group.hint": "Umschalt- oder Strg-Klick wählt weitere Elemente. Ziehen, Pfeiltasten und Entf wirken auf alle; unten die Eigenschaften des zuletzt gewählten."
 }

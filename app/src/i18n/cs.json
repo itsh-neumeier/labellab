@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Délka (mm)",
   "export.png": "Jako obrázek …",
   "export.pngHint": "Uložit aktuální list jako PNG v barvách pásky (720 dpi), např. pro dokumentaci",
-  "export.saved": "Obrázek uložen: {path}"
+  "export.saved": "Obrázek uložen: {path}",
+  "group.count": "Vybrané prvky: {n}",
+  "group.align": "Navzájem:",
+  "group.left": "Zarovnat levé okraje",
+  "group.hcenter": "Vystředit vodorovně",
+  "group.right": "Zarovnat pravé okraje",
+  "group.top": "Zarovnat horní okraje",
+  "group.vcenter": "Vystředit svisle",
+  "group.bottom": "Zarovnat dolní okraje",
+  "group.hspread": "Rozmístit vodorovně",
+  "group.vspread": "Rozmístit svisle",
+  "group.hint": "Shift nebo Ctrl + klik vybere další prvky. Tažení, šipky a Delete působí na všechny; níže vlastnosti naposledy vybraného."
 }

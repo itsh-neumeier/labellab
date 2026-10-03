@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Longitud (mm)",
   "export.png": "Como imagen …",
   "export.pngHint": "Guardar la hoja actual como PNG con los colores de la cinta (720 dpi), p. ej. para documentación",
-  "export.saved": "Imagen guardada: {path}"
+  "export.saved": "Imagen guardada: {path}",
+  "group.count": "{n} elementos seleccionados",
+  "group.align": "Entre sí:",
+  "group.left": "Alinear bordes izquierdos",
+  "group.hcenter": "Centrar horizontalmente",
+  "group.right": "Alinear bordes derechos",
+  "group.top": "Alinear bordes superiores",
+  "group.vcenter": "Centrar verticalmente",
+  "group.bottom": "Alinear bordes inferiores",
+  "group.hspread": "Distribuir horizontalmente",
+  "group.vspread": "Distribuir verticalmente",
+  "group.hint": "Mayús o Ctrl + clic selecciona más elementos. Arrastrar, las flechas y Supr actúan sobre todos; abajo las propiedades del último elegido."
 }

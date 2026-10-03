@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Longueur (mm)",
   "export.png": "En image …",
   "export.pngHint": "Enregistrer la feuille en PNG aux couleurs du ruban (720 dpi), p. ex. pour la documentation",
-  "export.saved": "Image enregistrée : {path}"
+  "export.saved": "Image enregistrée : {path}",
+  "group.count": "{n} éléments sélectionnés",
+  "group.align": "Entre eux :",
+  "group.left": "Aligner les bords gauches",
+  "group.hcenter": "Centrer horizontalement",
+  "group.right": "Aligner les bords droits",
+  "group.top": "Aligner les bords supérieurs",
+  "group.vcenter": "Centrer verticalement",
+  "group.bottom": "Aligner les bords inférieurs",
+  "group.hspread": "Répartir horizontalement",
+  "group.vspread": "Répartir verticalement",
+  "group.hint": "Maj ou Ctrl + clic sélectionne d'autres éléments. Le glissement, les flèches et Suppr agissent sur tous ; ci-dessous les propriétés du dernier choisi."
 }

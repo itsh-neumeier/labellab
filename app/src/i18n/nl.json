@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Lengte (mm)",
   "export.png": "Als afbeelding …",
   "export.pngHint": "Huidig blad als PNG in tapekleuren opslaan (720 dpi), bijv. voor documentatie",
-  "export.saved": "Afbeelding opgeslagen: {path}"
+  "export.saved": "Afbeelding opgeslagen: {path}",
+  "group.count": "{n} elementen geselecteerd",
+  "group.align": "Onderling:",
+  "group.left": "Linkerranden uitlijnen",
+  "group.hcenter": "Horizontaal centreren",
+  "group.right": "Rechterranden uitlijnen",
+  "group.top": "Bovenranden uitlijnen",
+  "group.vcenter": "Verticaal centreren",
+  "group.bottom": "Onderranden uitlijnen",
+  "group.hspread": "Horizontaal verdelen",
+  "group.vspread": "Verticaal verdelen",
+  "group.hint": "Shift- of Ctrl-klik selecteert meer elementen. Slepen, pijltjestoetsen en Delete werken op alle; hieronder de eigenschappen van het laatst gekozen element."
 }

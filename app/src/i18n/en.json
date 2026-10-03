@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Length (mm)",
   "export.png": "As image …",
   "export.pngHint": "Save the current sheet as a PNG in tape colours (720 dpi), e.g. for documentation",
-  "export.saved": "Image saved: {path}"
+  "export.saved": "Image saved: {path}",
+  "group.count": "{n} elements selected",
+  "group.align": "To each other:",
+  "group.left": "Align left edges",
+  "group.hcenter": "Centre horizontally",
+  "group.right": "Align right edges",
+  "group.top": "Align top edges",
+  "group.vcenter": "Centre vertically",
+  "group.bottom": "Align bottom edges",
+  "group.hspread": "Distribute horizontally",
+  "group.vspread": "Distribute vertically",
+  "group.hint": "Shift or Ctrl click selects more elements. Dragging, arrow keys and Delete act on all; below the properties of the last one chosen."
 }

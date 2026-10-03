@@ -572,5 +572,16 @@
   "wizard.lengthMm": "Długość (mm)",
   "export.png": "Jako obraz …",
   "export.pngHint": "Zapisz bieżący arkusz jako PNG w kolorach taśmy (720 dpi), np. do dokumentacji",
-  "export.saved": "Obraz zapisany: {path}"
+  "export.saved": "Obraz zapisany: {path}",
+  "group.count": "Zaznaczone elementy: {n}",
+  "group.align": "Względem siebie:",
+  "group.left": "Wyrównaj lewe krawędzie",
+  "group.hcenter": "Wyśrodkuj w poziomie",
+  "group.right": "Wyrównaj prawe krawędzie",
+  "group.top": "Wyrównaj górne krawędzie",
+  "group.vcenter": "Wyśrodkuj w pionie",
+  "group.bottom": "Wyrównaj dolne krawędzie",
+  "group.hspread": "Rozłóż równomiernie w poziomie",
+  "group.vspread": "Rozłóż równomiernie w pionie",
+  "group.hint": "Shift lub Ctrl + klik zaznacza kolejne elementy. Przeciąganie, strzałki i Delete działają na wszystkie; poniżej właściwości ostatnio wybranego."
 }

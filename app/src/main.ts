@@ -216,6 +216,7 @@ function stepHistory(delta: number): void {
   if (next < 0 || next >= state.history.length) return;
   state.historyIndex = next;
   state.label = JSON.parse(state.history[next]);
+  multi.clear();
   if (state.selected >= state.label.elements.length) state.selected = -1;
   renderAll();
   updateHistoryButtons();
@@ -577,7 +578,7 @@ function renderBoxes(): void {
   state.label.elements.forEach((item, index) => {
     if (!item.rect) return;
     const box = document.createElement("div");
-    box.className = `box${index === state.selected ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}${item.locked ? " locked" : ""}${item.hidden ? " is-hidden" : ""}`;
+    box.className = `box${isSelected(index) ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}${item.locked ? " locked" : ""}${item.hidden ? " is-hidden" : ""}`;
     box.dataset.index = String(index);
     box.title = boxCaption(item);
     placeBox(box, item.rect);
@@ -618,15 +619,34 @@ function startDrag(e: PointerEvent, index: number): void {
   if (e.button !== 0) return;
   e.preventDefault();
   e.stopPropagation();
-  select(index);
+  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+    toggleSelect(index);
+    return;
+  }
+  const handle = (e.target as HTMLElement).dataset.handle ?? null;
+  // Dragging one of several selected boxes moves them all; else select just this one.
+  if (!isSelected(index) || handle) select(index);
+  else if (state.selected !== index) {
+    multi.add(state.selected);
+    multi.delete(index);
+    state.selected = index;
+    showSelection();
+  }
   const item = state.label.elements[index];
   if (!item.rect || item.locked) return;
   const box = (e.currentTarget as HTMLElement);
-  const handle = (e.target as HTMLElement).dataset.handle ?? null;
   const start = { ...item.rect };
+  // The other selected boxes follow the dragged one by the same distance.
+  const group = handle
+    ? []
+    : selection()
+        .slice(1)
+        .map((i) => ({ i, item: state.label.elements[i] }))
+        .filter((g) => g.item.rect && !g.item.locked)
+        .map((g) => ({ ...g, start: { ...g.item.rect! } }));
   const startX = e.clientX;
   const startY = e.clientY;
-  const others = state.label.elements.filter((_, i) => i !== index && state.label.elements[i].rect).map((i) => i.rect!);
+  const others = state.label.elements.filter((_, i) => !isSelected(i) && state.label.elements[i].rect).map((i) => i.rect!);
   const snapTargets = targets(others, labelHeightMm());
   const fixedLength = state.label.fixed_length ? state.label.min_length_mm : null;
   if (portrait()) {
@@ -662,6 +682,12 @@ function startDrag(e: PointerEvent, index: number): void {
     }
     item.rect = roundRect(next);
     placeBox(box, item.rect);
+    if (group.length) {
+      const mx = item.rect.x_mm - start.x_mm;
+      const my = item.rect.y_mm - start.y_mm;
+      for (const g of group) g.item.rect = roundRect({ ...g.start, x_mm: g.start.x_mm + mx, y_mm: g.start.y_mm + my });
+      repositionBoxes();
+    }
     showGuides(guides);
     updateRectInputs(index);
     schedulePreview();
@@ -679,16 +705,54 @@ function startDrag(e: PointerEvent, index: number): void {
   box.addEventListener("pointercancel", onUp);
 }
 
-function select(index: number): void {
-  if (state.selected === index) return;
-  state.selected = index;
-  document.querySelectorAll<HTMLElement>(".box").forEach((b) => b.classList.toggle("selected", Number(b.dataset.index) === index));
+/** Further selected elements besides `state.selected` (Shift/Ctrl+click). */
+const multi = new Set<number>();
+
+/** Every selected element index, the primary one first. */
+function selection(): number[] {
+  if (state.selected < 0) return [];
+  const n = state.label.elements.length;
+  return [state.selected, ...[...multi].filter((i) => i !== state.selected && i >= 0 && i < n)];
+}
+
+function isSelected(index: number): boolean {
+  return index === state.selected || multi.has(index);
+}
+
+/** Marks the selection in boxes and layer list, shows the properties. */
+function showSelection(scrollTo = state.selected): void {
+  document.querySelectorAll<HTMLElement>(".box").forEach((b) => b.classList.toggle("selected", isSelected(Number(b.dataset.index))));
   document.querySelectorAll<HTMLElement>(".layer").forEach((c) => {
-    const on = Number(c.dataset.index) === index;
-    c.classList.toggle("selected", on);
-    if (on) c.scrollIntoView({ block: "nearest" });
+    const i = Number(c.dataset.index);
+    c.classList.toggle("selected", isSelected(i));
+    if (i === scrollTo) c.scrollIntoView({ block: "nearest" });
   });
   renderProps();
+}
+
+function select(index: number): void {
+  if (state.selected === index && multi.size === 0) return;
+  multi.clear();
+  state.selected = index;
+  showSelection();
+}
+
+/** Shift/Ctrl+click: adds `index` to the selection or takes it out. */
+function toggleSelect(index: number): void {
+  if (state.selected < 0) {
+    state.selected = index;
+  } else if (isSelected(index)) {
+    multi.delete(index);
+    if (index === state.selected) {
+      const [next] = selection().slice(1);
+      state.selected = next ?? -1;
+      if (next !== undefined) multi.delete(next);
+    }
+  } else {
+    multi.add(state.selected);
+    state.selected = index;
+  }
+  showSelection(index);
 }
 
 /** Box for a new element: after the rightmost box, full tape height. */
@@ -1504,13 +1568,27 @@ function contentAlignRow(item: Item): HTMLElement | null {
   return row;
 }
 
+/** Removes several elements at once (one undo step). */
+function removeItems(indices: number[]): void {
+  if (indices.length <= 1) {
+    if (indices.length) removeItem(indices[0]);
+    return;
+  }
+  for (const i of [...indices].sort((a, b) => b - a)) state.label.elements.splice(i, 1);
+  multi.clear();
+  state.selected = -1;
+  changed(true);
+}
+
 function removeItem(index: number): void {
+  multi.clear();
   state.label.elements.splice(index, 1);
   state.selected = Math.min(state.selected, state.label.elements.length - 1);
   changed(true);
 }
 
 function duplicateItem(index: number): void {
+  multi.clear();
   const copy: Item = JSON.parse(JSON.stringify(state.label.elements[index]));
   // Next to the original along the label length (y in portrait).
   if (copy.rect) {
@@ -1535,7 +1613,7 @@ function elementCard(item: Item, index: number): HTMLLIElement {
   const li = document.createElement("li");
   li.className = `element${index === state.selected ? " selected" : ""}`;
   li.dataset.index = String(index);
-  li.addEventListener("pointerdown", () => select(index));
+  li.addEventListener("pointerdown", (e) => (e.shiftKey || e.ctrlKey || e.metaKey ? toggleSelect(index) : select(index)));
 
   const header = document.createElement("header");
   const title = document.createElement("strong");
@@ -1575,7 +1653,7 @@ function layerCaption(item: Item): string {
 /** Layer list row: name plus show/hide, lock, duplicate, delete. */
 function layerRow(item: Item, index: number): HTMLLIElement {
   const li = document.createElement("li");
-  li.className = `layer${index === state.selected ? " selected" : ""}${item.hidden ? " is-hidden" : ""}`;
+  li.className = `layer${isSelected(index) ? " selected" : ""}${item.hidden ? " is-hidden" : ""}`;
   li.dataset.index = String(index);
   li.addEventListener("pointerdown", () => select(index));
   const name = document.createElement("span");
@@ -1636,6 +1714,7 @@ function moveItem(from: number, to: number): void {
   const items = state.label.elements;
   to = Math.max(0, Math.min(items.length - 1, to));
   if (from === to || !items[from]) return;
+  multi.clear();
   const [item] = items.splice(from, 1);
   items.splice(to, 0, item);
   state.selected = to;
@@ -1689,10 +1768,84 @@ function renderElements(): void {
   renderProps();
 }
 
+type GroupAlign = "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom" | "hspread" | "vspread";
+
+/** Aligns the selected boxes to each other (their common bounding box) or spreads them evenly. */
+function alignGroup(how: GroupAlign): void {
+  const items = selection()
+    .map((i) => state.label.elements[i])
+    .filter((it) => it?.rect && !it.locked);
+  if (items.length < 2) return;
+  const rs = items.map((it) => it.rect!);
+  const left = Math.min(...rs.map((r) => r.x_mm));
+  const right = Math.max(...rs.map((r) => r.x_mm + r.w_mm));
+  const top = Math.min(...rs.map((r) => r.y_mm));
+  const bottom = Math.max(...rs.map((r) => r.y_mm + r.h_mm));
+  const spread = (axis: "x" | "y") => {
+    const pos = axis === "x" ? "x_mm" : "y_mm";
+    const size = axis === "x" ? "w_mm" : "h_mm";
+    const sorted = [...items].sort((a, b) => a.rect![pos] - b.rect![pos]);
+    const total = sorted.reduce((sum, it) => sum + it.rect![size], 0);
+    const span = (axis === "x" ? right - left : bottom - top) - total;
+    const gap = span / (sorted.length - 1);
+    let at = axis === "x" ? left : top;
+    for (const it of sorted) {
+      it.rect = { ...it.rect!, [pos]: at };
+      at += it.rect[size] + gap;
+    }
+  };
+  for (const it of items) {
+    const r = { ...it.rect! };
+    if (how === "left") r.x_mm = left;
+    if (how === "hcenter") r.x_mm = (left + right - r.w_mm) / 2;
+    if (how === "right") r.x_mm = right - r.w_mm;
+    if (how === "top") r.y_mm = top;
+    if (how === "vcenter") r.y_mm = (top + bottom - r.h_mm) / 2;
+    if (how === "bottom") r.y_mm = bottom - r.h_mm;
+    it.rect = r;
+  }
+  if (how === "hspread") spread("x");
+  if (how === "vspread") spread("y");
+  for (const it of items) it.rect = roundRect(it.rect!);
+  changed(true);
+  renderProps();
+}
+
+/** Properties panel head for several selected elements: count and alignment to each other. */
+function groupCard(): HTMLElement {
+  const card = document.createElement("div");
+  card.className = "group-card";
+  const head = document.createElement("p");
+  head.className = "group-head";
+  head.textContent = t("group.count", { n: selection().length });
+  const row = document.createElement("div");
+  row.className = "align-row";
+  const label = document.createElement("span");
+  label.textContent = t("group.align");
+  row.append(label);
+  const buttons: [string, string, GroupAlign][] = [
+    ["⇤", "group.left", "left"],
+    ["↔", "group.hcenter", "hcenter"],
+    ["⇥", "group.right", "right"],
+    ["⤒", "group.top", "top"],
+    ["↕", "group.vcenter", "vcenter"],
+    ["⤓", "group.bottom", "bottom"],
+    ["⋯", "group.hspread", "hspread"],
+    ["⋮", "group.vspread", "vspread"],
+  ];
+  for (const [icon, key, how] of buttons) row.append(makeButton(icon, t(key), () => alignGroup(how)));
+  const hint = document.createElement("p");
+  hint.className = "muted hint";
+  hint.textContent = t("group.hint");
+  card.append(head, row, hint);
+  return card;
+}
+
 /** Right panel: every setting of the selected element. */
 function renderProps(): void {
   const body = $("props-body");
   body.replaceChildren();
+  if (selection().length > 1) body.append(groupCard());
   const item = state.label.elements[state.selected];
   if (!item) {
     const hint = document.createElement("p");
@@ -3227,6 +3380,7 @@ async function showSheet(index: number, sync = true): Promise<void> {
   state.label = sheet.label;
   for (const item of state.label.elements) if (item.rect) item.rect = roundRect(item.rect);
   state.selected = -1;
+  multi.clear();
   const model = state.models.find((m) => m.name === selectedModel());
   if (sheet.width_mm && model?.tapes.some((tp) => tp.width_mm === sheet.width_mm) && sheet.width_mm !== selectedWidth()) {
     fillWidths(sheet.width_mm);
@@ -4055,6 +4209,7 @@ function bindWizard(): void {
       }
       state.label = label;
       state.selected = -1;
+      multi.clear();
       dialog.close();
       changed(true);
       renderAll();
@@ -4436,9 +4591,11 @@ function isTyping(): boolean {
 }
 
 function nudge(dx: number, dy: number): void {
-  const item = state.label.elements[state.selected];
-  if (!item?.rect || item.locked) return;
-  item.rect = roundRect({ ...item.rect, x_mm: item.rect.x_mm + dx, y_mm: item.rect.y_mm + dy });
+  const items = selection()
+    .map((i) => state.label.elements[i])
+    .filter((it) => it?.rect && !it.locked);
+  if (!items.length) return;
+  for (const item of items) item.rect = roundRect({ ...item.rect!, x_mm: item.rect!.x_mm + dx, y_mm: item.rect!.y_mm + dy });
   repositionBoxes();
   updateRectInputs(state.selected);
   commitSoon();
@@ -4569,7 +4726,7 @@ function bindUi(): void {
       moveItem(state.selected, e.shiftKey ? (up ? Infinity : 0) : state.selected + (up ? 1 : -1));
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
-      removeItem(state.selected);
+      removeItems(selection());
     } else if (e.key === "Escape") {
       select(-1);
     }
