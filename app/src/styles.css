@@ -1,3 +1,10 @@
+/* Bundled D-DIN (SIL OFL, see crates/ll-render/assets/fonts/README.md): the font
+   picker shows it in its own face like the system fonts. */
+@font-face { font-family: "D-DIN"; src: url("./fonts/D-DIN.otf") format("opentype"); font-weight: 400; }
+@font-face { font-family: "D-DIN"; src: url("./fonts/D-DIN-Bold.otf") format("opentype"); font-weight: 700; }
+@font-face { font-family: "D-DIN Condensed"; src: url("./fonts/D-DINCondensed.otf") format("opentype"); font-weight: 400; }
+@font-face { font-family: "D-DIN Condensed"; src: url("./fonts/D-DINCondensed-Bold.otf") format("opentype"); font-weight: 700; }
+
 :root {
   --bg: #f6f7f9;
   --panel: #ffffff;
@@ -624,3 +631,5 @@ dialog#keys-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .symbol-chip img { width: 28px; height: 28px; }
 .wz-pipe { display: flex; flex-direction: column; gap: 6px; }
 .wz-pipe select, .wz-pipe input[type="text"] { width: 10.5em; max-width: 100%; }
+.pipe-colors { align-items: flex-end; gap: 6px; flex-wrap: wrap; }
+.pipe-colors input[type="color"] { width: 42px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 4px; }

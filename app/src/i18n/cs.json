@@ -107,7 +107,7 @@
   "about.tagline": "Navrhujte a tiskněte štítky – přímo přes Bluetooth nebo USB, bez ovladače výrobce.",
   "about.developer": "Vyvinul",
   "about.license": "Licence: MIT (svobodný software, zdrojový kód na GitHubu: itsh-neumeier/labellab)",
-  "about.thirdParty": "Obsahuje open-source komponenty pod licencemi MIT nebo Apache-2.0 (mimo jiné Tauri, resvg, fontdue, image). Původ a licence symbolů jsou uvedeny v souborech sad ikon.",
+  "about.thirdParty": "Obsahuje open-source komponenty pod licencemi MIT nebo Apache-2.0 (mimo jiné Tauri, resvg, fontdue, image). Původ a licence symbolů jsou uvedeny v souborech sad ikon. Písmo D-DIN: Datto Inc., SIL Open Font License 1.1.",
   "about.trademarks": "Brother a P-touch jsou ochranné známky společnosti Brother Industries, Ltd. LabelLab je nezávislý projekt, nikoli produkt společnosti Brother.",
   "about.close": "Zavřete kliknutím nebo klávesou Esc",
   "toolbar.saveNow": "Uložit",
@@ -655,5 +655,10 @@
   "color.gray": "Šedá",
   "color.orange": "Oranžová",
   "color.violet": "Fialová",
-  "color.brown": "Hnědá"
+  "color.brown": "Hnědá",
+  "pipe.color.background": "Pozadí",
+  "pipe.color.ink": "Text/okraj",
+  "pipe.color.extra": "Hroty",
+  "pipe.colorsReset": "Barvy skupiny",
+  "pipe.colorsHint": "Vlastní barvy pro náhled, tisk A4 (barvy jako páska) a export PNG. Tiskárna štítků tiskne barvy vložené kazety."
 }

@@ -134,3 +134,6 @@ Rohrleitungskennzeichnung (DIN 2403)
   (z. B. 1 Wasser), Medium, Fliessrichtung, ggf. Gefahrensymbole (GHS). Passende Kassette
   einlegen (z. B. weiss auf gruen fuer Wasser): der Pfeil zeigt die Bandfarbe, Rand und Schrift
   werden gedruckt.
+- Eigene Farben (Hintergrund, Schrift/Rand, Spitzen) gelten fuer Vorschau, "Als Bild ..." und
+  A4-Druck in Bandfarben; der Etikettendrucker druckt die Farben der Kassette.
+- Die Schrift D-DIN (aehnlich DIN 1451) wird mitgeliefert und ist ohne Installation waehlbar.

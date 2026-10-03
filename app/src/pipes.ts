@@ -65,6 +65,19 @@ export const PIPE_CSS: Record<string, string> = {
   black: "#111111",
 };
 
+/** Colours a pipe marker is shown in: its own, else its group's. */
+export function pipeColors(m: {
+  group?: number | null;
+  colors?: { background?: string | null; ink?: string | null; extra?: string | null } | null;
+}): { background: string; ink: string; extra: string | null } {
+  const g = PIPE_GROUPS.find((x) => x.id === m.group);
+  return {
+    background: m.colors?.background ?? (g ? PIPE_CSS[g.tape] : PIPE_CSS.white),
+    ink: m.colors?.ink ?? (g ? PIPE_CSS[g.ink] : PIPE_CSS.black),
+    extra: m.colors?.extra ?? (g?.extra ? PIPE_CSS[g.extra] : null),
+  };
+}
+
 export function pipeGroup(id: number | null | undefined): PipeGroup | undefined {
   return PIPE_GROUPS.find((g) => g.id === id);
 }

@@ -142,6 +142,8 @@ export interface PipeMarkerFields {
   symbols?: string[];
   /** DIN 2403 substance group 0–9. */
   group?: number | null;
+  /** Own colours for coloured output (CSS `#rrggbb`); unset = group colours. */
+  colors?: { background?: string | null; ink?: string | null; extra?: string | null } | null;
 }
 
 export type Layout =

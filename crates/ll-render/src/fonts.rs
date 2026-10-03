@@ -13,10 +13,25 @@ use crate::{fontsrc, RenderError};
 
 static DATABASE: OnceLock<Database> = OnceLock::new();
 
+/// Fonts that ship with LabelLab (SIL OFL, see `assets/fonts/README.md`):
+/// D-DIN, a free DIN 1451 lookalike for signs and pipe markers.
+const BUNDLED_FONTS: &[&[u8]] = &[
+    include_bytes!("../assets/fonts/D-DIN.otf"),
+    include_bytes!("../assets/fonts/D-DIN-Bold.otf"),
+    include_bytes!("../assets/fonts/D-DINCondensed.otf"),
+    include_bytes!("../assets/fonts/D-DINCondensed-Bold.otf"),
+];
+
+/// Family of the bundled DIN 1451 lookalike (default for pipe markers).
+pub const DIN_FAMILY: &str = "D-DIN";
+
 fn database() -> &'static Database {
     DATABASE.get_or_init(|| {
         let mut db = Database::new();
         db.load_system_fonts();
+        for data in BUNDLED_FONTS {
+            db.load_font_data(data.to_vec());
+        }
         db
     })
 }
@@ -193,5 +208,20 @@ mod tests {
         sorted.sort_by_key(|n| n.to_lowercase());
         sorted.dedup();
         assert_eq!(f, sorted);
+    }
+}
+
+#[cfg(test)]
+mod bundled_tests {
+    use super::*;
+
+    #[test]
+    fn bundled_din_font_is_available_in_both_weights() {
+        assert!(families().iter().any(|f| f == DIN_FAMILY));
+        assert!(families().iter().any(|f| f == "D-DIN Condensed"));
+        let bold = Face::load(Some(DIN_FAMILY), true, false).unwrap();
+        assert!(!bold.synthetic_bold, "real bold face");
+        let regular = Face::load(Some(DIN_FAMILY), false, false).unwrap();
+        assert!(regular.font.lookup_glyph_index('Ä') != 0);
     }
 }

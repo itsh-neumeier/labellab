@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Schrift D-DIN (freie Nachbildung der DIN 1451, SIL OFL 1.1) wird mitgeliefert und ist ohne
+  Installation in der Schriftauswahl verfügbar; Rohrleitungsschilder nutzen sie standardmäßig
+- Rohrleitungsschilder: eigene Farben für Hintergrund, Schrift/Rand und Spitzen (Zusatzfarbe)
+  für Vorschau, PNG-Export und A4-Druck in Bandfarben; „↺“ setzt auf die DIN-Farben der
+  Stoffgruppe zurück
 - Rohrleitungskennzeichnung nach DIN 2403 (Vorlagen → „Anlagen & Rohrleitungen“): Stoffgruppe
   0–9 mit passender Bandfarbe, Medium mit Vorschlägen, Zusatzzeile, Fließrichtung (links,
   rechts, beidseitig), Zusatzfarbe in den Spitzen (frei, gefüllt, schraffiert), Rand ausgefüllt

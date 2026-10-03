@@ -332,6 +332,15 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-03 – Claude Code, D-DIN mitgeliefert, eigene Farben für Rohrleitungen (ADR-042)
+- D-DIN/D-DIN Condensed (OFL) in `ll-render` eingebettet und als `@font-face` im Frontend;
+  Rohrleitungs-Vorlage nutzt D-DIN. Hinweis in „Über …“ (Drittkomponenten).
+- `PipeMarker.colors` (Hintergrund, Schrift/Rand, Spitzen) mit Farbwählern im Assistenten und in
+  den Element-Eigenschaften; farbige Ausgabe über `labelArt` (Assistent, PNG, A4 „wie Band“),
+  Spitzen in Zusatzfarbe über Differenzmaske.
+- Geprüft: fmt/clippy/Tests, App-Build/Clippy, GUI unter Xvfb (Gruppe 1 und 4, rote Spitzen,
+  D-DIN in der Vorschau). Offen: Farbwähler-Bedienung auf Windows (native Dialoge).
+
 ### 2026-10-03 – Claude Code, CSV-Bildspalte, GHS-Icon-Set, Rohrleitung DIN 2403 (ADR-041)
 - CSV: Bild-Element mit Quelle „CSV-Spalte“ (`{{Spalte}}` als Pfad, relativ zum CSV-Ordner,
   leere Zelle = kein Bild; `DataSet::base_dir`, `Label::resolve_paths` lässt Platzhalter stehen).
