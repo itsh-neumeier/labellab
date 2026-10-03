@@ -713,3 +713,15 @@ Vorlage:
   Platzhalter gegen `de.json`.
 - Konsequenzen: Übersetzungen fr/es/it/nl/pl/cs sind maschinell erstellt und sollten von
   Muttersprachlern gegengelesen werden. Die CLI bleibt deutsch.
+
+## ADR-040: Tabellen-Element
+- Datum / Status: 2026-10-03 · angenommen
+- Kontext: Tabellen wurden bisher aus Rechteck, Linien und Einzeltexten zusammengesetzt (auch
+  beim `.lbx`-Import) und ließen sich danach kaum bearbeiten.
+- Entscheidung: Eigenes Element `Element::Table` (`ll_core::table`): Zellen als Zeilen von
+  Texten, relative Spaltenbreiten/Zeilenhöhen, Linienstärke, Außenrahmen, fette Kopfzeile;
+  Text über den normalen Textpfad (Inline-Fett/Kursiv, Platzhalter, eine gemeinsame Größe oder
+  „passend“). Ohne Box im Fluss-Layout 10 mm je Spalte. Keine verbundenen Zellen (beim Import
+  steht der Text in der ersten Zelle, Hinweis `table_merge`).
+- Konsequenzen: `.lbx`-Tabellen werden als ein bearbeitbares Element übernommen. Verbundene
+  Zellen wären eine spätere Erweiterung (`spans` je Zelle).

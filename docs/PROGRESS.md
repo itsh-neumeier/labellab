@@ -147,8 +147,9 @@
     umbenennen, × = löschen; Bandbreite je Blatt), Warnung bei ungespeicherten Änderungen
     (Neu, Öffnen, Zuletzt verwendet, Verlauf, Fenster schließen; „•“ im Titel)
   - [ ] Hochformat (ganzes Label gedreht)
-  - [ ] Tabellen (Zellen mit Text), dekorative Rahmen-Bibliothek (als Icon-Set-artige
-    Sammlung), Z-Reihenfolge, Objektnamen
+  - [x] Tabellen (Zellen mit Text, ADR-040), Z-Reihenfolge (Ebenen ziehen, Bild↑/↓),
+    Objektnamen, Mehrfachauswahl mit Ausrichten/Verteilen
+  - [ ] Dekorative Rahmen-Bibliothek (als Icon-Set-artige Sammlung), verbundene Tabellenzellen
 
 ## In Arbeit
 | Aufgabe | Wer (Werkzeug/Person) | Branch | Seit |
@@ -327,6 +328,21 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-03 – Claude Code, autonome Features: Tabelle, Mehrfachauswahl, Inventarlabel
+- Nutzerwunsch: „Code checken und neue Features entwickeln, überraschen“.
+- Neu: Tabellen-Element (`ll_core::table`, ADR-040, `.lbx`-Tabellen → Tabelle), Ebenen
+  umsortieren (Griff, Bild↑/↓), Mehrfachauswahl mit Gruppen-Ziehen/-Löschen, Ausrichten und
+  Verteilen, Vorlage „Inventarlabel“ (`Layout::AssetTag`, CLI `generate asset-tag`), Export
+  „Als Bild …“ (PNG 720 dpi in Bandfarben, Tauri-Befehl `save_binary_file`),
+  Tastenkürzel-Übersicht (F1). Assistenten-Vorschau füllt Platzhalter mit der ersten Nummer.
+- Stolperstein: beim Ersetzen der Tabellen-Funktion in `lbx.rs` per Skript zu viel Code
+  erwischt (Ende-Erkennung) – aus `git show HEAD:` wiederhergestellt; i18n-Schlüssel
+  `wizard.length` versehentlich überschrieben und zurückgeholt (neu: `wizard.lengthMm`).
+- Geprüft: fmt/clippy/Tests (neu: Tabelle, Inventarlabel, Tabellen-Import), App-Build, GUI
+  unter Xvfb (Tabelle bearbeiten, Ebenen ziehen, Mehrfachauswahl + Gruppen-Ziehen,
+  Inventarlabel-Assistent, PNG-Export, F1).
+- Offen: verbundene Tabellenzellen, Akkuanzeige, Hardware-Tests.
+
 ### 2026-10-02 – Claude Code, Sprachen mit Flaggen (ADR-039), Review-Fixes
 - Sprachen fr, es, it, nl, pl, cs (maschinell übersetzt, Gegenlesen durch Muttersprachler
   offen); Auswahl mit SVG-Flaggen (`app/src/langs.ts`), Fallback Sprache → en → de, Datum im
