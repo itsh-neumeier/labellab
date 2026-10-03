@@ -745,6 +745,15 @@ fn save_text_file(path: PathBuf, content: String) -> Result<(), AppError> {
     std::fs::write(&path, content).map_err(|e| err(ll_core::CoreError::from(e)))
 }
 
+/// Writes a file the frontend produced (base64), e.g. a label exported as PNG.
+#[tauri::command]
+fn save_binary_file(path: PathBuf, data: String) -> Result<(), AppError> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|e| AppError::new("image", e.to_string()))?;
+    std::fs::write(&path, bytes).map_err(|e| err(ll_core::CoreError::from(e)))
+}
+
 /// Reads an SVG file for the frame editor (cleaned up, text as paths).
 #[tauri::command]
 fn read_svg(path: PathBuf) -> Result<String, AppError> {
@@ -890,6 +899,7 @@ pub fn run() {
             frame_preview,
             read_svg,
             save_text_file,
+            save_binary_file,
             save_frame,
             delete_frame,
             import_frame_set,

@@ -61,6 +61,26 @@ export type Element =
       font?: string | null;
       bold?: boolean;
       italic?: boolean;
+    }
+  | {
+      type: "table";
+      /** Rows from the top edge, each a list of cell texts. */
+      cells: string[][];
+      /** Relative column widths / row heights; missing = 1. */
+      col_ratios?: number[];
+      row_ratios?: number[];
+      /** Grid line width in mm; 0 = no lines. */
+      line_mm?: number;
+      /** Line around the table; absent = true. */
+      frame?: boolean;
+      /** First row bold. */
+      header?: boolean;
+      size_pt?: number | null;
+      align?: TextAlign;
+      line_spacing?: number | null;
+      font?: string | null;
+      bold?: boolean;
+      italic?: boolean;
     };
 
 /** One field of a fuse box (`ll_core::fusebox::FuseField`). */
@@ -102,7 +122,10 @@ export interface Numbering {
   step: number;
 }
 
+export type AssetCode = "qr" | "code128" | "none";
+
 export type Layout =
+  | { kind: "asset_tag"; owner: string; number: string; code: AssetCode; code_data: string; length_mm: number }
   | { kind: "cable_flag"; text: string; diameter_mm: number; flag_mm: number; center_mark?: boolean }
   | { kind: "cable_wrap"; text: string; diameter_mm: number; repeats: number | null; vertical: boolean }
   | {
@@ -441,3 +464,5 @@ export const importFrameSet = (path: string) => invoke<string>("import_frame_set
 export const removeFrameSet = (id: string) => invoke<void>("remove_frame_set", { id });
 export const readSvg = (path: string) => invoke<string>("read_svg", { path });
 export const saveTextFile = (path: string, content: string) => invoke<void>("save_text_file", { path, content });
+/** Writes base64 `data` to `path` (binary file, e.g. PNG). */
+export const saveBinaryFile = (path: string, data: string) => invoke<void>("save_binary_file", { path, data });

@@ -60,7 +60,11 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
  * The label as it looks on tape: full tape width, background colour, ink
  * colour, turned by 90° if `rotate` (for labels longer than the page is wide).
  */
-async function tapeImage(label: A4Label, opts: A4Options, rotate: boolean): Promise<{ url: string; lengthMm: number }> {
+async function tapeImage(
+  label: A4Label,
+  opts: Pick<A4Options, "background" | "ink">,
+  rotate: boolean,
+): Promise<{ url: string; lengthMm: number }> {
   const mask = await loadImage(`data:image/png;base64,${label.png}`);
   const tapePx = Math.round(label.tapeMm * DOTS_PER_MM);
   const top = Math.round(((label.tapeMm - label.printableMm) / 2) * DOTS_PER_MM);
@@ -242,4 +246,12 @@ export async function printPages(pages: HTMLElement[]): Promise<void> {
     { once: true },
   );
   window.print();
+}
+
+/**
+ * The label as a PNG data URL in tape colours (720 dpi), e.g. to save it
+ * as an image for documentation.
+ */
+export async function labelPng(label: A4Label, background: string | null, ink: string): Promise<string> {
+  return (await tapeImage(label, { background, ink }, false)).url;
 }

@@ -145,6 +145,36 @@ fn default_main_switch_mm() -> f32 {
     35.0
 }
 
+/// Code on an inventory label.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssetCode {
+    #[default]
+    Qr,
+    Code128,
+    None,
+}
+
+/// Inventory / asset label: a code (QR or barcode) plus the owner and the
+/// inventory number, which usually counts up (`INV-{{n:05}}`) so a whole
+/// series prints with the numbering or a CSV.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssetTag {
+    /// Owner or company line above the number; empty = number only.
+    #[serde(default)]
+    pub owner: String,
+    /// Inventory number, placeholders allowed.
+    pub number: String,
+    #[serde(default)]
+    pub code: AssetCode,
+    /// Content of the code; empty = the number. E.g. a link to the
+    /// inventory system: `https://inventar.example/{{n}}`.
+    #[serde(default)]
+    pub code_data: String,
+    /// Label length in mm.
+    pub length_mm: f32,
+}
+
 /// Which generator to run, tagged for JSON (GUI, CLI).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -155,6 +185,7 @@ pub enum Layout {
     SingleFlag(SingleFlag),
     TerminalBlock(TerminalBlock),
     FuseBox(FuseBox),
+    AssetTag(AssetTag),
 }
 
 fn text_item(text: &str, rect: Rect, rotation: u16) -> Item {
@@ -345,6 +376,91 @@ pub fn single_flag(spec: &SingleFlag, tape_mm: f32) -> Label {
     fixed_length(elements, wrap + flag)
 }
 
+/// Space around the parts of an inventory label, mm.
+const ASSET_GAP_MM: f32 = 1.0;
+/// Share of the text height the owner line gets.
+const ASSET_OWNER_SHARE: f32 = 0.38;
+
+pub fn asset_tag(spec: &AssetTag, tape_mm: f32) -> Label {
+    let gap = ASSET_GAP_MM;
+    let data = if spec.code_data.trim().is_empty() {
+        spec.number.clone()
+    } else {
+        spec.code_data.clone()
+    };
+    let code_w = match spec.code {
+        AssetCode::Qr => tape_mm,
+        // A barcode needs room along the tape for its bars.
+        AssetCode::Code128 => (spec.length_mm * 0.45).max(tape_mm),
+        AssetCode::None => 0.0,
+    };
+    // The text part takes what is left, at least a square of the tape height.
+    let length = spec.length_mm.max(code_w + gap + tape_mm);
+    let mut elements = Vec::new();
+    let item = |element: Element, rect: Rect| Item {
+        rect: Some(rect),
+        ..element.into()
+    };
+    match spec.code {
+        AssetCode::Qr => elements.push(item(
+            Element::Qr { data },
+            Rect {
+                x_mm: gap,
+                y_mm: 0.0,
+                w_mm: tape_mm,
+                h_mm: tape_mm,
+            },
+        )),
+        AssetCode::Code128 => elements.push(item(
+            Element::Barcode {
+                symbology: ll_render::Symbology::Code128,
+                data,
+            },
+            Rect {
+                x_mm: length - gap - code_w,
+                y_mm: 0.0,
+                w_mm: code_w,
+                h_mm: tape_mm,
+            },
+        )),
+        AssetCode::None => {}
+    }
+    let (text_x, text_w) = match spec.code {
+        AssetCode::Qr => (gap + code_w + gap, length - code_w - 3.0 * gap),
+        AssetCode::Code128 => (gap, length - code_w - 3.0 * gap),
+        AssetCode::None => (gap, length - 2.0 * gap),
+    };
+    let text = |text: &str, bold: bool, y_mm: f32, h_mm: f32| {
+        let mut it = item(
+            Element::Text {
+                text: text.to_owned(),
+                size_pt: None,
+                align: TextAlign::Left,
+                font: None,
+                bold,
+                italic: false,
+                line_spacing: None,
+            },
+            Rect {
+                x_mm: text_x,
+                y_mm,
+                w_mm: text_w.max(1.0),
+                h_mm,
+            },
+        );
+        it.halign = Some(TextAlign::Left);
+        it
+    };
+    if spec.owner.trim().is_empty() {
+        elements.push(text(&spec.number, true, 0.0, tape_mm));
+    } else {
+        let owner_h = tape_mm * ASSET_OWNER_SHARE;
+        elements.push(text(&spec.owner, false, 0.0, owner_h));
+        elements.push(text(&spec.number, true, owner_h, tape_mm - owner_h));
+    }
+    fixed_length(elements, length)
+}
+
 pub fn terminal_block(spec: &TerminalBlock, tape_mm: f32) -> Label {
     let count = spec.count.clamp(1, MAX_FIELDS);
     let pitch = spec.pitch_mm.max(1.0);
@@ -472,6 +588,7 @@ fn generate_plain(layout: &Layout, tape_mm: f32) -> Label {
         Layout::SingleFlag(s) => single_flag(s, tape_mm),
         Layout::TerminalBlock(s) => terminal_block(s, tape_mm),
         Layout::FuseBox(s) => fuse_box(s, tape_mm),
+        Layout::AssetTag(s) => asset_tag(s, tape_mm),
     }
 }
 
@@ -576,6 +693,51 @@ mod tests {
         let expected = mm_to_dots(2.0 * 2.0 + 24.0 * 12.7);
         assert!((bitmap.height_dots() as i64 - expected as i64).abs() <= 1);
         assert!(dots_to_mm(bitmap.height_dots()) > 300.0);
+    }
+
+    #[test]
+    fn asset_tag_places_code_owner_and_number() {
+        let spec = AssetTag {
+            owner: "ITSH".into(),
+            number: "INV-{{n:05}}".into(),
+            code: AssetCode::Qr,
+            code_data: String::new(),
+            length_mm: 50.0,
+        };
+        let label = asset_tag(&spec, 15.0);
+        assert_eq!(label.min_length_mm, Some(50.0));
+        assert!(
+            matches!(&label.elements[0].element, Element::Qr { data } if data == "INV-{{n:05}}")
+        );
+        let rects: Vec<Rect> = label.elements.iter().filter_map(|i| i.rect).collect();
+        // Texts right of the square code, owner above the number.
+        assert!(rects[1].x_mm > rects[0].x_mm + 15.0 && rects[1].y_mm < rects[2].y_mm);
+        // Barcode at the end, code content from `code_data`.
+        let bar = asset_tag(
+            &AssetTag {
+                code: AssetCode::Code128,
+                code_data: "X{{n}}".into(),
+                owner: String::new(),
+                ..spec
+            },
+            9.0,
+        );
+        assert_eq!(bar.elements.len(), 2);
+        assert!(
+            matches!(&bar.elements[0].element, Element::Barcode { data, .. } if data == "X{{n}}")
+        );
+        let label = generate(
+            &Layout::AssetTag(AssetTag {
+                code: AssetCode::None,
+                owner: String::new(),
+                number: "A".into(),
+                code_data: String::new(),
+                length_mm: 1.0,
+            }),
+            9.0,
+        );
+        // Too short: at least a square for the text.
+        assert!(label.min_length_mm.unwrap() >= 9.0);
     }
 
     #[test]

@@ -16,7 +16,7 @@ import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } fro
 import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
 import { langInfo, langPicker } from "./langs";
 import { getSetting, initSettings, setSetting } from "./settings";
-import { buildPages, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
+import { buildPages, labelPng, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
 import { INK_CSS, TAPE_CSS, TAPE_STYLES, parseStyleKey, styleKey, type TapeStyle } from "./tapes";
 
@@ -216,6 +216,7 @@ function stepHistory(delta: number): void {
   if (next < 0 || next >= state.history.length) return;
   state.historyIndex = next;
   state.label = JSON.parse(state.history[next]);
+  multi.clear();
   if (state.selected >= state.label.elements.length) state.selected = -1;
   renderAll();
   updateHistoryButtons();
@@ -558,6 +559,8 @@ function boxCaption(item: Item): string {
       return `${elementTitle(item)}: ${t(`shape.${item.shape}`)}`;
     case "fuse_box":
       return item.fields.map((f) => stripMarkup(f.text).replace(/\n/g, " ")).join(" | ") || elementTitle(item);
+    case "table":
+      return `${elementTitle(item)}: ${(item.cells[0] ?? []).map((c) => stripMarkup(c).replace(/\n/g, " ")).join(" | ")}`;
   }
 }
 
@@ -575,7 +578,7 @@ function renderBoxes(): void {
   state.label.elements.forEach((item, index) => {
     if (!item.rect) return;
     const box = document.createElement("div");
-    box.className = `box${index === state.selected ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}${item.locked ? " locked" : ""}${item.hidden ? " is-hidden" : ""}`;
+    box.className = `box${isSelected(index) ? " selected" : ""}${overflowing.has(index) ? " overflow" : ""}${item.locked ? " locked" : ""}${item.hidden ? " is-hidden" : ""}`;
     box.dataset.index = String(index);
     box.title = boxCaption(item);
     placeBox(box, item.rect);
@@ -616,15 +619,34 @@ function startDrag(e: PointerEvent, index: number): void {
   if (e.button !== 0) return;
   e.preventDefault();
   e.stopPropagation();
-  select(index);
+  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+    toggleSelect(index);
+    return;
+  }
+  const handle = (e.target as HTMLElement).dataset.handle ?? null;
+  // Dragging one of several selected boxes moves them all; else select just this one.
+  if (!isSelected(index) || handle) select(index);
+  else if (state.selected !== index) {
+    multi.add(state.selected);
+    multi.delete(index);
+    state.selected = index;
+    showSelection();
+  }
   const item = state.label.elements[index];
   if (!item.rect || item.locked) return;
   const box = (e.currentTarget as HTMLElement);
-  const handle = (e.target as HTMLElement).dataset.handle ?? null;
   const start = { ...item.rect };
+  // The other selected boxes follow the dragged one by the same distance.
+  const group = handle
+    ? []
+    : selection()
+        .slice(1)
+        .map((i) => ({ i, item: state.label.elements[i] }))
+        .filter((g) => g.item.rect && !g.item.locked)
+        .map((g) => ({ ...g, start: { ...g.item.rect! } }));
   const startX = e.clientX;
   const startY = e.clientY;
-  const others = state.label.elements.filter((_, i) => i !== index && state.label.elements[i].rect).map((i) => i.rect!);
+  const others = state.label.elements.filter((_, i) => !isSelected(i) && state.label.elements[i].rect).map((i) => i.rect!);
   const snapTargets = targets(others, labelHeightMm());
   const fixedLength = state.label.fixed_length ? state.label.min_length_mm : null;
   if (portrait()) {
@@ -660,6 +682,12 @@ function startDrag(e: PointerEvent, index: number): void {
     }
     item.rect = roundRect(next);
     placeBox(box, item.rect);
+    if (group.length) {
+      const mx = item.rect.x_mm - start.x_mm;
+      const my = item.rect.y_mm - start.y_mm;
+      for (const g of group) g.item.rect = roundRect({ ...g.start, x_mm: g.start.x_mm + mx, y_mm: g.start.y_mm + my });
+      repositionBoxes();
+    }
     showGuides(guides);
     updateRectInputs(index);
     schedulePreview();
@@ -677,16 +705,54 @@ function startDrag(e: PointerEvent, index: number): void {
   box.addEventListener("pointercancel", onUp);
 }
 
-function select(index: number): void {
-  if (state.selected === index) return;
-  state.selected = index;
-  document.querySelectorAll<HTMLElement>(".box").forEach((b) => b.classList.toggle("selected", Number(b.dataset.index) === index));
+/** Further selected elements besides `state.selected` (Shift/Ctrl+click). */
+const multi = new Set<number>();
+
+/** Every selected element index, the primary one first. */
+function selection(): number[] {
+  if (state.selected < 0) return [];
+  const n = state.label.elements.length;
+  return [state.selected, ...[...multi].filter((i) => i !== state.selected && i >= 0 && i < n)];
+}
+
+function isSelected(index: number): boolean {
+  return index === state.selected || multi.has(index);
+}
+
+/** Marks the selection in boxes and layer list, shows the properties. */
+function showSelection(scrollTo = state.selected): void {
+  document.querySelectorAll<HTMLElement>(".box").forEach((b) => b.classList.toggle("selected", isSelected(Number(b.dataset.index))));
   document.querySelectorAll<HTMLElement>(".layer").forEach((c) => {
-    const on = Number(c.dataset.index) === index;
-    c.classList.toggle("selected", on);
-    if (on) c.scrollIntoView({ block: "nearest" });
+    const i = Number(c.dataset.index);
+    c.classList.toggle("selected", isSelected(i));
+    if (i === scrollTo) c.scrollIntoView({ block: "nearest" });
   });
   renderProps();
+}
+
+function select(index: number): void {
+  if (state.selected === index && multi.size === 0) return;
+  multi.clear();
+  state.selected = index;
+  showSelection();
+}
+
+/** Shift/Ctrl+click: adds `index` to the selection or takes it out. */
+function toggleSelect(index: number): void {
+  if (state.selected < 0) {
+    state.selected = index;
+  } else if (isSelected(index)) {
+    multi.delete(index);
+    if (index === state.selected) {
+      const [next] = selection().slice(1);
+      state.selected = next ?? -1;
+      if (next !== undefined) multi.delete(next);
+    }
+  } else {
+    multi.add(state.selected);
+    state.selected = index;
+  }
+  showSelection(index);
 }
 
 /** Box for a new element: after the rightmost box, full tape height. */
@@ -697,11 +763,11 @@ function newRect(type: Element["type"]): Rect {
   if (portrait()) {
     // Tape-wide boxes stacked down the label.
     const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
-    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h, fuse_box: fuse }[type];
+    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h, fuse_box: fuse, table: 20 }[type];
     return roundRect({ x_mm: 0, y_mm: start, w_mm: h, h_mm: len });
   }
   const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
-  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5, fuse_box: fuse }[type];
+  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5, fuse_box: fuse, table: 40 }[type];
   return roundRect({ x_mm: start, y_mm: 0, w_mm: w, h_mm: h });
 }
 
@@ -1013,10 +1079,165 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
   return [sizeRow, sepRow, optRow, style, sizeField, list];
 }
 
+type TableItem = Extract<Item, { type: "table" }>;
+
+const TABLE_MAX = 50;
+
+/** Properties of a table: size, grid lines, text style and the cells. */
+function tableFields(item: TableItem): HTMLElement[] {
+  const cols = () => Math.max(1, ...item.cells.map((r) => r.length));
+  /** Every row as long as the widest one. */
+  const normalize = () => {
+    const n = cols();
+    for (const r of item.cells) while (r.length < n) r.push("");
+  };
+  normalize();
+  const grid = document.createElement("div");
+  grid.className = "table-grid";
+  const rowsInput = numberInput(item.cells.length, 1, "", (v) => {
+    const n = Math.max(1, Math.min(TABLE_MAX, Math.round(v ?? 1)));
+    while (item.cells.length < n) item.cells.push(Array.from({ length: cols() }, () => ""));
+    item.cells.length = n;
+    if (item.row_ratios) item.row_ratios.length = Math.min(item.row_ratios.length, n);
+    renderGrid();
+  });
+  rowsInput.min = "1";
+  const colsInput = numberInput(cols(), 1, "", (v) => {
+    const n = Math.max(1, Math.min(TABLE_MAX, Math.round(v ?? 1)));
+    for (const r of item.cells) {
+      while (r.length < n) r.push("");
+      r.length = n;
+    }
+    if (item.col_ratios) item.col_ratios.length = Math.min(item.col_ratios.length, n);
+    renderGrid();
+  });
+  colsInput.min = "1";
+  const sizeRow = document.createElement("div");
+  sizeRow.className = "row";
+  sizeRow.append(field("table.rows", rowsInput), field("table.cols", colsInput));
+
+  const check = (label: string, get: () => boolean, set: (v: boolean) => void) => {
+    const wrap = document.createElement("label");
+    wrap.className = "check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = get();
+    box.addEventListener("change", () => {
+      set(box.checked);
+      changed();
+    });
+    wrap.append(box, ` ${t(label)}`);
+    return wrap;
+  };
+  const line = numberInput(item.line_mm ?? 0.2, 0.05, "0.2", (v) => {
+    item.line_mm = v != null && v >= 0 ? Math.min(3, v) : 0.2;
+  });
+  line.min = "0";
+  line.title = t("table.lineHint");
+  sizeRow.append(field("table.line", line));
+  const lineRow = document.createElement("div");
+  lineRow.className = "row";
+  lineRow.append(
+    check("table.frame", () => item.frame !== false, (v) => (item.frame = v ? undefined : false)),
+    check("table.header", () => !!item.header, (v) => (item.header = v || undefined)),
+  );
+
+  const size = numberInput(item.size_pt, 0.5, t("layout.auto"), (v) => {
+    item.size_pt = v && v > 0 ? v : null;
+  });
+  const spacing = numberInput(item.line_spacing, 0.1, "1.0", (v) => {
+    item.line_spacing = v && v > 0 ? Math.min(3, Math.max(0.5, v)) : null;
+  });
+  spacing.min = "0.5";
+  spacing.max = "3";
+  spacing.title = t("elements.lineSpacingHint");
+  const sizeField = document.createElement("div");
+  sizeField.className = "row";
+  sizeField.append(field("elements.size", size), field("elements.lineSpacing", spacing));
+  const font = fontPicker(item.font ?? null, (family) => {
+    item.font = family;
+    changed(true);
+  });
+  // Cell last edited: with a selection there, F/K style just that part.
+  let lastArea: HTMLTextAreaElement | null = null;
+  const toggle = (label: string, title: string, key: "bold" | "italic") => {
+    const b = makeButton(label, title, () => {
+      if (lastArea?.isConnected && toggleMark(lastArea, key === "bold" ? BOLD_MARK : ITALIC_MARK)) return;
+      item[key] = !item[key];
+      b.classList.toggle("on", !!item[key]);
+      changed();
+    });
+    b.className = `toggle${item[key] ? " on" : ""}`;
+    b.style.fontWeight = key === "bold" ? "700" : "";
+    b.style.fontStyle = key === "italic" ? "italic" : "";
+    return b;
+  };
+  const boldButton = toggle("F", t("elements.boldHint"), "bold");
+  const italicButton = toggle("K", t("elements.italicHint"), "italic");
+  const style = document.createElement("div");
+  style.className = "row font-row";
+  style.append(field("elements.font", font), boldButton, italicButton);
+
+  /** Relative size input for column/row `i` (empty = 1). */
+  const ratioInput = (list: "col_ratios" | "row_ratios", i: number, title: string) => {
+    const input = numberInput(item[list]?.[i] ?? null, 0.5, "1", (v) => {
+      const ratios = item[list] ?? [];
+      while (ratios.length <= i) ratios.push(1);
+      ratios[i] = v && v > 0 ? Math.min(20, Math.max(0.1, v)) : 1;
+      item[list] = ratios.every((r) => r === 1) ? undefined : ratios;
+    });
+    input.className = "ratio";
+    input.min = "0.1";
+    input.title = title;
+    return input;
+  };
+  function renderGrid(): void {
+    normalize();
+    const n = cols();
+    rowsInput.value = String(item.cells.length);
+    colsInput.value = String(n);
+    grid.replaceChildren();
+    grid.style.gridTemplateColumns = `3.6em repeat(${n}, minmax(4.5em, 1fr))`;
+    grid.append(document.createElement("span"));
+    for (let c = 0; c < n; c++) grid.append(ratioInput("col_ratios", c, t("table.colRatio", { n: c + 1 })));
+    item.cells.forEach((row, r) => {
+      grid.append(ratioInput("row_ratios", r, t("table.rowRatio", { n: r + 1 })));
+      row.forEach((cell, c) => {
+        const area = document.createElement("textarea");
+        area.rows = Math.min(3, Math.max(1, cell.split("\n").length));
+        area.value = cell;
+        area.addEventListener("input", () => {
+          row[c] = area.value;
+          area.rows = Math.min(3, Math.max(1, area.value.split("\n").length));
+          syncBoxCaption();
+          changed();
+        });
+        area.addEventListener("focus", () => (lastArea = area));
+        area.addEventListener("keydown", (e) => {
+          if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+          const key = e.key.toLowerCase();
+          if (key !== "b" && key !== "i") return;
+          e.preventDefault();
+          (key === "b" ? boldButton : italicButton).click();
+        });
+        trackField(area, (v) => (row[c] = v));
+        grid.append(area);
+      });
+    });
+  }
+  renderGrid();
+  const hint = document.createElement("p");
+  hint.className = "muted hint";
+  hint.textContent = t("table.hint");
+  return [sizeRow, lineRow, style, sizeField, grid, hint];
+}
+
 function contentFields(item: Item): HTMLElement[] {
   switch (item.type) {
     case "fuse_box":
       return fuseBoxFields(item);
+    case "table":
+      return tableFields(item);
     case "text": {
       const area = document.createElement("textarea");
       area.rows = Math.min(4, Math.max(2, item.text.split("\n").length));
@@ -1310,7 +1531,7 @@ function alignRow(index: number): HTMLElement {
 
 /** Content alignment inside the box: horizontal and vertical, three each. */
 function contentAlignRow(item: Item): HTMLElement | null {
-  const aligned = ["text", "qr", "barcode", "image", "symbol", "fuse_box"];
+  const aligned = ["text", "qr", "barcode", "image", "symbol", "fuse_box", "table"];
   if (!aligned.includes(item.type)) return null;
   const row = document.createElement("div");
   row.className = "align-row";
@@ -1318,7 +1539,11 @@ function contentAlignRow(item: Item): HTMLElement | null {
   label.textContent = t("content.title");
   row.append(label);
   const h = (): api.TextAlign =>
-    item.type === "text" ? item.align : item.type === "fuse_box" ? (item.align ?? "center") : (item.halign ?? "center");
+    item.type === "text"
+      ? item.align
+      : item.type === "fuse_box" || item.type === "table"
+        ? (item.align ?? "center")
+        : (item.halign ?? "center");
   const v = (): api.VAlign => item.valign ?? "middle";
   const buttons: [string, string, () => boolean, () => void][] = [
     ["⇤", "content.left", () => h() === "left", () => setH("left")],
@@ -1329,7 +1554,7 @@ function contentAlignRow(item: Item): HTMLElement | null {
     ["⤓", "content.bottom", () => v() === "bottom", () => (item.valign = "bottom")],
   ];
   function setH(a: api.TextAlign): void {
-    if (item.type === "text" || item.type === "fuse_box") item.align = a;
+    if (item.type === "text" || item.type === "fuse_box" || item.type === "table") item.align = a;
     else item.halign = a === "center" ? null : a;
   }
   for (const [icon, key, on, apply] of buttons) {
@@ -1343,13 +1568,27 @@ function contentAlignRow(item: Item): HTMLElement | null {
   return row;
 }
 
+/** Removes several elements at once (one undo step). */
+function removeItems(indices: number[]): void {
+  if (indices.length <= 1) {
+    if (indices.length) removeItem(indices[0]);
+    return;
+  }
+  for (const i of [...indices].sort((a, b) => b - a)) state.label.elements.splice(i, 1);
+  multi.clear();
+  state.selected = -1;
+  changed(true);
+}
+
 function removeItem(index: number): void {
+  multi.clear();
   state.label.elements.splice(index, 1);
   state.selected = Math.min(state.selected, state.label.elements.length - 1);
   changed(true);
 }
 
 function duplicateItem(index: number): void {
+  multi.clear();
   const copy: Item = JSON.parse(JSON.stringify(state.label.elements[index]));
   // Next to the original along the label length (y in portrait).
   if (copy.rect) {
@@ -1374,7 +1613,7 @@ function elementCard(item: Item, index: number): HTMLLIElement {
   const li = document.createElement("li");
   li.className = `element${index === state.selected ? " selected" : ""}`;
   li.dataset.index = String(index);
-  li.addEventListener("pointerdown", () => select(index));
+  li.addEventListener("pointerdown", (e) => (e.shiftKey || e.ctrlKey || e.metaKey ? toggleSelect(index) : select(index)));
 
   const header = document.createElement("header");
   const title = document.createElement("strong");
@@ -1414,7 +1653,7 @@ function layerCaption(item: Item): string {
 /** Layer list row: name plus show/hide, lock, duplicate, delete. */
 function layerRow(item: Item, index: number): HTMLLIElement {
   const li = document.createElement("li");
-  li.className = `layer${index === state.selected ? " selected" : ""}${item.hidden ? " is-hidden" : ""}`;
+  li.className = `layer${isSelected(index) ? " selected" : ""}${item.hidden ? " is-hidden" : ""}`;
   li.dataset.index = String(index);
   li.addEventListener("pointerdown", () => select(index));
   const name = document.createElement("span");
@@ -1449,6 +1688,13 @@ function layerRow(item: Item, index: number): HTMLLIElement {
     input.addEventListener("blur", () => finish(true));
   });
   name.append(kind, caption);
+  // Grip: drag to change the drawing order (lower in the list = in front).
+  const grip = document.createElement("span");
+  grip.className = "layer-grip";
+  grip.textContent = "⠿";
+  grip.title = t("elements.reorderHint");
+  grip.addEventListener("pointerdown", (e) => startLayerDrag(e, li, index));
+  li.prepend(grip);
   const eye = makeButton(item.hidden ? "◌" : "👁", t(item.hidden ? "elements.show" : "elements.hide"), () => {
     item.hidden = !item.hidden || undefined;
     changed(true);
@@ -1461,6 +1707,52 @@ function layerRow(item: Item, index: number): HTMLLIElement {
     makeButton("✕", t("elements.remove"), () => removeItem(index)),
   );
   return li;
+}
+
+/** Moves element `from` to position `to` (drawing order), keeping it selected. */
+function moveItem(from: number, to: number): void {
+  const items = state.label.elements;
+  to = Math.max(0, Math.min(items.length - 1, to));
+  if (from === to || !items[from]) return;
+  multi.clear();
+  const [item] = items.splice(from, 1);
+  items.splice(to, 0, item);
+  state.selected = to;
+  changed(true);
+}
+
+/** Pointer drag of a layer row by its grip; drops between the rows. */
+function startLayerDrag(e: PointerEvent, li: HTMLLIElement, from: number): void {
+  e.preventDefault();
+  e.stopPropagation();
+  const list = $("elements");
+  const rows = Array.from(list.querySelectorAll<HTMLLIElement>("li.layer"));
+  li.classList.add("dragging");
+  let target = from;
+  const marker = document.createElement("li");
+  marker.className = "layer-drop";
+  const move = (ev: PointerEvent) => {
+    // Index of the first row whose middle is below the pointer.
+    const i = rows.findIndex((r) => {
+      const box = r.getBoundingClientRect();
+      return ev.clientY < box.top + box.height / 2;
+    });
+    const slot = i < 0 ? rows.length : i;
+    target = slot > from ? slot - 1 : slot;
+    if (slot < rows.length) rows[slot].before(marker);
+    else rows[rows.length - 1]?.after(marker);
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    marker.remove();
+    li.classList.remove("dragging");
+    if (target !== from) moveItem(from, target);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
 }
 
 function renderElements(): void {
@@ -1476,10 +1768,84 @@ function renderElements(): void {
   renderProps();
 }
 
+type GroupAlign = "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom" | "hspread" | "vspread";
+
+/** Aligns the selected boxes to each other (their common bounding box) or spreads them evenly. */
+function alignGroup(how: GroupAlign): void {
+  const items = selection()
+    .map((i) => state.label.elements[i])
+    .filter((it) => it?.rect && !it.locked);
+  if (items.length < 2) return;
+  const rs = items.map((it) => it.rect!);
+  const left = Math.min(...rs.map((r) => r.x_mm));
+  const right = Math.max(...rs.map((r) => r.x_mm + r.w_mm));
+  const top = Math.min(...rs.map((r) => r.y_mm));
+  const bottom = Math.max(...rs.map((r) => r.y_mm + r.h_mm));
+  const spread = (axis: "x" | "y") => {
+    const pos = axis === "x" ? "x_mm" : "y_mm";
+    const size = axis === "x" ? "w_mm" : "h_mm";
+    const sorted = [...items].sort((a, b) => a.rect![pos] - b.rect![pos]);
+    const total = sorted.reduce((sum, it) => sum + it.rect![size], 0);
+    const span = (axis === "x" ? right - left : bottom - top) - total;
+    const gap = span / (sorted.length - 1);
+    let at = axis === "x" ? left : top;
+    for (const it of sorted) {
+      it.rect = { ...it.rect!, [pos]: at };
+      at += it.rect[size] + gap;
+    }
+  };
+  for (const it of items) {
+    const r = { ...it.rect! };
+    if (how === "left") r.x_mm = left;
+    if (how === "hcenter") r.x_mm = (left + right - r.w_mm) / 2;
+    if (how === "right") r.x_mm = right - r.w_mm;
+    if (how === "top") r.y_mm = top;
+    if (how === "vcenter") r.y_mm = (top + bottom - r.h_mm) / 2;
+    if (how === "bottom") r.y_mm = bottom - r.h_mm;
+    it.rect = r;
+  }
+  if (how === "hspread") spread("x");
+  if (how === "vspread") spread("y");
+  for (const it of items) it.rect = roundRect(it.rect!);
+  changed(true);
+  renderProps();
+}
+
+/** Properties panel head for several selected elements: count and alignment to each other. */
+function groupCard(): HTMLElement {
+  const card = document.createElement("div");
+  card.className = "group-card";
+  const head = document.createElement("p");
+  head.className = "group-head";
+  head.textContent = t("group.count", { n: selection().length });
+  const row = document.createElement("div");
+  row.className = "align-row";
+  const label = document.createElement("span");
+  label.textContent = t("group.align");
+  row.append(label);
+  const buttons: [string, string, GroupAlign][] = [
+    ["⇤", "group.left", "left"],
+    ["↔", "group.hcenter", "hcenter"],
+    ["⇥", "group.right", "right"],
+    ["⤒", "group.top", "top"],
+    ["↕", "group.vcenter", "vcenter"],
+    ["⤓", "group.bottom", "bottom"],
+    ["⋯", "group.hspread", "hspread"],
+    ["⋮", "group.vspread", "vspread"],
+  ];
+  for (const [icon, key, how] of buttons) row.append(makeButton(icon, t(key), () => alignGroup(how)));
+  const hint = document.createElement("p");
+  hint.className = "muted hint";
+  hint.textContent = t("group.hint");
+  card.append(head, row, hint);
+  return card;
+}
+
 /** Right panel: every setting of the selected element. */
 function renderProps(): void {
   const body = $("props-body");
   body.replaceChildren();
+  if (selection().length > 1) body.append(groupCard());
   const item = state.label.elements[state.selected];
   if (!item) {
     const hint = document.createElement("p");
@@ -1513,6 +1879,14 @@ function defaultElement(type: Element["type"]): Element {
         fields: Array.from({ length: FUSE_DEFAULT_COUNT }, (_, i) => ({ text: `F${i + 1}` })),
         pitch_mm: FUSE_DEFAULT_PITCH_MM,
         separator: "frame",
+      };
+    case "table":
+      return {
+        type,
+        cells: [
+          ["A1", "B1", "C1"],
+          ["A2", "B2", "C2"],
+        ],
       };
   }
 }
@@ -3006,6 +3380,7 @@ async function showSheet(index: number, sync = true): Promise<void> {
   state.label = sheet.label;
   for (const item of state.label.elements) if (item.rect) item.rect = roundRect(item.rect);
   state.selected = -1;
+  multi.clear();
   const model = state.models.find((m) => m.name === selectedModel());
   if (sheet.width_mm && model?.tapes.some((tp) => tp.width_mm === sheet.width_mm) && sheet.width_mm !== selectedWidth()) {
     fillWidths(sheet.width_mm);
@@ -3313,6 +3688,8 @@ const TEMPLATES: { id: string; kind: api.Layout["kind"]; name: string; cat: stri
     svg: '<rect x="2" y="6" width="68" height="20"/><path d="M22 6v20M34 6v20M46 6v20M58 6v20"/><path d="M28 10v12M40 10v12M52 10v12M64 10v12" stroke-width="2"/>' },
   { id: "terminal_strip", kind: "fuse_box", name: "wizard.terminalStrip", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="8" width="68" height="16"/><path d="M8.8 8v16M15.6 8v16M22.4 8v16M29.2 8v16M36 8v16M42.8 8v16M49.6 8v16M56.4 8v16M63.2 8v16"/>' },
+  { id: "asset_tag", kind: "asset_tag", name: "wizard.assetTag", cat: "wizard.catOffice",
+    svg: '<rect x="2" y="4" width="68" height="24" rx="2"/><path d="M7 9h5v5H7zM15 9h3M7 17h3v6H7zM14 18h4v5M18 14v3"/><path d="M26 12h22" stroke-width="1"/><path d="M26 21h38" stroke-width="3.5"/>' },
   { id: "lsa_strip", kind: "fuse_box", name: "wizard.lsaStrip", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="8" width="68" height="16"/><path d="M15.6 8v3M29.2 8v3M42.8 8v3M56.4 8v3M15.6 21v3M29.2 21v3M42.8 21v3M56.4 21v3"/><path d="M8 13h3v6M21 13h4v3h-4v3h4M35 13h4v6h-4M48 13h4M50 13v6"/>' },
 ];
@@ -3486,6 +3863,13 @@ function fillWizard(layout: api.Layout): void {
     check("wz-separators", layout.separators);
   }
   if (layout.kind === "terminal_block") $<HTMLSelectElement>("wz-rows").value = String(layout.rows);
+  if (layout.kind === "asset_tag") {
+    set("wz-owner", layout.owner);
+    set("wz-number", layout.number);
+    $<HTMLSelectElement>("wz-code").value = layout.code;
+    set("wz-code-data", layout.code_data);
+    set("wz-length", layout.length_mm);
+  }
   if (layout.kind === "fuse_box") {
     check("wz-fb-vertical", layout.vertical);
     set("wz-main", layout.main_switch);
@@ -3502,6 +3886,15 @@ function wizardLayout(): api.Layout {
   const text = $<HTMLInputElement>("wz-text").value;
   const diameter_mm = Math.max(0.5, num("wz-diameter"));
   switch (kind) {
+    case "asset_tag":
+      return {
+        kind,
+        owner: $<HTMLInputElement>("wz-owner").value,
+        number: $<HTMLInputElement>("wz-number").value,
+        code: $<HTMLSelectElement>("wz-code").value as api.AssetCode,
+        code_data: $<HTMLInputElement>("wz-code-data").value,
+        length_mm: Math.min(500, Math.max(10, num("wz-length"))),
+      };
     case "cable_flag":
     case "single_flag":
       return {
@@ -3737,7 +4130,8 @@ function updateWizard(): void {
   void (async () => {
     try {
       const label = await api.generateLayout(layout, selectedModel(), selectedWidth());
-      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), null, null, 2);
+      // First label of the series: placeholders like {{n:05}} show a real number.
+      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), 1, numbering(), 2);
       if (seq !== wizardSeq) return;
       $<HTMLImageElement>("wz-preview-img").src = `data:image/png;base64,${preview.png}`;
       const length = label.min_length_mm ?? 0;
@@ -3815,6 +4209,7 @@ function bindWizard(): void {
       }
       state.label = label;
       state.selected = -1;
+      multi.clear();
       dialog.close();
       changed(true);
       renderAll();
@@ -3865,6 +4260,107 @@ function a4Options(): A4Options {
     logo: appIcon,
     headerText: (page, pages) => `${doc} · ${date} · ${t("a4.page", { page, pages })}`,
   };
+}
+
+/** Shortcut overview: groups of [keys, i18n key of the action]. */
+const SHORTCUTS: [string, [string, string][]][] = [
+  ["keys.file", [
+    ["Strg+O", "toolbar.open"],
+    ["Strg+S", "toolbar.saveNow"],
+    ["Strg+Umschalt+S", "toolbar.saveAs"],
+    ["Strg+P", "print.print"],
+  ]],
+  ["keys.edit", [
+    ["Strg+Z", "toolbar.undo"],
+    ["Strg+Y / Strg+Umschalt+Z", "keys.redo"],
+    ["Strg+C / Strg+X / Strg+V", "keys.clipboard"],
+    ["Strg+D", "keys.duplicate"],
+    ["Entf", "keys.delete"],
+    ["Esc", "keys.deselect"],
+  ]],
+  ["keys.layout", [
+    ["← → ↑ ↓", "keys.nudge"],
+    ["Umschalt+← → ↑ ↓", "keys.nudgeCoarse"],
+    ["Bild↑ / Bild↓", "keys.order"],
+    ["Umschalt+Bild↑ / Bild↓", "keys.orderAll"],
+    ["Umschalt/Strg+Klick", "keys.multi"],
+    ["Alt (beim Ziehen)", "keys.noSnap"],
+    ["Umschalt (Ecke ziehen)", "keys.ratio"],
+    ["Mausrad", "keys.zoom"],
+  ]],
+  ["keys.text", [
+    ["Strg+B / Strg+I", "keys.bold"],
+  ]],
+];
+
+/** Key names in the UI language (the table is written with German names). */
+function keyName(k: string): string {
+  if (currentLang() === "de") return k;
+  return k
+    .replace(/Strg/g, "Ctrl")
+    .replace(/Umschalt/g, "Shift")
+    .replace(/Entf/g, "Del")
+    .replace(/Bild↑/g, "PgUp")
+    .replace(/Bild↓/g, "PgDn")
+    .replace(/Klick/g, t("keys.click"))
+    .replace(/Mausrad/g, t("keys.wheel"))
+    .replace(/\(beim Ziehen\)/g, `(${t("keys.whileDragging")})`)
+    .replace(/\(Ecke ziehen\)/g, `(${t("keys.cornerDrag")})`);
+}
+
+function showShortcuts(): void {
+  const table = $("keys-list");
+  table.replaceChildren();
+  for (const [group, rows] of SHORTCUTS) {
+    const head = document.createElement("tr");
+    head.className = "head";
+    const cell = document.createElement("td");
+    cell.colSpan = 2;
+    cell.textContent = t(group);
+    head.append(cell);
+    table.append(head);
+    for (const [keys, action] of rows) {
+      const tr = document.createElement("tr");
+      const k = document.createElement("td");
+      for (const [i, part] of keyName(keys).split(" / ").entries()) {
+        if (i) k.append(" / ");
+        const kbd = document.createElement("kbd");
+        kbd.textContent = part;
+        k.append(kbd);
+      }
+      const what = document.createElement("td");
+      what.textContent = t(action);
+      tr.append(k, what);
+      table.append(tr);
+    }
+  }
+  const dialog = $<HTMLDialogElement>("keys-dialog");
+  if (!dialog.open) dialog.showModal();
+}
+
+/** Saves the current sheet as a PNG in tape colours (720 dpi, first label of a series). */
+async function exportPng(): Promise<void> {
+  syncSheet();
+  const sheet = state.sheets[state.sheet];
+  const base = (sheet?.name || state.filePath?.split(/[\\/]/).pop()?.replace(/\.llabel$/i, "") || "label").replace(/[\\/:*?"<>|]/g, "_");
+  const path = await save({ defaultPath: `${base}.png`, filters: [{ name: "PNG", extensions: ["png"] }] });
+  if (!path) return;
+  try {
+    const width = selectedWidth();
+    const tape = state.models.find((m) => m.name === selectedModel())?.tapes.find((tp) => tp.width_mm === width);
+    const preview = await api.renderPreview(state.label, selectedModel(), width, 1, numbering(), RENDER_SCALE);
+    const st = parseStyleKey($<HTMLSelectElement>("tape-style").value) ?? TAPE_STYLES[0];
+    const url = await labelPng(
+      { name: base, png: preview.png, tapeMm: width, printableMm: tape?.printable_mm ?? width },
+      // Clear tape: transparent background.
+      TAPE_CSS[st.tape] ?? null,
+      INK_CSS[st.ink] ?? INK_CSS.black,
+    );
+    await api.saveBinaryFile(path, url.replace(/^data:[^,]*,/, ""));
+    setMessage(t("export.saved", { path }));
+  } catch (e) {
+    setMessage(t("error.prefix", { error: errorText(e) }), true);
+  }
 }
 
 /** Renders the chosen sheets (each `copies` times) for A4. */
@@ -4171,9 +4667,11 @@ function isTyping(): boolean {
 }
 
 function nudge(dx: number, dy: number): void {
-  const item = state.label.elements[state.selected];
-  if (!item?.rect || item.locked) return;
-  item.rect = roundRect({ ...item.rect, x_mm: item.rect.x_mm + dx, y_mm: item.rect.y_mm + dy });
+  const items = selection()
+    .map((i) => state.label.elements[i])
+    .filter((it) => it?.rect && !it.locked);
+  if (!items.length) return;
+  for (const item of items) item.rect = roundRect({ ...item.rect!, x_mm: item.rect!.x_mm + dx, y_mm: item.rect!.y_mm + dy });
   repositionBoxes();
   updateRectInputs(state.selected);
   commitSoon();
@@ -4258,6 +4756,14 @@ function bindUi(): void {
       changed(true);
     }),
   );
+  $("btn-export-png").addEventListener("click", () => void exportPng());
+  $("btn-keys").addEventListener("click", showShortcuts);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "F1") {
+      e.preventDefault();
+      showShortcuts();
+    }
+  });
   langPicker($("lang"), currentLang, (code: Lang) => {
     setLang(code);
     fillTapeStyles();
@@ -4296,9 +4802,14 @@ function bindUi(): void {
     if (moves[e.key]) {
       e.preventDefault();
       nudge(...moves[e.key]);
+    } else if (e.key === "PageUp" || e.key === "PageDown") {
+      // Drawing order: a step forward/back, with Shift all the way.
+      e.preventDefault();
+      const up = e.key === "PageUp";
+      moveItem(state.selected, e.shiftKey ? (up ? Infinity : 0) : state.selected + (up ? 1 : -1));
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
-      removeItem(state.selected);
+      removeItems(selection());
     } else if (e.key === "Escape") {
       select(-1);
     }

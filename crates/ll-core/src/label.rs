@@ -29,6 +29,7 @@ use ll_render::{
 use serde::{Deserialize, Serialize};
 
 use crate::fusebox::{self, FuseField, FuseSeparator};
+pub use crate::table::Table;
 use crate::CoreError;
 
 /// Current `.llabel` format version, written by [`Label::to_json`].
@@ -435,7 +436,29 @@ pub enum Element {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         italic: bool,
     },
+    /// Grid of cells with text (see [`crate::table`]).
+    Table {
+        #[serde(flatten)]
+        table: Table,
+        /// One size for all cells; `None` = largest size fitting every cell.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        size_pt: Option<f32>,
+        #[serde(default)]
+        align: TextAlign,
+        /// Line spacing of multi-line cells (0.5–3); `None` = 1.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        line_spacing: Option<f32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        font: Option<String>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        bold: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        italic: bool,
+    },
 }
+
+/// Column width of a table in the flow layout (no box), mm.
+const TABLE_FLOW_COL_MM: f32 = 10.0;
 
 /// Default module width (DIN rail, 17.5 mm).
 fn default_pitch_mm() -> f32 {
@@ -535,7 +558,7 @@ impl Label {
     fn has_text(&self) -> bool {
         self.elements
             .iter()
-            .any(|i| matches!(i.element, Element::Text { .. }))
+            .any(|i| matches!(i.element, Element::Text { .. } | Element::Table { .. }))
     }
 }
 
@@ -811,6 +834,15 @@ fn render_flow_element(
             out.blit(&local, offset as i32, 0, offset..offset + pins);
             out
         }
+        Element::Table { table, .. } => {
+            // Natural length: 10 mm per column.
+            let len = canvas.mm(TABLE_FLOW_COL_MM * table.cols() as f32).max(1);
+            let local =
+                render_table_element(element, len, pins, VAlign::Middle, canvas, fonts, overflow)?;
+            let mut out = Bitmap::new(head, len);
+            out.blit(&local, offset as i32, 0, offset..offset + pins);
+            out
+        }
         Element::Fill => {
             // A flow-layout fill is a 1 mm bar across the tape.
             let mut out = Bitmap::new(head, canvas.mm(1.0));
@@ -885,12 +917,65 @@ fn render_boxed_element(
         } => ll_render::shape::shape_in_box(*shape, w, h, canvas.mm(*stroke_mm) as f32, *filled)?,
         Element::Symbol { name, invert } => boxed::symbol_in_box(name, w, h, *invert)?,
         Element::FuseBox { .. } => render_fuse_box(element, w, h, valign, canvas, fonts, overflow)?,
+        Element::Table { .. } => {
+            render_table_element(element, w, h, valign, canvas, fonts, overflow)?
+        }
         Element::Fill => {
             let mut b = Bitmap::new(h, w);
             b.fill();
             b
         }
     })
+}
+
+/// Renders an [`Element::Table`] into a `w` x `h` dot box.
+fn render_table_element(
+    element: &Element,
+    w: u32,
+    h: u16,
+    valign: VAlign,
+    canvas: &Canvas,
+    fonts: &mut FontCache,
+    overflow: &mut bool,
+) -> Result<Bitmap, CoreError> {
+    let Element::Table {
+        table,
+        size_pt,
+        align,
+        line_spacing,
+        font,
+        bold,
+        italic,
+    } = element
+    else {
+        return Ok(Bitmap::new(h, w));
+    };
+    let all: String = table
+        .cells
+        .iter()
+        .flatten()
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let faces = fonts.faces(font, *bold, *italic, &all)?;
+    let bold_faces = fonts.faces(font, true, *italic, &all)?;
+    let (faces, bold_faces) = (face_set(&faces), face_set(&bold_faces));
+    let (bitmap, clipped) = crate::table::render_table(
+        table,
+        w,
+        h,
+        &crate::table::CellStyle {
+            faces: &faces,
+            bold_faces: &bold_faces,
+            size_px: size_pt.map(|pt| canvas.pt(pt)),
+            align: *align,
+            valign,
+            line_spacing: line_spacing.unwrap_or(1.0),
+        },
+        &crate::table::TableDots::from_mm(table, |mm| canvas.mm(mm)),
+    )?;
+    *overflow |= clipped;
+    Ok(bitmap)
 }
 
 /// Renders a [`Element::FuseBox`] into a `w` x `h` dot box: fields by
@@ -1408,6 +1493,51 @@ mod tests {
 
     fn p710() -> &'static ModelInfo {
         ll_protocol::model::find_by_name("PT-P710BT").unwrap()
+    }
+
+    #[test]
+    fn table_round_trips_and_renders_cells_and_grid() {
+        let table = Element::Table {
+            table: Table {
+                cells: vec![
+                    vec!["Raum".into(), "Port".into()],
+                    vec!["2.04".into(), "**12**".into()],
+                ],
+                header: true,
+                ..Table::new(2, 2)
+            },
+            size_pt: None,
+            align: TextAlign::Center,
+            line_spacing: None,
+            font: None,
+            bold: false,
+            italic: false,
+        };
+        let item = Item {
+            rect: Some(Rect {
+                x_mm: 0.0,
+                y_mm: 0.0,
+                w_mm: 30.0,
+                h_mm: 9.0,
+            }),
+            ..table.into()
+        };
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains(r#""type":"table""#) && json.contains(r#""cells""#));
+        assert!(!json.contains("frame"), "default frame is not written");
+        assert_eq!(serde_json::from_str::<Item>(&json).unwrap(), item);
+        if !has_font() {
+            return;
+        }
+        let model = p710();
+        let label = Label {
+            elements: vec![item],
+            ..Label::default()
+        };
+        let preview = render_label_preview(&label, model, 12, 1).unwrap();
+        assert!(preview.overflowing.is_empty());
+        let bitmap = render_label(&label, model, geometry_for(model, 12).unwrap()).unwrap();
+        assert!(!ink_lines(&bitmap).is_empty());
     }
 
     #[test]

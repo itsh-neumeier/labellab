@@ -4,6 +4,18 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Element „Tabelle“: Zeilen/Spalten, Zellen mehrzeilig mit Fett/Kursiv und Platzhaltern,
+  relative Spaltenbreiten und Zeilenhöhen, Linienstärke, Außenrahmen, fette Kopfzeile.
+  `.lbx`-Tabellen werden als Tabelle übernommen
+- Mehrfachauswahl (Umschalt-/Strg-Klick auf Box oder Ebene): gemeinsam ziehen, mit Pfeiltasten
+  verschieben, löschen; aneinander ausrichten (Kanten, Mitte) und gleichmäßig verteilen
+- Ebenen-Reihenfolge ändern: Griff ⠿ in der Elementliste ziehen oder Bild↑/Bild↓
+  (mit Umschalt ganz nach vorne/hinten)
+- Vorlage „Inventarlabel“ (Büro & Inventar): QR oder Code 128, Besitzerzeile und hochzählende
+  Inventarnummer (`INV-{{n:05}}`); CLI `generate asset-tag`. Vorschauen im Assistenten zeigen
+  die erste echte Nummer
+- „Als Bild …“: aktuelles Blatt als PNG in Bandfarben (720 dpi) speichern
+- Tastenkürzel-Übersicht mit F1 (auch im „Über …“-Dialog)
 - Oberfläche zusätzlich auf Französisch, Spanisch, Italienisch, Niederländisch, Polnisch und
   Tschechisch; Sprachauswahl mit Flaggen. Datum/Uhrzeit im Format der gewählten Sprache
 - `.lbx`-Dateien des Hersteller-Editors öffnen („Öffnen …“ oder `labellab import-lbx`):
