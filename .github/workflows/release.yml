@@ -1,0 +1,155 @@
+name: Release
+
+# Builds the release files for every platform from a version tag `vX.Y.Z`
+# and publishes them as a GitHub release (ADR-043):
+# - Windows x64: portable ZIP (LabelLab.exe, labellab-cli.exe, LIESMICH.txt)
+# - Linux x64: AppImage and .deb (GUI) plus a CLI archive with the udev rule
+# Release notes come from the matching section of CHANGELOG.md.
+# Manual runs build an existing tag again (e.g. after a failed job).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build, e.g. v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: tag matches the version in all manifests
+        id: version
+        run: |
+          version="${TAG#v}"
+          for f in Cargo.toml app/src-tauri/Cargo.toml; do
+            grep -q "^version = \"$version\"" "$f" || { echo "::error::$f is not $version"; exit 1; }
+          done
+          for f in app/package.json app/src-tauri/tauri.conf.json; do
+            grep -q "\"version\": \"$version\"" "$f" || { echo "::error::$f is not $version"; exit 1; }
+          done
+          grep -q "^## \[$version\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no [$version] section"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: build GUI (portable exe, bundling disabled in tauri.conf.json)
+        working-directory: app
+        run: npm ci && npx tauri build
+      - name: build CLI
+        run: cargo build --release -p ll-cli
+      - name: package
+        shell: pwsh
+        run: |
+          $name = "LabelLab-${{ needs.check.outputs.version }}-windows-x64-portable"
+          New-Item -ItemType Directory -Force $name | Out-Null
+          Copy-Item app/src-tauri/target/release/LabelLab.exe $name/
+          Copy-Item target/release/labellab.exe $name/labellab-cli.exe
+          Copy-Item docs/LIESMICH-windows.txt $name/LIESMICH.txt
+          Copy-Item LICENSE $name/LICENSE.txt
+          if ((Get-ChildItem $name -Filter *.exe).Count -ne 2) { throw "expected LabelLab.exe and labellab-cli.exe" }
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path "$name/*" -DestinationPath "out/$name.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: out/*
+
+  linux:
+    needs: check
+    # Oldest supported runner: the AppImage and .deb then run on glibc 2.35+.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: install build dependencies
+        run: >
+          sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev
+          libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev
+          libudev-dev libdbus-1-dev pkg-config file
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: build GUI (AppImage and .deb)
+        working-directory: app
+        env:
+          # linuxdeploy is an AppImage itself; runners have no FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          npm ci
+          npx tauri build --bundles appimage,deb --config '{"bundle":{"active":true}}'
+      - name: build CLI
+        run: cargo build --release -p ll-cli
+      - name: package
+        run: |
+          version="${{ needs.check.outputs.version }}"
+          mkdir -p out
+          cp app/src-tauri/target/release/bundle/appimage/*.AppImage out/
+          cp app/src-tauri/target/release/bundle/deb/*.deb out/
+          name="LabelLab-$version-linux-x64-cli"
+          mkdir "$name"
+          cp target/release/labellab "$name/"
+          cp packaging/linux/60-labellab.rules "$name/"
+          cp docs/LIESMICH-linux.txt "$name/LIESMICH.txt"
+          cp LICENSE "$name/"
+          tar -czf "out/$name.tar.gz" "$name"
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: out/*
+
+  publish:
+    needs: [check, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: release notes from CHANGELOG.md
+        run: |
+          version="${{ needs.check.outputs.version }}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          (cd out && sha256sum * > SHA256SUMS.txt)
+          ls -la out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: LabelLab ${{ needs.check.outputs.version }}
+          body_path: notes.md
+          files: out/*

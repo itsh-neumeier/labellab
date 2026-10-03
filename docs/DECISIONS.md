@@ -759,3 +759,22 @@ Vorlage:
   Spitzen rendern. Der Etikettendrucker druckt weiter einfarbig in den Farben der Kassette.
 - Konsequenzen: Binärgröße steigt um ca. 0,4 MB. Ohne gesetzte Farben gelten die
   RAL-Farben der Stoffgruppe.
+
+## ADR-043: Release 1.0.0 und Release-Pakete je Plattform
+- Datum / Status: 2026-10-03 · angenommen (Nutzerwunsch: Releases je Plattform, Sprung auf 1.0.0)
+- Kontext: Bisher gab es nur das Windows-Artefakt je Push. Für Linux gab es keine fertigen
+  Pakete, Releases hingen am Windows-Workflow.
+- Entscheidung: Eigener Workflow `release.yml`, ausgelöst durch Tags `v*` (oder manuell mit
+  einem Tag). Er prüft, dass Tag, alle vier Manifeste und ein CHANGELOG-Abschnitt
+  übereinstimmen, und baut:
+  - Windows: portables ZIP wie bisher (ADR-015, kein Installer);
+  - Linux auf `ubuntu-22.04` (glibc 2.35 als Untergrenze): AppImage (portabel) und `.deb`,
+    Bundling nur hier per `--config` aktiviert. Das `.deb` installiert die udev-Regel
+    `packaging/linux/60-labellab.rules` nach `/usr/lib/udev/rules.d/` (VID/PID aus der
+    Modelltabelle, unverifiziert) und lädt udev im postinst neu;
+  - CLI für Linux als `.tar.gz` mit udev-Regel und `LIESMICH.txt`.
+  Veröffentlicht wird mit `softprops/action-gh-release`, Notizen aus dem CHANGELOG,
+  `SHA256SUMS.txt`. `windows-build.yml` baut weiter je Push, hängt aber nichts mehr an Releases.
+  macOS bleibt außen vor (eigener Bluetooth-Transport nötig).
+- Konsequenzen: Der Paketname des `.deb` ist `label-lab` (von Tauri aus dem Produktnamen
+  abgeleitet). Die Binärdateien sind weiterhin unsigniert.

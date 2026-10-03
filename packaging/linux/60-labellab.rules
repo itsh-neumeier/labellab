@@ -1,0 +1,8 @@
+# LabelLab: USB access to supported label printers without root.
+# Installed by the .deb package; for the AppImage or the CLI archive copy it to
+# /etc/udev/rules.d/ and run: sudo udevadm control --reload && sudo udevadm trigger
+# VID/PID from the model table in crates/ll-protocol/src/model.rs.
+# TODO(verify): not yet tested against real hardware on Linux (docs/PROTOCOL.md).
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04f9", ATTRS{idProduct}=="20af", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04f9", ATTRS{idProduct}=="20c5", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04f9", ATTRS{idProduct}=="224a", MODE="0660", TAG+="uaccess"

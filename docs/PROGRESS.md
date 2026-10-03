@@ -4,6 +4,8 @@
 > aktualisiert (siehe `AGENTS.md`). Neueste Einträge im Session-Log oben.
 
 ## Aktueller Stand
+- **Version 1.0.0 (2026-10-03):** erstes stabiles Release, Pakete für Windows (portabel) und
+  Linux (AppImage, .deb, CLI) über den Workflow „Release“ (ADR-043).
 - **Kurzfassung (2026-10-01):** CLI und Windows-GUI drucken per nativem Bluetooth auf echtem
   PT-P710BT (hardware-bestätigt: Text, QR, Code128-Optik, GUI-Druck, Serie mit 2 Labels,
   Bluetooth-Gerätename „PT-P710BT5265“). Auslieferung als **portable** `LabelLab.exe` +
@@ -332,6 +334,15 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-03 – Claude Code, Release 1.0.0 (ADR-043)
+- Version 1.0.0 in allen Manifesten, CHANGELOG-Abschnitt `[1.0.0]`.
+- Neuer Workflow `release.yml` (Tag `v*` oder manuell): Versionsprüfung, Windows-ZIP portabel,
+  Linux AppImage + `.deb` (udev-Regel `packaging/linux/60-labellab.rules`, postinst lädt udev
+  neu) + CLI-`.tar.gz`, `SHA256SUMS.txt`, Release-Notizen aus dem CHANGELOG. `windows-build.yml`
+  hängt nichts mehr an Releases.
+- Lokal geprüft: AppImage und `.deb` gebaut (deb enthält udev-Regel), AppImage startet unter
+  Xvfb, „Über …“ zeigt 1.0.0. Offen: Linux-Pakete auf echter Hardware (USB/udev, BlueZ).
+
 ### 2026-10-03 – Claude Code, D-DIN mitgeliefert, eigene Farben für Rohrleitungen (ADR-042)
 - D-DIN/D-DIN Condensed (OFL) in `ll-render` eingebettet und als `@font-face` im Frontend;
   Rohrleitungs-Vorlage nutzt D-DIN. Hinweis in „Über …“ (Drittkomponenten).

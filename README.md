@@ -3,12 +3,24 @@
 Schnelle, schlanke Label-Software in Rust für Brother-Labeldrucker der PT-P7xx-Serie (primär **PT-P710BT**).
 Druckt direkt über **Bluetooth** oder **USB**, ohne Brother-Druckertreiber, unter **Windows und Linux**.
 
-> Status: in Entwicklung (Vorabversion 0.1). Druck per Bluetooth funktioniert, erste Oberfläche
-> mit Editor und Live-Vorschau vorhanden. Details: [`docs/PROGRESS.md`](docs/PROGRESS.md).
+> Status: **Version 1.0.0**. Änderungen: [`CHANGELOG.md`](CHANGELOG.md), Stand der Entwicklung:
+> [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
-## Windows: herunterladen und starten
-Jeder Push baut automatisch die portable Windows-Version (GitHub → **Actions** → „Windows build“
-→ Lauf öffnen → **Artifacts** → `LabelLab-windows-x64-portable`). Keine Installation nötig:
+## Herunterladen
+Fertige Pakete stehen unter [**Releases**](https://github.com/itsh-neumeier/labellab/releases):
+
+| Plattform | Datei | Hinweis |
+|---|---|---|
+| Windows 10/11 x64 | `LabelLab-<Version>-windows-x64-portable.zip` | entpacken, `LabelLab.exe` starten |
+| Linux x64 | `LabelLab_<Version>_amd64.AppImage` | `chmod +x`, starten (portabel) |
+| Linux x64 (Debian/Ubuntu) | `LabelLab_<Version>_amd64.deb` | `sudo apt install ./LabelLab_*.deb`, inkl. udev-Regel für USB |
+| Linux x64 | `LabelLab-<Version>-linux-x64-cli.tar.gz` | Kommandozeile `labellab` + udev-Regel |
+
+Linux-Hinweise: [`docs/LIESMICH-linux.txt`](docs/LIESMICH-linux.txt). Zwischenstände baut jeder
+Push als portable Windows-Version (GitHub → **Actions** → „Windows build“ → **Artifacts**).
+
+## Windows: starten
+Keine Installation nötig:
 
 | Datei | Zweck |
 |---|---|
@@ -21,7 +33,7 @@ Windows 10 vorinstalliert). Den Drucker in den Windows-Bluetooth-Einstellungen o
 Die Dateien sind nicht signiert; Windows SmartScreen kann beim ersten Start warnen
 („Weitere Informationen“ → „Trotzdem ausführen“).
 
-## Geplante Funktionen (v1.0)
+## Funktionen
 - Direktdruck per Bluetooth (Windows: native RFCOMM inkl. Kopplung, ohne virtuelle COM-Ports; Linux: BlueZ) und USB
 - Live-Abfrage des eingelegten Bands (Breite, Typ, Farben) mit automatischer Anpassung des Editors
 - Label-Editor: Text, Rahmen (verschiedene Stile, Seiten frei wählbar), Symbole aus Icon-Sets
