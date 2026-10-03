@@ -740,3 +740,22 @@ Vorlage:
   `generate pipe-marker`. Neues mitgeliefertes Icon-Set `ghs` (GHS01–GHS09 von Wikimedia Commons,
   gemeinfrei, `tools/iconsets/ghs`).
 - Konsequenzen: Grau, Violett, Braun gibt es meist nicht als Kassette (Hinweis im Assistenten).
+
+## ADR-042: Mitgelieferte Schrift D-DIN, eigene Farben für Rohrleitungsschilder
+- Datum / Status: 2026-10-03 · angenommen
+- Kontext: Rohrleitungsschilder nach DIN 2403 nutzen üblicherweise die DIN 1451. Auf den
+  Zielrechnern ist sie meist nicht installiert. Der Nutzer wünscht außerdem eigene Farben für die
+  Schilder (Hintergrund, Schrift, Zusatzfarbe), z. B. für Werksnormen.
+- Entscheidung: D-DIN und D-DIN Condensed (je Normal und Fett; Datto Inc., SIL OFL 1.1, freie
+  Nachbildung der DIN 1451) liegen unter `crates/ll-render/assets/fonts/` und werden per
+  `include_bytes!` in `ll_render::fonts::database()` geladen. Damit nutzen Vorschau und Druck
+  dieselbe Schrift, unabhängig von den Systemschriften. Das Frontend bindet dieselben Dateien per
+  `@font-face` für die Schriftauswahl ein (`app/src/fonts/`). Die Vorlage „Rohrleitung“ setzt
+  `D-DIN` (`ll_render::fonts::DIN_FAMILY`). Die OFL erlaubt die Weitergabe mit Software, auch
+  unter MIT, solange die Lizenzdatei beiliegt und die Schrift nicht allein verkauft wird.
+  `PipeMarker.colors` (optional: `background`, `ink`, `extra` als `#rrggbb`) gilt nur für
+  farbige Ausgaben (Assistenten-Vorschau, PNG-Export, A4 mit „Farben wie Band“). Die Spitzen
+  in der Zusatzfarbe werden als Differenzmaske berechnet: einmal mit, einmal ohne gefüllte
+  Spitzen rendern. Der Etikettendrucker druckt weiter einfarbig in den Farben der Kassette.
+- Konsequenzen: Binärgröße steigt um ca. 0,4 MB. Ohne gesetzte Farben gelten die
+  RAL-Farben der Stoffgruppe.

@@ -15,7 +15,7 @@ import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
 import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
 import { langInfo, langPicker } from "./langs";
-import { PIPE_CSS, PIPE_GROUPS, pipeGroup, pipeLength, type PipeGroup } from "./pipes";
+import { PIPE_GROUPS, pipeColors, pipeGroup, pipeLength, type PipeGroup } from "./pipes";
 import { getSetting, initSettings, setSetting } from "./settings";
 import { buildPages, labelPng, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
@@ -1238,7 +1238,36 @@ function pipeControls(m: api.PipeMarkerFields, onChange: (structural: boolean) =
   const opts = document.createElement("div");
   opts.className = "row";
   opts.append(field("pipe.tips", tips), field("pipe.frame", frame));
-  return [field("pipe.group", group), info, field("pipe.text", text), media, field("pipe.sub", sub), dirRow, opts, symbols];
+  // Own colours for coloured output (preview, A4, PNG); the label printer uses the cassette.
+  const colorRow = document.createElement("div");
+  colorRow.className = "row pipe-colors";
+  const pickers = (["background", "ink", "extra"] as const).map((key) => {
+    const input = document.createElement("input");
+    input.type = "color";
+    input.addEventListener("input", () => {
+      m.colors = { ...(m.colors ?? {}), [key]: input.value };
+      onChange(false);
+    });
+    return { key, input };
+  });
+  const showColors = () => {
+    const c = pipeColors(m);
+    for (const { key, input } of pickers) input.value = c[key] ?? "#c62828";
+  };
+  showColors();
+  const reset = makeButton("↺", t("pipe.colorsReset"), () => {
+    m.colors = undefined;
+    showColors();
+    onChange(false);
+  });
+  reset.type = "button";
+  colorRow.append(...pickers.map(({ key, input }) => field(`pipe.color.${key}`, input)), reset);
+  colorRow.title = t("pipe.colorsHint");
+  group.addEventListener("change", () => {
+    m.colors = undefined;
+    showColors();
+  });
+  return [field("pipe.group", group), info, field("pipe.text", text), media, field("pipe.sub", sub), dirRow, opts, colorRow, symbols];
 }
 
 /** Properties of a pipe marker element. */
@@ -2085,7 +2114,7 @@ function defaultElement(type: Element["type"]): Element {
         separator: "frame",
       };
     case "pipe_marker":
-      return { type, text: "Wasser", group: 1 };
+      return { type, text: "Wasser", group: 1, font: "D-DIN" };
     case "table":
       return {
         type,
@@ -4383,19 +4412,15 @@ function updateWizard(): void {
       const label = await api.generateLayout(layout, selectedModel(), selectedWidth());
       // First label of the series: placeholders like {{n:05}} show a real number.
       // Pipe markers are shown in colour, which needs the 720 dpi raster of the A4/PNG path.
-      const scale = layout.kind === "pipe_marker" && pipeGroup(layout.group) ? RENDER_SCALE : 2;
-      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), 1, numbering(), scale);
+      const preview =
+        layout.kind === "pipe_marker"
+          ? { png: "", overflowing: [] }
+          : await api.renderPreview(label, selectedModel(), selectedWidth(), 1, numbering(), 2);
       if (seq !== wizardSeq) return;
-      const group = layout.kind === "pipe_marker" ? pipeGroup(layout.group) : undefined;
-      if (group) {
-        // In the group's colours, as it looks on the matching cassette.
-        const width = selectedWidth();
-        const tape = state.models.find((m) => m.name === selectedModel())?.tapes.find((tp) => tp.width_mm === width);
-        const url = await labelPng(
-          { name: "", png: preview.png, tapeMm: width, printableMm: tape?.printable_mm ?? width },
-          PIPE_CSS[group.tape],
-          PIPE_CSS[group.ink],
-        );
+      if (layout.kind === "pipe_marker") {
+        // In the marker's colours (group or own), tips in the additional colour.
+        const art = await labelArt(label, selectedWidth(), "", 1, numbering());
+        const url = await labelPng(art, "#ffffff", "#111111");
         if (seq !== wizardSeq) return;
         $<HTMLImageElement>("wz-preview-img").src = url;
       } else {
@@ -4615,6 +4640,56 @@ function showShortcuts(): void {
   if (!dialog.open) dialog.showModal();
 }
 
+/** Pixels set in mask `a` but not in mask `b` (both base64 PNG), as a base64 PNG mask. */
+async function maskDifference(a: string, b: string): Promise<string> {
+  const load = async (png: string) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${png}`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    return { c, ctx, data: ctx.getImageData(0, 0, c.width, c.height) };
+  };
+  const [ia, ib] = await Promise.all([load(a), load(b)]);
+  const out = ia.data;
+  for (let i = 3; i < out.data.length; i += 4) {
+    if (ib.data.data[i] > 0) out.data[i] = 0;
+  }
+  ia.ctx.putImageData(out, 0, 0);
+  return ia.c.toDataURL("image/png").replace(/^data:[^,]*,/, "");
+}
+
+/**
+ * A label rendered at 720 dpi for coloured output (A4, PNG, wizard). A
+ * pipe marker brings its own colours, and its tips in the additional
+ * colour as a second mask (the label printer can't print that colour).
+ */
+async function labelArt(label: api.Label, width: number, name: string, row: number | null, nb: api.Numbering | null): Promise<A4Label> {
+  const tape = state.models.find((m) => m.name === selectedModel())?.tapes.find((tp) => tp.width_mm === width);
+  const base = { name, tapeMm: width, printableMm: tape?.printable_mm ?? width };
+  const render = async (l: api.Label) => (await api.renderPreview(l, selectedModel(), width, row, nb, RENDER_SCALE)).png;
+  const pipe = label.elements.find((i): i is PipeItem => i.type === "pipe_marker" && !i.hidden);
+  if (!pipe) return { ...base, png: await render(label) };
+  const colors = pipeColors(pipe);
+  if (!colors.extra) return { ...base, png: await render(label), background: colors.background, ink: colors.ink };
+  const tips = (fill: "none" | "solid"): api.Label => ({
+    ...label,
+    elements: label.elements.map((i) => (i.type === "pipe_marker" ? { ...i, tips: fill } : i)),
+  });
+  const [plain, solid] = await Promise.all([render(tips("none")), render(tips("solid"))]);
+  return {
+    ...base,
+    png: plain,
+    background: colors.background,
+    ink: colors.ink,
+    extraPng: await maskDifference(solid, plain),
+    extra: colors.extra,
+  };
+}
+
 /** Saves the current sheet as a PNG in tape colours (720 dpi, first label of a series). */
 async function exportPng(): Promise<void> {
   syncSheet();
@@ -4623,12 +4698,10 @@ async function exportPng(): Promise<void> {
   const path = await save({ defaultPath: `${base}.png`, filters: [{ name: "PNG", extensions: ["png"] }] });
   if (!path) return;
   try {
-    const width = selectedWidth();
-    const tape = state.models.find((m) => m.name === selectedModel())?.tapes.find((tp) => tp.width_mm === width);
-    const preview = await api.renderPreview(state.label, selectedModel(), width, 1, numbering(), RENDER_SCALE);
+    const art = await labelArt(state.label, selectedWidth(), base, 1, numbering());
     const st = parseStyleKey($<HTMLSelectElement>("tape-style").value) ?? TAPE_STYLES[0];
     const url = await labelPng(
-      { name: base, png: preview.png, tapeMm: width, printableMm: tape?.printable_mm ?? width },
+      art,
       // Clear tape: transparent background.
       TAPE_CSS[st.tape] ?? null,
       INK_CSS[st.ink] ?? INK_CSS.black,
@@ -4649,10 +4722,17 @@ async function a4Labels(): Promise<A4Label[]> {
     if (copies <= 0) continue;
     const width = sheet.width_mm ?? selectedWidth();
     const tape = model?.tapes.find((tp) => tp.width_mm === width);
-    const preview = await api.renderPreview(sheet.label, selectedModel(), width, null, null, RENDER_SCALE);
-    for (let c = 0; c < copies; c++) {
-      out.push({ name: sheet.name, png: preview.png, tapeMm: width, printableMm: tape?.printable_mm ?? width });
-    }
+    // "Like the tape": pipe markers in their own/DIN colours with coloured tips.
+    const art =
+      $<HTMLSelectElement>("a4-colors").value === "tape"
+        ? await labelArt(sheet.label, width, sheet.name, null, null)
+        : {
+            name: sheet.name,
+            png: (await api.renderPreview(sheet.label, selectedModel(), width, null, null, RENDER_SCALE)).png,
+            tapeMm: width,
+            printableMm: tape?.printable_mm ?? width,
+          };
+    for (let c = 0; c < copies; c++) out.push(art);
   }
   return out;
 }

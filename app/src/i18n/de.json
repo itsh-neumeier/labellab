@@ -107,7 +107,7 @@
   "about.tagline": "Etiketten gestalten und drucken – direkt per Bluetooth oder USB, ohne Herstellertreiber.",
   "about.developer": "Entwickelt von",
   "about.license": "Lizenz: MIT (freie Software, Quellcode auf GitHub: itsh-neumeier/labellab)",
-  "about.thirdParty": "Enthält Open-Source-Komponenten unter MIT- bzw. Apache-2.0-Lizenz (u. a. Tauri, resvg, fontdue, image). Herkunft und Lizenz der Symbole stehen in den Icon-Set-Dateien.",
+  "about.thirdParty": "Enthält Open-Source-Komponenten unter MIT- bzw. Apache-2.0-Lizenz (u. a. Tauri, resvg, fontdue, image). Herkunft und Lizenz der Symbole stehen in den Icon-Set-Dateien. Schrift D-DIN: Datto Inc., SIL Open Font License 1.1.",
   "about.trademarks": "Brother und P-touch sind Marken der Brother Industries, Ltd. LabelLab ist ein unabhängiges Projekt und kein Produkt von Brother.",
   "about.close": "Klicken oder Esc zum Schließen",
   "toolbar.saveNow": "Speichern",
@@ -655,5 +655,10 @@
   "color.gray": "Grau",
   "color.orange": "Orange",
   "color.violet": "Violett",
-  "color.brown": "Braun"
+  "color.brown": "Braun",
+  "pipe.color.background": "Hintergrund",
+  "pipe.color.ink": "Schrift/Rand",
+  "pipe.color.extra": "Spitzen",
+  "pipe.colorsReset": "Farben der Stoffgruppe",
+  "pipe.colorsHint": "Eigene Farben für Vorschau, A4-Druck (Farben wie Band) und PNG-Export. Der Etikettendrucker druckt die Farben der eingelegten Kassette."
 }

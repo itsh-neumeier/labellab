@@ -21,6 +21,12 @@ export interface A4Label {
   /** Tape width and printable height across it, in mm. */
   tapeMm: number;
   printableMm: number;
+  /** Own colours of this label (pipe markers), overriding the options. */
+  background?: string | null;
+  ink?: string;
+  /** Second mask (e.g. arrow tips) drawn in `extra` over the ink. */
+  extraPng?: string;
+  extra?: string;
 }
 
 export interface A4Options {
@@ -62,9 +68,13 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
  */
 async function tapeImage(
   label: A4Label,
-  opts: Pick<A4Options, "background" | "ink">,
+  options: Pick<A4Options, "background" | "ink">,
   rotate: boolean,
 ): Promise<{ url: string; lengthMm: number }> {
+  const opts = {
+    background: label.background !== undefined ? label.background : options.background,
+    ink: label.ink ?? options.ink,
+  };
   const mask = await loadImage(`data:image/png;base64,${label.png}`);
   const tapePx = Math.round(label.tapeMm * DOTS_PER_MM);
   const top = Math.round(((label.tapeMm - label.printableMm) / 2) * DOTS_PER_MM);
@@ -91,6 +101,18 @@ async function tapeImage(
   ictx.fillStyle = opts.ink;
   ictx.fillRect(0, 0, ink.width, ink.height);
   ctx.drawImage(ink, 0, top);
+  if (label.extraPng && label.extra) {
+    const extraMask = await loadImage(`data:image/png;base64,${label.extraPng}`);
+    const extra = document.createElement("canvas");
+    extra.width = extraMask.naturalWidth;
+    extra.height = extraMask.naturalHeight;
+    const ectx = extra.getContext("2d")!;
+    ectx.drawImage(extraMask, 0, 0);
+    ectx.globalCompositeOperation = "source-in";
+    ectx.fillStyle = label.extra;
+    ectx.fillRect(0, 0, extra.width, extra.height);
+    ctx.drawImage(extra, 0, top);
+  }
   return { url: canvas.toDataURL("image/png"), lengthMm: length / DOTS_PER_MM };
 }
 
@@ -159,7 +181,7 @@ export async function buildPages(labels: A4Label[], opts: A4Options): Promise<HT
   // Copies share one rendered image (colouring at 720 dpi is the slow part).
   const cache = new Map<string, Placed>();
   for (const label of labels) {
-    const key = `${label.tapeMm}|${label.png}`;
+    const key = `${label.tapeMm}|${label.png}|${label.background}|${label.ink}|${label.extra}|${label.extraPng}`;
     let item = cache.get(key);
     if (!item) {
       const length = (await loadImage(`data:image/png;base64,${label.png}`)).naturalWidth / DOTS_PER_MM;
@@ -253,5 +275,6 @@ export async function printPages(pages: HTMLElement[]): Promise<void> {
  * as an image for documentation.
  */
 export async function labelPng(label: A4Label, background: string | null, ink: string): Promise<string> {
+  // `label` may carry its own colours (pipe markers), which win.
   return (await tapeImage(label, { background, ink }, false)).url;
 }

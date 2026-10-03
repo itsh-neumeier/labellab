@@ -107,7 +107,7 @@
   "about.tagline": "Diseñar e imprimir etiquetas – directamente por Bluetooth o USB, sin el controlador del fabricante.",
   "about.developer": "Desarrollado por",
   "about.license": "Licencia: MIT (software libre, código fuente en GitHub: itsh-neumeier/labellab)",
-  "about.thirdParty": "Contiene componentes de código abierto con licencias MIT o Apache-2.0 (entre ellos Tauri, resvg, fontdue, image). El origen y la licencia de los símbolos se indican en los archivos de los conjuntos de iconos.",
+  "about.thirdParty": "Contiene componentes de código abierto con licencias MIT o Apache-2.0 (entre ellos Tauri, resvg, fontdue, image). El origen y la licencia de los símbolos se indican en los archivos de los conjuntos de iconos. Fuente D-DIN: Datto Inc., SIL Open Font License 1.1.",
   "about.trademarks": "Brother y P-touch son marcas comerciales de Brother Industries, Ltd. LabelLab es un proyecto independiente y no es un producto de Brother.",
   "about.close": "Haga clic o pulse Esc para cerrar",
   "toolbar.saveNow": "Guardar",
@@ -655,5 +655,10 @@
   "color.gray": "Gris",
   "color.orange": "Naranja",
   "color.violet": "Violeta",
-  "color.brown": "Marrón"
+  "color.brown": "Marrón",
+  "pipe.color.background": "Fondo",
+  "pipe.color.ink": "Texto/borde",
+  "pipe.color.extra": "Puntas",
+  "pipe.colorsReset": "Colores del grupo",
+  "pipe.colorsHint": "Colores propios para la vista previa, la impresión A4 (colores como la cinta) y la exportación PNG. La impresora de etiquetas imprime los colores del casete."
 }

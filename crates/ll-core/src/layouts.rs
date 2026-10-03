@@ -485,7 +485,8 @@ pub fn pipe_marker(spec: &PipeMarkerLayout, tape_mm: f32) -> Label {
         ..Element::PipeMarker {
             marker: spec.marker.clone(),
             size_pt: None,
-            font: None,
+            // Bundled DIN 1451 lookalike, the usual sign font.
+            font: Some(ll_render::fonts::DIN_FAMILY.to_owned()),
             bold: true,
         }
         .into()

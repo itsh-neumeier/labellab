@@ -81,6 +81,24 @@ pub struct PipeMarker {
     /// DIN 2403 substance group 0–9 (editor hint for colours).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<u8>,
+    /// Own colours for coloured output (preview, A4 on a colour printer,
+    /// PNG export). The label printer prints the cassette's colours.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colors: Option<PipeColors>,
+}
+
+/// CSS colours (`#rrggbb`) of a pipe marker; unset = the group's colours.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PipeColors {
+    /// Arrow (substance) colour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background: Option<String>,
+    /// Text and border colour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ink: Option<String>,
+    /// Additional colour in the tips.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extra: Option<String>,
 }
 
 /// Arrow geometry in dots inside a `w` x `h` box.
