@@ -85,13 +85,8 @@
   "info.noErrors": "nessuno",
   "info.statusType": "Stato",
   "info.phase": "Fase",
-  "info.battery": "Batteria",
-  "info.batteryUnknown": "non comunicato dalla stampante (solo l'avviso «batteria scarica»)",
   "info.unknownCode": "sconosciuto",
-  "info.unverified": "Valori dal blocco di stato della stampante. \"(non confermato)\": secondo la documentazione del produttore, non ancora verificato sul dispositivo.",
-  "info.unverifiedMark": "(non confermato)",
   "info.raw": "Dati grezzi (32 byte)",
-  "info.rawHint": "I dati grezzi aiutano nella diagnosi, ad es. con cassette sconosciute.",
   "info.copy": "Copia dati grezzi",
   "info.reload": "Rileggi",
   "info.copied": "Dati grezzi copiati",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Nastro ID flessibile",
   "media.satin": "Nastro satinato",
   "info.useAs": "Nastro inserito",
-  "info.useAsHint": "La stampante conosce solo la codifica della cassetta; le cassette compatibili spesso indicano valori errati (nastri diversi persino la stessa codifica). Scegli qui il nastro inserito – resta finché non viene rilevata una cassetta con codifica diversa."
+  "info.useAsHint": "La stampante conosce solo la codifica della cassetta; le cassette compatibili spesso indicano valori errati (nastri diversi persino la stessa codifica). Scegli qui il nastro inserito – resta finché non viene rilevata una cassetta con codifica diversa.",
+  "info.intro": "Valori dal blocco di stato della stampante. Nota: le cassette di terze parti indicano spesso un tipo o un colore di nastro diverso (ad es. «Nastro ID flessibile») – scegli il nastro reale in «Nastro inserito»."
 }

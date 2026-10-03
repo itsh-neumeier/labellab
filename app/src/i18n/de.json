@@ -85,13 +85,8 @@
   "info.noErrors": "keine",
   "info.statusType": "Status",
   "info.phase": "Phase",
-  "info.battery": "Akkustand",
-  "info.batteryUnknown": "wird vom Drucker nicht gemeldet (nur die Warnung „Akku schwach“)",
   "info.unknownCode": "unbekannt",
-  "info.unverified": "Werte aus dem Statusblock des Druckers. „(unbestätigt)“: laut Hersteller-Doku, am Gerät noch nicht geprüft.",
-  "info.unverifiedMark": "(unbestätigt)",
   "info.raw": "Rohdaten (32 Byte)",
-  "info.rawHint": "Die Rohdaten helfen bei der Fehlersuche, z. B. bei unbekannten Kassetten.",
   "info.copy": "Rohdaten kopieren",
   "info.reload": "Neu lesen",
   "info.copied": "Rohdaten kopiert",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Flex-ID-Band",
   "media.satin": "Satinband",
   "info.useAs": "Eingelegtes Band",
-  "info.useAsHint": "Der Drucker kennt nur die Kennung der Kassette; kompatible Kassetten melden oft Falsches (verschiedene Bänder sogar dieselbe Kennung). Hier das eingelegte Band wählen – es bleibt, bis eine Kassette mit anderer Kennung erkannt wird."
+  "info.useAsHint": "Der Drucker kennt nur die Kennung der Kassette; kompatible Kassetten melden oft Falsches (verschiedene Bänder sogar dieselbe Kennung). Hier das eingelegte Band wählen – es bleibt, bis eine Kassette mit anderer Kennung erkannt wird.",
+  "info.intro": "Werte aus dem Statusblock des Druckers. Hinweis: Kassetten von Drittherstellern melden oft eine abweichende Bandart oder Farbe (z. B. „Flex-ID-Band“) – unter „Eingelegtes Band“ das tatsächliche Band wählen."
 }

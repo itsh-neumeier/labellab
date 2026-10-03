@@ -85,13 +85,8 @@
   "info.noErrors": "ninguno",
   "info.statusType": "Estado",
   "info.phase": "fase",
-  "info.battery": "Batería",
-  "info.batteryUnknown": "la impresora no lo indica (solo el aviso «batería baja»)",
   "info.unknownCode": "desconocido",
-  "info.unverified": "Valores del bloque de estado de la impresora. «(sin confirmar)»: según la documentación del fabricante, aún no comprobado en el dispositivo.",
-  "info.unverifiedMark": "(sin confirmar)",
   "info.raw": "Datos sin procesar (32 bytes)",
-  "info.rawHint": "Los datos en bruto ayudan a resolver problemas, p. ej. con casetes desconocidos.",
   "info.copy": "Copiar datos sin procesar",
   "info.reload": "Volver a leer",
   "info.copied": "Datos sin procesar copiados",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Cinta ID flexible",
   "media.satin": "Cinta satinada",
   "info.useAs": "Cinta insertada",
-  "info.useAsHint": "La impresora solo conoce la codificación del casete; los casetes compatibles suelen indicar valores erróneos (cintas distintas incluso la misma). Elija aquí la cinta insertada: se mantiene hasta que se detecte un casete con otra codificación."
+  "info.useAsHint": "La impresora solo conoce la codificación del casete; los casetes compatibles suelen indicar valores erróneos (cintas distintas incluso la misma). Elija aquí la cinta insertada: se mantiene hasta que se detecte un casete con otra codificación.",
+  "info.intro": "Valores del bloque de estado de la impresora. Nota: los casetes de otros fabricantes suelen indicar otro tipo o color de cinta (p. ej. «Cinta ID flexible»); elija la cinta real en «Cinta insertada»."
 }

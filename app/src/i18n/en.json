@@ -85,13 +85,8 @@
   "info.noErrors": "none",
   "info.statusType": "Status",
   "info.phase": "phase",
-  "info.battery": "Battery",
-  "info.batteryUnknown": "not reported by the printer (only the warning “weak battery”)",
   "info.unknownCode": "unknown",
-  "info.unverified": "Values from the printer's status block. '(unconfirmed)': per manufacturer documentation, not yet checked on the device.",
-  "info.unverifiedMark": "(unconfirmed)",
   "info.raw": "Raw data (32 bytes)",
-  "info.rawHint": "The raw data helps with troubleshooting, e.g. with unknown cassettes.",
   "info.copy": "Copy raw data",
   "info.reload": "Read again",
   "info.copied": "Raw data copied",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Flexible ID tape",
   "media.satin": "Satin tape",
   "info.useAs": "Inserted tape",
-  "info.useAsHint": "The printer only knows the cassette's coding; compatible cassettes often report wrong values (different tapes even the same coding). Choose the inserted tape here – it stays until a cassette with another coding is detected."
+  "info.useAsHint": "The printer only knows the cassette's coding; compatible cassettes often report wrong values (different tapes even the same coding). Choose the inserted tape here – it stays until a cassette with another coding is detected.",
+  "info.intro": "Values from the printer's status block. Note: third-party cassettes often report a different tape type or colour (e.g. “Flexible ID tape”) – choose the actual tape under “Inserted tape”."
 }

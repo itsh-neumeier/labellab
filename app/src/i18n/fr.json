@@ -85,13 +85,8 @@
   "info.noErrors": "aucune",
   "info.statusType": "État",
   "info.phase": "phase",
-  "info.battery": "Batterie",
-  "info.batteryUnknown": "non transmis par l'imprimante (seulement l'avertissement « batterie faible »)",
   "info.unknownCode": "inconnu",
-  "info.unverified": "Valeurs issues du bloc d'état de l'imprimante. « (non confirmé) » : d'après la documentation du fabricant, pas encore vérifié sur l'appareil.",
-  "info.unverifiedMark": "(non confirmé)",
   "info.raw": "Données brutes (32 octets)",
-  "info.rawHint": "Les données brutes aident au dépannage, p. ex. avec des cassettes inconnues.",
   "info.copy": "Copier les données brutes",
   "info.reload": "Relire",
   "info.copied": "Données brutes copiées",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Ruban ID flexible",
   "media.satin": "Ruban satiné",
   "info.useAs": "Ruban inséré",
-  "info.useAsHint": "L'imprimante ne connaît que le codage de la cassette ; les cassettes compatibles indiquent souvent de fausses valeurs (des rubans différents parfois le même codage). Choisissez ici le ruban inséré – il reste jusqu'à ce qu'une cassette au codage différent soit détectée."
+  "info.useAsHint": "L'imprimante ne connaît que le codage de la cassette ; les cassettes compatibles indiquent souvent de fausses valeurs (des rubans différents parfois le même codage). Choisissez ici le ruban inséré – il reste jusqu'à ce qu'une cassette au codage différent soit détectée.",
+  "info.intro": "Valeurs du bloc d'état de l'imprimante. Remarque : les cassettes d'autres fabricants indiquent souvent un type ou une couleur de ruban différents (p. ex. « Ruban ID flexible ») – choisissez le ruban réel sous « Ruban inséré »."
 }

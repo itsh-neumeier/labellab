@@ -85,13 +85,8 @@
   "info.noErrors": "geen",
   "info.statusType": "Status",
   "info.phase": "Fase",
-  "info.battery": "Accu",
-  "info.batteryUnknown": "wordt niet door de printer gemeld (alleen de waarschuwing „accu bijna leeg“)",
   "info.unknownCode": "onbekend",
-  "info.unverified": "Waarden uit het statusblok van de printer. '(onbevestigd)': volgens de documentatie van de fabrikant, nog niet op het apparaat gecontroleerd.",
-  "info.unverifiedMark": "(onbevestigd)",
   "info.raw": "Ruwe gegevens (32 bytes)",
-  "info.rawHint": "De ruwe gegevens helpen bij het oplossen van problemen, bijv. met onbekende cassettes.",
   "info.copy": "Ruwe gegevens kopiëren",
   "info.reload": "Opnieuw lezen",
   "info.copied": "Ruwe gegevens gekopieerd",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Flexibele ID-tape",
   "media.satin": "Satijntape",
   "info.useAs": "Geplaatste tape",
-  "info.useAsHint": "De printer kent alleen de codering van de cassette; compatibele cassettes melden vaak verkeerde waarden (verschillende tapes zelfs dezelfde codering). Kies hier de geplaatste tape – die blijft tot een cassette met een andere codering wordt herkend."
+  "info.useAsHint": "De printer kent alleen de codering van de cassette; compatibele cassettes melden vaak verkeerde waarden (verschillende tapes zelfs dezelfde codering). Kies hier de geplaatste tape – die blijft tot een cassette met een andere codering wordt herkend.",
+  "info.intro": "Waarden uit het statusblok van de printer. Let op: cassettes van derden melden vaak een ander tapetype of andere kleur (bijv. „Flexibele ID-tape“) – kies de echte tape bij „Geplaatste tape“."
 }

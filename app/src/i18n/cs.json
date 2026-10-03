@@ -85,13 +85,8 @@
   "info.noErrors": "žádné",
   "info.statusType": "Stav",
   "info.phase": "fáze",
-  "info.battery": "Baterie",
-  "info.batteryUnknown": "tiskárna jej nehlásí (jen varování „slabá baterie“)",
   "info.unknownCode": "neznámý",
-  "info.unverified": "Hodnoty ze stavového bloku tiskárny. „(nepotvrzeno)“: podle dokumentace výrobce, na zařízení zatím neověřeno.",
-  "info.unverifiedMark": "(nepotvrzeno)",
   "info.raw": "Surová data (32 bajtů)",
-  "info.rawHint": "Surová data pomáhají při hledání chyb, např. u neznámých kazet.",
   "info.copy": "Kopírovat surová data",
   "info.reload": "Načíst znovu",
   "info.copied": "Surová data zkopírována",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Páska Flexible ID",
   "media.satin": "Saténová páska",
   "info.useAs": "Vložená páska",
-  "info.useAsHint": "Tiskárna zná jen kódování kazety; kompatibilní kazety často hlásí chybné hodnoty (různé pásky dokonce stejné kódování). Zde vyberte vloženou pásku – zůstane, dokud nebude rozpoznána kazeta s jiným kódováním."
+  "info.useAsHint": "Tiskárna zná jen kódování kazety; kompatibilní kazety často hlásí chybné hodnoty (různé pásky dokonce stejné kódování). Zde vyberte vloženou pásku – zůstane, dokud nebude rozpoznána kazeta s jiným kódováním.",
+  "info.intro": "Hodnoty ze stavového bloku tiskárny. Poznámka: kazety jiných výrobců často hlásí jiný typ nebo barvu pásky (např. „Páska Flexible ID“) – skutečnou pásku vyberte v části „Vložená páska“."
 }

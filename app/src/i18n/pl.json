@@ -85,13 +85,8 @@
   "info.noErrors": "brak",
   "info.statusType": "Stan",
   "info.phase": "faza",
-  "info.battery": "Akumulator",
-  "info.batteryUnknown": "drukarka go nie podaje (tylko ostrzeżenie „słaba bateria”)",
   "info.unknownCode": "nieznany",
-  "info.unverified": "Wartości z bloku stanu drukarki. „(niepotwierdzone)”: według dokumentacji producenta, jeszcze nie sprawdzone na urządzeniu.",
-  "info.unverifiedMark": "(niepotwierdzone)",
   "info.raw": "Dane surowe (32 bajty)",
-  "info.rawHint": "Surowe dane pomagają w diagnozie, np. przy nieznanych kasetach.",
   "info.copy": "Kopiuj dane surowe",
   "info.reload": "Odczytaj ponownie",
   "info.copied": "Skopiowano dane surowe",
@@ -614,5 +609,6 @@
   "media.flexible_id": "Taśma Flexible ID",
   "media.satin": "Taśma satynowa",
   "info.useAs": "Włożona taśma",
-  "info.useAsHint": "Drukarka zna tylko oznaczenie kasety; kasety zamienne często podają błędne wartości (różne taśmy nawet to samo oznaczenie). Wybierz tu włożoną taśmę – pozostanie, dopóki nie zostanie wykryta kaseta z innym oznaczeniem."
+  "info.useAsHint": "Drukarka zna tylko oznaczenie kasety; kasety zamienne często podają błędne wartości (różne taśmy nawet to samo oznaczenie). Wybierz tu włożoną taśmę – pozostanie, dopóki nie zostanie wykryta kaseta z innym oznaczeniem.",
+  "info.intro": "Wartości z bloku stanu drukarki. Uwaga: kasety innych producentów często podają inny typ lub kolor taśmy (np. „Taśma Flexible ID”) – wybierz rzeczywistą taśmę w polu „Włożona taśma”."
 }

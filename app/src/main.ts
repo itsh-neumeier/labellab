@@ -2389,18 +2389,16 @@ async function showPrinterInfo(): Promise<void> {
   msg.textContent = t("device.reading");
   try {
     const i = await api.printerInfo(connection);
-    msg.textContent = t("info.unverified");
-    const unverified = ` ${t("info.unverifiedMark")}`;
+    msg.textContent = t("info.intro");
     const errors = i.errors.length ? i.errors.map((e) => codeName("printerError", e, 0)).join(", ") : t("info.noErrors");
     const rows: [string, string][] = [
       ["info.model", i.model ?? `${t("info.unknownCode")} (0x${hexByte(i.series_byte)} 0x${hexByte(i.model_byte)})`],
       ["info.width", `${i.width_mm} mm`],
-      ["info.mediaType", codeName("media", i.media_type_id, i.media_type) + unverified],
+      ["info.mediaType", codeName("media", i.media_type_id, i.media_type)],
       ["info.tapeColor", codeName("color", i.tape_color_id, i.raw[24])],
       ["info.textColor", codeName("color", i.text_color_id, i.raw[25])],
-      ["info.errors", `${errors} (0x${hexByte(i.error1)} 0x${hexByte(i.error2)})${unverified}`],
+      ["info.errors", `${errors} (0x${hexByte(i.error1)} 0x${hexByte(i.error2)})`],
       ["info.statusType", `0x${hexByte(i.status_type)} · ${t("info.phase")} 0x${hexByte(i.phase)}`],
-      ["info.battery", t("info.batteryUnknown")],
     ];
     for (const [key, value] of rows) {
       const tr = document.createElement("tr");

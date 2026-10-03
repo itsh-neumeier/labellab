@@ -121,3 +121,10 @@ ersten Start: "Weitere Informationen" > "Trotzdem ausfuehren".
 
 Unabhaengiges Projekt, nicht mit Brother Industries, Ltd. verbunden.
 Lizenz: MIT
+
+Bandkassetten von Drittherstellern
+- Der Drucker erkennt Bandart und Farben nur an der Kennung der Kassette. Kompatible
+  Kassetten melden oft etwas anderes (z. B. "Flex-ID-Band" bei normalem laminiertem Band,
+  verschiedene Bänder sogar mit derselben Kennung). Die Bandbreite stimmt trotzdem.
+  In "Druckerinfo ..." unter "Eingelegtes Band" (oder oben bei "Band") das echte Band
+  wählen; die Auswahl bleibt, bis eine Kassette mit anderer Kennung erkannt wird.

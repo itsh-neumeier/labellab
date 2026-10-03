@@ -212,9 +212,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
-- Druckerinfo: neue Zeile „Eingelegtes Band“ – passt die Kennung der Kassette nicht zum Band,
-  dort das richtige wählen. Akkustand-Zeile korrigiert: der
-  Drucker meldet ihn nicht
+- Druckerinfo: neue Zeile „Eingelegtes Band“ zum Wählen des tatsächlichen Bands; Hinweis, dass
+  Kassetten von Drittherstellern oft abweichende Bandart/Farbe melden (z. B. Flex-ID).
+  Akkustand-Zeile, Akkutest-Hinweis und „(unbestätigt)“-Vermerke entfernt (der Drucker meldet
+  keinen Akkustand)
 - Druckerinfo erkennt weitere Bandarten: Flex-ID (`0x14`), Stoff, Flexi, Satin
 - „Status lesen“ zeigt Druckerfehler im Klartext (z. B. „Akku schwach“, „Abdeckung offen“)
   statt nur der Fehlerbytes. Einen Akkustand meldet der PT-P710BT im Status nicht (geprüft)
