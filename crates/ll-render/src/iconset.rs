@@ -233,6 +233,7 @@ pub fn normalize_svg(svg: &[u8]) -> Result<String, RenderError> {
 const BUILTIN_FILES: &[&str] = &[
     include_str!("../assets/iconsets/iso7010.llabel-iconset"),
     include_str!("../assets/iconsets/iec60417.llabel-iconset"),
+    include_str!("../assets/iconsets/ghs.llabel-iconset"),
 ];
 
 /// The sets that ship with LabelLab: the original symbol library

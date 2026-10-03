@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Neues Icon-Set „GHS-Gefahrenpiktogramme“ (GHS01–GHS09, gemeinfrei von Wikimedia Commons),
+  z. B. für die Rohrleitungskennzeichnung
 - CSV: Bild aus einer Spalte – beim Bild-Element „Quelle: CSV-Spalte …“ wählen; jede Zeile liefert
   ihren Bildpfad (relativ zum Ordner der CSV-Datei möglich), leere Zelle = kein Bild
 - Element „Tabelle“: Zeilen/Spalten, Zellen mehrzeilig mit Fett/Kursiv und Platzhaltern,

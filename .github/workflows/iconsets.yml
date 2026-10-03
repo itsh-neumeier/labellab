@@ -29,11 +29,15 @@ jobs:
       - name: fetch ISO 7010 from Commons
         run: python3 tools/iconsets/iso7010/fetch.py build/iso7010 2>&1 | tee build/iso7010.log
         shell: bash
+      - name: fetch GHS pictograms from Commons
+        run: python3 tools/iconsets/ghs/fetch.py build/ghs 2>&1 | tee build/ghs.log
+        shell: bash
       - name: build icon sets
         run: |
           mkdir -p dist
           cargo run --release -p ll-render --example build_iconset -- tools/iconsets/iec60417/set.json build/iec60417/manifest.json dist/iec60417.llabel-iconset
           cargo run --release -p ll-render --example build_iconset -- tools/iconsets/iso7010/set.json build/iso7010/manifest.json dist/iso7010.llabel-iconset
+          cargo run --release -p ll-render --example build_iconset -- tools/iconsets/ghs/set.json build/ghs/manifest.json dist/ghs.llabel-iconset
           cp build/*.log dist/
       - uses: actions/upload-artifact@v4
         with:
