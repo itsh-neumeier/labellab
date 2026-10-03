@@ -607,5 +607,10 @@
   "keys.click": "klik",
   "keys.wheel": "Kółko myszy",
   "keys.whileDragging": "podczas przeciągania",
-  "keys.cornerDrag": "przeciągając róg"
+  "keys.cornerDrag": "przeciągając róg",
+  "device.statusErrors": "Błąd drukarki: {errors}",
+  "media.fabric": "Taśma tekstylna",
+  "media.flexi": "Taśma elastyczna",
+  "media.flexible_id": "Taśma Flexible ID",
+  "media.satin": "Taśma satynowa"
 }

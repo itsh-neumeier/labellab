@@ -607,5 +607,10 @@
   "keys.click": "clic",
   "keys.wheel": "Rotellina",
   "keys.whileDragging": "trascinando",
-  "keys.cornerDrag": "trascinando un angolo"
+  "keys.cornerDrag": "trascinando un angolo",
+  "device.statusErrors": "Errore stampante: {errors}",
+  "media.fabric": "Nastro in tessuto",
+  "media.flexi": "Nastro flessibile",
+  "media.flexible_id": "Nastro ID flessibile",
+  "media.satin": "Nastro satinato"
 }

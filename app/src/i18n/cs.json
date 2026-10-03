@@ -607,5 +607,10 @@
   "keys.click": "klik",
   "keys.wheel": "Kolečko myši",
   "keys.whileDragging": "při tažení",
-  "keys.cornerDrag": "tažením rohu"
+  "keys.cornerDrag": "tažením rohu",
+  "device.statusErrors": "Chyba tiskárny: {errors}",
+  "media.fabric": "Textilní páska",
+  "media.flexi": "Flexibilní páska",
+  "media.flexible_id": "Páska Flexible ID",
+  "media.satin": "Saténová páska"
 }

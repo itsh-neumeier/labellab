@@ -491,6 +491,35 @@ function previewRow(): number | null {
 // ---------------------------------------------------------------- tape colors
 
 const TAPE_STYLE_KEY = "labellab.tapeStyle";
+/**
+ * Colours the cassette reported at the last status read. Some cassettes
+ * report other colours than they have (e.g. compatible tapes); a style the
+ * user picks afterwards is remembered for exactly these codes.
+ */
+let detectedStyle: TapeStyle | null = null;
+const tapeFixKey = (st: TapeStyle) => `labellab.tapeFix.${styleKey(st)}`;
+
+/** Tape style for colours the printer reported, with the user's remembered correction. */
+function correctedStyle(detected: TapeStyle): TapeStyle {
+  try {
+    const fix = parseStyleKey(getSetting(tapeFixKey(detected)) ?? "");
+    if (fix) return fix;
+  } catch {
+    // no correction stored
+  }
+  return detected;
+}
+
+/** The user changed the tape style: remember it for the codes the cassette reports. */
+function rememberTapeFix(): void {
+  if (!detectedStyle) return;
+  const chosen = $<HTMLSelectElement>("tape-style").value;
+  try {
+    setSetting(tapeFixKey(detectedStyle), chosen === styleKey(detectedStyle) ? "" : chosen);
+  } catch {
+    // not remembered
+  }
+}
 
 function styleName(st: TapeStyle): string {
   return t("preview.inkOn", { ink: t(`color.${st.ink}`), tape: t(`color.${st.tape}`) });
@@ -2313,7 +2342,12 @@ async function readStatus(): Promise<boolean> {
   try {
     const s = await api.queryStatus(connection);
     if (s.has_error) {
-      setStatus(t("device.statusError", { e1: hex(s.error1), e2: hex(s.error2) }), "error");
+      // Known bits in words ("Akku schwach"), else the raw bytes.
+      const known = s.errors.map((id) => t(`printerError.${id}`)).join(", ");
+      setStatus(
+        known ? t("device.statusErrors", { errors: known }) : t("device.statusError", { e1: hex(s.error1), e2: hex(s.error2) }),
+        "error",
+      );
       return false;
     }
     const model = state.models.find((m) => m.name === selectedModel());
@@ -2326,7 +2360,8 @@ async function readStatus(): Promise<boolean> {
       tapeChanged();
     }
     if (s.tape_color_id && s.text_color_id && s.tape_color_id in TAPE_CSS && s.text_color_id in INK_CSS) {
-      fillTapeStyles({ tape: s.tape_color_id, ink: s.text_color_id });
+      detectedStyle = { tape: s.tape_color_id, ink: s.text_color_id };
+      fillTapeStyles(correctedStyle(detectedStyle));
     }
     setStatus(t("device.statusOk", { width: s.width_mm }), "ok");
     return true;
@@ -4736,7 +4771,10 @@ function bindUi(): void {
   });
   $("zoom").addEventListener("input", layoutStage);
   bindWheelZoom();
-  $("tape-style").addEventListener("change", applyTapeStyle);
+  $("tape-style").addEventListener("change", () => {
+    applyTapeStyle();
+    rememberTapeFix();
+  });
   $("quality").addEventListener("change", schedulePreview);
   $("strips").addEventListener("change", () => {
     state.label.strips = Number($<HTMLSelectElement>("strips").value) || 1;

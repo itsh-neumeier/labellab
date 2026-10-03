@@ -607,5 +607,10 @@
   "keys.click": "clic",
   "keys.wheel": "Molette",
   "keys.whileDragging": "en glissant",
-  "keys.cornerDrag": "en tirant un coin"
+  "keys.cornerDrag": "en tirant un coin",
+  "device.statusErrors": "Erreur d'imprimante : {errors}",
+  "media.fabric": "Ruban textile",
+  "media.flexi": "Ruban flexible",
+  "media.flexible_id": "Ruban ID flexible",
+  "media.satin": "Ruban satiné"
 }

@@ -108,6 +108,9 @@ Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); 
 | 3 / 4 | Serien-/Modellcode (`0x30`/`0x76` = PT-P710BT) | dokumentiert | Treiber-INI, `model.rs` |
 | 8/9 Bits | Fehler: 8: `0x01` kein Band, `0x04` Messer, `0x08` Akku schwach, `0x40` Netzteil; 9: `0x01` falsches Band, `0x10` Abdeckung offen, `0x20` Überhitzung | dokumentiert, TODO(verify) | Raster Command Reference; `status::ERROR_BITS` |
 | 11 Codes | `0x00` kein Band, `0x01` laminiert, `0x03` nicht laminiert, `0x11`/`0x17` Schrumpfschlauch 2:1/3:1, `0xFF` inkompatibel | dokumentiert (`0x01` am Gerät gesehen) | Raster Command Reference; `media::MEDIA_TYPES` |
+| 11 Codes (Ergänzung) | `0x04` Stoff, `0x13` Flexi, `0x14` Flex-ID, `0x15` Satin | `0x14` am Gerät gesehen (2026-10-02/03), Rest unverifiziert | ptouch-print (GPL, nur Fakten gelesen): `pt_mediatype` |
+| 12 | Anzahl Farben (dort „ncol“, Kommentar 0) – am PT-P710BT `0x01` gesehen | beobachtet | ptouch-print `struct _ptouch_stat`, Hardware 2026-10-03 |
+| 26–29 | „hw_setting“ (32 Bit), am PT-P710BT `0` | beobachtet | ptouch-print `struct _ptouch_stat` |
 | 22 | Meldung: `0x01` Abdeckung geöffnet, `0x02` geschlossen | dokumentiert, TODO(verify) | Raster Command Reference |
 
 - Rohdaten vom Nutzer (2026-10-02, PT-P710BT, 24-mm-Band, Stromzustand nicht angegeben):
@@ -116,8 +119,25 @@ Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); 
   PT-P710BT, 10 = 24 mm, 25 `0x08` = schwarz. Beobachtet: Medientyp (11) `0x14` — nicht in
   der dokumentierten Tabelle (unbekannt, evtl. Flex-Band; TODO(verify)), Byte 12 `0x01`,
   Bandfarbe (24) `0x90` = laut Tabelle „Weiß (Flex)“. Fehlerbytes 0.
-- TODO(verify): Status-Byte für Akkustand vorhanden? Rohdaten im Dialog „Druckerinfo“ am
-  Ladekabel und im Akkubetrieb vergleichen. (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
+- Rohdaten vom Nutzer (2026-10-03), dasselbe Band einmal über Bluetooth, einmal über USB
+  gelesen: **beide Blöcke byte-gleich** und gleich dem Block vom 2026-10-02. Der Statusblock
+  hängt also nicht von der Verbindung ab (verifiziert). Laut Nutzer ist das Band
+  „laminiert 24 mm, transparent“ mit weißer Schrift; die Kassette meldet aber Medientyp `0x14`,
+  Bandfarbe `0x90` (Weiß Flex-ID) und Schriftfarbe `0x08` (Schwarz). Die Kassettenkennung
+  stimmt hier also nicht mit dem Band überein (vermutlich kompatible Kassette, unverifiziert) –
+  die App merkt sich deshalb eine vom Nutzer korrigierte Bandfarbe je gemeldetem Code-Paar.
+- Akkustand: zweiter Vergleich des Nutzers (2026-10-03, Bluetooth ohne Kabel = Akku gegenüber
+  USB = Netz, Zuordnung laut Nachfrage angenommen): **wieder byte-gleich**. Ergebnis: Der
+  PT-P710BT meldet im 32-Byte-Status **keinen Akkustand** (Annahme aus Hardware-Test, mit
+  vollem bzw. normalem Akku). Bleibt nur das dokumentierte Fehlerbit „Akku schwach“ (Byte 8,
+  `0x08`, TODO(verify): bei fast leerem Akku prüfen); die App zeigt Fehlerbits jetzt im Klartext.
+- Abgleich mit dem Open-Source-Werkzeug ptouch-print (git.familie-radermacher.ch, GPL-3,
+  2026-10-03; nur gelesen, kein Code übernommen): Statusstruktur identisch zu unserer, **kein
+  Akku-Feld** (bestätigt den Hardware-Vergleich). Farbtabellen decken sich; dort zusätzlich
+  Bandfarbe `0x71` „Heat-shrink Tube white“ (bei uns `0x70` = Weiß Schrumpfschlauch laut
+  Brother-Tabelle; nicht übernommen, widersprüchlich). Seine Druckbreiten (Pixel) für 9/12/18 mm
+  (52/76/120) sind generisch über viele Modelle; unsere PT-P710BT-Werte (50/70/112) stammen aus
+  der Raster Command Reference des Modells und bleiben (TODO(verify) wie gehabt).
 - TODO(verify): Code-Bedeutung Medientyp `0x01`, Bandfarbe `0x01`, Schriftfarbe `0x08` (vermutlich
   laminiert/schwarz auf weiß, gegen Brothers Farbcode-Tabelle prüfen)
 
