@@ -40,7 +40,8 @@ Für Menschen und KI-Agenten. Jede Aufgabe hier hat eine Checkliste. Erst abhake
 - [ ] Auf `main` mergen, dann Tag `vX.Y.Z` auf den Merge-Commit pushen → Workflow „Release“
   prüft die Versionen und den CHANGELOG-Abschnitt, baut Windows-ZIP (portabel), Linux-AppImage,
   `.deb` und CLI-Archiv und veröffentlicht das Release mit den Notizen aus `CHANGELOG.md`.
-  Fehlgeschlagen? Workflow „Release“ manuell mit dem Tag erneut starten.
+  Ohne Tag-Push (z. B. aus einer Agenten-Session): Actions → „Release“ → „Run workflow“ auf
+  `main` mit dem Tag (`vX.Y.Z`) starten; der Workflow legt den Tag auf dem `main`-Commit an.
 - [ ] Release-Artefakte auf beiden Plattformen kurz testen (Start, Status, ein Druck)
 - [ ] Release-Notes aus `CHANGELOG.md`
 
