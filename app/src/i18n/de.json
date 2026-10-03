@@ -86,12 +86,12 @@
   "info.statusType": "Status",
   "info.phase": "Phase",
   "info.battery": "Akkustand",
-  "info.batteryUnknown": "unbekannt – das Statusbyte dafür ist noch nicht ermittelt (siehe Rohdaten)",
+  "info.batteryUnknown": "wird vom Drucker nicht gemeldet (nur die Warnung „Akku schwach“)",
   "info.unknownCode": "unbekannt",
   "info.unverified": "Werte aus dem Statusblock des Druckers. „(unbestätigt)“: laut Hersteller-Doku, am Gerät noch nicht geprüft.",
   "info.unverifiedMark": "(unbestätigt)",
   "info.raw": "Rohdaten (32 Byte)",
-  "info.rawHint": "Für den Akkutest: einmal am Ladekabel und einmal im Akkubetrieb lesen und beide Blöcke kopieren.",
+  "info.rawHint": "Die Rohdaten helfen bei der Fehlersuche, z. B. bei unbekannten Kassetten.",
   "info.copy": "Rohdaten kopieren",
   "info.reload": "Neu lesen",
   "info.copied": "Rohdaten kopiert",
@@ -612,5 +612,7 @@
   "media.fabric": "Stoffband",
   "media.flexi": "Flexi-Band",
   "media.flexible_id": "Flex-ID-Band",
-  "media.satin": "Satinband"
+  "media.satin": "Satinband",
+  "info.useAs": "Eingelegtes Band",
+  "info.useAsHint": "Der Drucker kennt nur die Kennung der Kassette. Passt sie nicht zum Band (z. B. kompatible Kassetten), hier das richtige wählen – LabelLab merkt es sich für diese Kassette."
 }

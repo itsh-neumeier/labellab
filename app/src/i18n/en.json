@@ -86,12 +86,12 @@
   "info.statusType": "Status",
   "info.phase": "phase",
   "info.battery": "Battery",
-  "info.batteryUnknown": "unknown – the status byte for it is not identified yet (see raw data)",
+  "info.batteryUnknown": "not reported by the printer (only the warning “weak battery”)",
   "info.unknownCode": "unknown",
   "info.unverified": "Values from the printer's status block. '(unconfirmed)': per manufacturer documentation, not yet checked on the device.",
   "info.unverifiedMark": "(unconfirmed)",
   "info.raw": "Raw data (32 bytes)",
-  "info.rawHint": "For the battery test: read once on the charger and once on battery and copy both blocks.",
+  "info.rawHint": "The raw data helps with troubleshooting, e.g. with unknown cassettes.",
   "info.copy": "Copy raw data",
   "info.reload": "Read again",
   "info.copied": "Raw data copied",
@@ -612,5 +612,7 @@
   "media.fabric": "Fabric tape",
   "media.flexi": "Flexi tape",
   "media.flexible_id": "Flexible ID tape",
-  "media.satin": "Satin tape"
+  "media.satin": "Satin tape",
+  "info.useAs": "Inserted tape",
+  "info.useAsHint": "The printer only knows the cassette's coding. If it does not match the tape (e.g. compatible cassettes), choose the right one here – LabelLab remembers it for this cassette."
 }

@@ -86,12 +86,12 @@
   "info.statusType": "État",
   "info.phase": "phase",
   "info.battery": "Batterie",
-  "info.batteryUnknown": "inconnu – l'octet d'état correspondant n'est pas encore identifié (voir données brutes)",
+  "info.batteryUnknown": "non transmis par l'imprimante (seulement l'avertissement « batterie faible »)",
   "info.unknownCode": "inconnu",
   "info.unverified": "Valeurs issues du bloc d'état de l'imprimante. « (non confirmé) » : d'après la documentation du fabricant, pas encore vérifié sur l'appareil.",
   "info.unverifiedMark": "(non confirmé)",
   "info.raw": "Données brutes (32 octets)",
-  "info.rawHint": "Pour le test de batterie : lire une fois sur le chargeur et une fois sur batterie, puis copier les deux blocs.",
+  "info.rawHint": "Les données brutes aident au dépannage, p. ex. avec des cassettes inconnues.",
   "info.copy": "Copier les données brutes",
   "info.reload": "Relire",
   "info.copied": "Données brutes copiées",
@@ -612,5 +612,7 @@
   "media.fabric": "Ruban textile",
   "media.flexi": "Ruban flexible",
   "media.flexible_id": "Ruban ID flexible",
-  "media.satin": "Ruban satiné"
+  "media.satin": "Ruban satiné",
+  "info.useAs": "Ruban inséré",
+  "info.useAsHint": "L'imprimante ne connaît que le codage de la cassette. S'il ne correspond pas au ruban (p. ex. cassettes compatibles), choisissez le bon ici – LabelLab le retient pour cette cassette."
 }

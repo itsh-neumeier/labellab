@@ -86,12 +86,12 @@
   "info.statusType": "Stan",
   "info.phase": "faza",
   "info.battery": "Akumulator",
-  "info.batteryUnknown": "nieznany – bajt stanu dla niego nie został jeszcze zidentyfikowany (zob. dane surowe)",
+  "info.batteryUnknown": "drukarka go nie podaje (tylko ostrzeżenie „słaba bateria”)",
   "info.unknownCode": "nieznany",
   "info.unverified": "Wartości z bloku stanu drukarki. „(niepotwierdzone)”: według dokumentacji producenta, jeszcze nie sprawdzone na urządzeniu.",
   "info.unverifiedMark": "(niepotwierdzone)",
   "info.raw": "Dane surowe (32 bajty)",
-  "info.rawHint": "Do testu akumulatora: odczytaj raz przy ładowarce, raz na akumulatorze i skopiuj oba bloki.",
+  "info.rawHint": "Surowe dane pomagają w diagnozie, np. przy nieznanych kasetach.",
   "info.copy": "Kopiuj dane surowe",
   "info.reload": "Odczytaj ponownie",
   "info.copied": "Skopiowano dane surowe",
@@ -612,5 +612,7 @@
   "media.fabric": "Taśma tekstylna",
   "media.flexi": "Taśma elastyczna",
   "media.flexible_id": "Taśma Flexible ID",
-  "media.satin": "Taśma satynowa"
+  "media.satin": "Taśma satynowa",
+  "info.useAs": "Włożona taśma",
+  "info.useAsHint": "Drukarka zna tylko oznaczenie kasety. Jeśli nie pasuje do taśmy (np. kasety zamienne), wybierz tu właściwą – LabelLab zapamięta ją dla tej kasety."
 }

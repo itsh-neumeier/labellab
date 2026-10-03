@@ -86,12 +86,12 @@
   "info.statusType": "Status",
   "info.phase": "Fase",
   "info.battery": "Accu",
-  "info.batteryUnknown": "onbekend – de statusbyte hiervoor is nog niet vastgesteld (zie ruwe gegevens)",
+  "info.batteryUnknown": "wordt niet door de printer gemeld (alleen de waarschuwing „accu bijna leeg“)",
   "info.unknownCode": "onbekend",
   "info.unverified": "Waarden uit het statusblok van de printer. '(onbevestigd)': volgens de documentatie van de fabrikant, nog niet op het apparaat gecontroleerd.",
   "info.unverifiedMark": "(onbevestigd)",
   "info.raw": "Ruwe gegevens (32 bytes)",
-  "info.rawHint": "Voor de accutest: één keer aan de oplader en één keer op de accu lezen en beide blokken kopiëren.",
+  "info.rawHint": "De ruwe gegevens helpen bij het oplossen van problemen, bijv. met onbekende cassettes.",
   "info.copy": "Ruwe gegevens kopiëren",
   "info.reload": "Opnieuw lezen",
   "info.copied": "Ruwe gegevens gekopieerd",
@@ -612,5 +612,7 @@
   "media.fabric": "Textieltape",
   "media.flexi": "Flexibele tape",
   "media.flexible_id": "Flexibele ID-tape",
-  "media.satin": "Satijntape"
+  "media.satin": "Satijntape",
+  "info.useAs": "Geplaatste tape",
+  "info.useAsHint": "De printer kent alleen de codering van de cassette. Klopt die niet met de tape (bijv. compatibele cassettes), kies hier de juiste – LabelLab onthoudt dit voor deze cassette."
 }

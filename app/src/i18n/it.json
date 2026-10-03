@@ -86,12 +86,12 @@
   "info.statusType": "Stato",
   "info.phase": "Fase",
   "info.battery": "Batteria",
-  "info.batteryUnknown": "sconosciuto – il byte di stato relativo non è ancora stato individuato (vedi dati grezzi)",
+  "info.batteryUnknown": "non comunicato dalla stampante (solo l'avviso «batteria scarica»)",
   "info.unknownCode": "sconosciuto",
   "info.unverified": "Valori dal blocco di stato della stampante. \"(non confermato)\": secondo la documentazione del produttore, non ancora verificato sul dispositivo.",
   "info.unverifiedMark": "(non confermato)",
   "info.raw": "Dati grezzi (32 byte)",
-  "info.rawHint": "Per il test della batteria: leggi una volta con il cavo di ricarica e una volta a batteria, poi copia entrambi i blocchi.",
+  "info.rawHint": "I dati grezzi aiutano nella diagnosi, ad es. con cassette sconosciute.",
   "info.copy": "Copia dati grezzi",
   "info.reload": "Rileggi",
   "info.copied": "Dati grezzi copiati",
@@ -612,5 +612,7 @@
   "media.fabric": "Nastro in tessuto",
   "media.flexi": "Nastro flessibile",
   "media.flexible_id": "Nastro ID flessibile",
-  "media.satin": "Nastro satinato"
+  "media.satin": "Nastro satinato",
+  "info.useAs": "Nastro inserito",
+  "info.useAsHint": "La stampante conosce solo la codifica della cassetta. Se non corrisponde al nastro (ad es. cassette compatibili), scegli qui quello giusto – LabelLab lo ricorda per questa cassetta."
 }

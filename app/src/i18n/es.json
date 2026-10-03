@@ -86,12 +86,12 @@
   "info.statusType": "Estado",
   "info.phase": "fase",
   "info.battery": "Batería",
-  "info.batteryUnknown": "desconocido – el byte de estado correspondiente aún no está identificado (ver datos sin procesar)",
+  "info.batteryUnknown": "la impresora no lo indica (solo el aviso «batería baja»)",
   "info.unknownCode": "desconocido",
   "info.unverified": "Valores del bloque de estado de la impresora. «(sin confirmar)»: según la documentación del fabricante, aún no comprobado en el dispositivo.",
   "info.unverifiedMark": "(sin confirmar)",
   "info.raw": "Datos sin procesar (32 bytes)",
-  "info.rawHint": "Para la prueba de batería: leer una vez en el cargador y otra con batería, y copiar ambos bloques.",
+  "info.rawHint": "Los datos en bruto ayudan a resolver problemas, p. ej. con casetes desconocidos.",
   "info.copy": "Copiar datos sin procesar",
   "info.reload": "Volver a leer",
   "info.copied": "Datos sin procesar copiados",
@@ -612,5 +612,7 @@
   "media.fabric": "Cinta de tela",
   "media.flexi": "Cinta flexible",
   "media.flexible_id": "Cinta ID flexible",
-  "media.satin": "Cinta satinada"
+  "media.satin": "Cinta satinada",
+  "info.useAs": "Cinta insertada",
+  "info.useAsHint": "La impresora solo conoce la codificación del casete. Si no coincide con la cinta (p. ej. casetes compatibles), elija aquí la correcta; LabelLab la recuerda para este casete."
 }

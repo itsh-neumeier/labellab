@@ -2421,6 +2421,31 @@ async function showPrinterInfo(): Promise<void> {
       tr.append(th, td);
       table.append(tr);
     }
+    // The printer only knows the cassette's coding: let the user say what is really inserted.
+    if (i.tape_color_id && i.text_color_id) {
+      detectedStyle = { tape: i.tape_color_id, ink: i.text_color_id };
+      const tr = document.createElement("tr");
+      const th = document.createElement("th");
+      th.textContent = t("info.useAs");
+      const td = document.createElement("td");
+      const select = document.createElement("select");
+      const current = styleKey(correctedStyle(detectedStyle));
+      const styles = TAPE_STYLES.some((st) => styleKey(st) === current) ? TAPE_STYLES : [correctedStyle(detectedStyle), ...TAPE_STYLES];
+      for (const st of styles) select.add(new Option(styleName(st), styleKey(st), false, styleKey(st) === current));
+      select.addEventListener("change", () => {
+        const tape = $<HTMLSelectElement>("tape-style");
+        if (!Array.from(tape.options).some((o) => o.value === select.value)) fillTapeStyles(parseStyleKey(select.value) ?? undefined);
+        tape.value = select.value;
+        applyTapeStyle();
+        rememberTapeFix();
+      });
+      const hint = document.createElement("div");
+      hint.className = "muted small";
+      hint.textContent = t("info.useAsHint");
+      td.append(select, hint);
+      tr.append(th, td);
+      table.append(tr);
+    }
     raw.textContent = [0, 8, 16, 24]
       .map((o) => `${String(o).padStart(2, "0")}: ${i.raw.slice(o, o + 8).map(hexByte).join(" ")}`)
       .join("\n");

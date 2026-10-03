@@ -86,12 +86,12 @@
   "info.statusType": "Stav",
   "info.phase": "fáze",
   "info.battery": "Baterie",
-  "info.batteryUnknown": "neznámý – stavový bajt pro něj zatím není identifikován (viz surová data)",
+  "info.batteryUnknown": "tiskárna jej nehlásí (jen varování „slabá baterie“)",
   "info.unknownCode": "neznámý",
   "info.unverified": "Hodnoty ze stavového bloku tiskárny. „(nepotvrzeno)“: podle dokumentace výrobce, na zařízení zatím neověřeno.",
   "info.unverifiedMark": "(nepotvrzeno)",
   "info.raw": "Surová data (32 bajtů)",
-  "info.rawHint": "Pro test baterie: načtěte jednou na nabíječce a jednou na baterii a zkopírujte oba bloky.",
+  "info.rawHint": "Surová data pomáhají při hledání chyb, např. u neznámých kazet.",
   "info.copy": "Kopírovat surová data",
   "info.reload": "Načíst znovu",
   "info.copied": "Surová data zkopírována",
@@ -612,5 +612,7 @@
   "media.fabric": "Textilní páska",
   "media.flexi": "Flexibilní páska",
   "media.flexible_id": "Páska Flexible ID",
-  "media.satin": "Saténová páska"
+  "media.satin": "Saténová páska",
+  "info.useAs": "Vložená páska",
+  "info.useAsHint": "Tiskárna zná jen kódování kazety. Pokud neodpovídá pásce (např. kompatibilní kazety), vyberte zde správnou – LabelLab si ji pro tuto kazetu zapamatuje."
 }
