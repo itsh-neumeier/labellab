@@ -4262,6 +4262,82 @@ function a4Options(): A4Options {
   };
 }
 
+/** Shortcut overview: groups of [keys, i18n key of the action]. */
+const SHORTCUTS: [string, [string, string][]][] = [
+  ["keys.file", [
+    ["Strg+O", "toolbar.open"],
+    ["Strg+S", "toolbar.saveNow"],
+    ["Strg+Umschalt+S", "toolbar.saveAs"],
+    ["Strg+P", "print.print"],
+  ]],
+  ["keys.edit", [
+    ["Strg+Z", "toolbar.undo"],
+    ["Strg+Y / Strg+Umschalt+Z", "keys.redo"],
+    ["Strg+C / Strg+X / Strg+V", "keys.clipboard"],
+    ["Strg+D", "keys.duplicate"],
+    ["Entf", "keys.delete"],
+    ["Esc", "keys.deselect"],
+  ]],
+  ["keys.layout", [
+    ["← → ↑ ↓", "keys.nudge"],
+    ["Umschalt+← → ↑ ↓", "keys.nudgeCoarse"],
+    ["Bild↑ / Bild↓", "keys.order"],
+    ["Umschalt+Bild↑ / Bild↓", "keys.orderAll"],
+    ["Umschalt/Strg+Klick", "keys.multi"],
+    ["Alt (beim Ziehen)", "keys.noSnap"],
+    ["Umschalt (Ecke ziehen)", "keys.ratio"],
+    ["Mausrad", "keys.zoom"],
+  ]],
+  ["keys.text", [
+    ["Strg+B / Strg+I", "keys.bold"],
+  ]],
+];
+
+/** Key names in the UI language (the table is written with German names). */
+function keyName(k: string): string {
+  if (currentLang() === "de") return k;
+  return k
+    .replace(/Strg/g, "Ctrl")
+    .replace(/Umschalt/g, "Shift")
+    .replace(/Entf/g, "Del")
+    .replace(/Bild↑/g, "PgUp")
+    .replace(/Bild↓/g, "PgDn")
+    .replace(/Klick/g, t("keys.click"))
+    .replace(/Mausrad/g, t("keys.wheel"))
+    .replace(/\(beim Ziehen\)/g, `(${t("keys.whileDragging")})`)
+    .replace(/\(Ecke ziehen\)/g, `(${t("keys.cornerDrag")})`);
+}
+
+function showShortcuts(): void {
+  const table = $("keys-list");
+  table.replaceChildren();
+  for (const [group, rows] of SHORTCUTS) {
+    const head = document.createElement("tr");
+    head.className = "head";
+    const cell = document.createElement("td");
+    cell.colSpan = 2;
+    cell.textContent = t(group);
+    head.append(cell);
+    table.append(head);
+    for (const [keys, action] of rows) {
+      const tr = document.createElement("tr");
+      const k = document.createElement("td");
+      for (const [i, part] of keyName(keys).split(" / ").entries()) {
+        if (i) k.append(" / ");
+        const kbd = document.createElement("kbd");
+        kbd.textContent = part;
+        k.append(kbd);
+      }
+      const what = document.createElement("td");
+      what.textContent = t(action);
+      tr.append(k, what);
+      table.append(tr);
+    }
+  }
+  const dialog = $<HTMLDialogElement>("keys-dialog");
+  if (!dialog.open) dialog.showModal();
+}
+
 /** Saves the current sheet as a PNG in tape colours (720 dpi, first label of a series). */
 async function exportPng(): Promise<void> {
   syncSheet();
@@ -4681,6 +4757,13 @@ function bindUi(): void {
     }),
   );
   $("btn-export-png").addEventListener("click", () => void exportPng());
+  $("btn-keys").addEventListener("click", showShortcuts);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "F1") {
+      e.preventDefault();
+      showShortcuts();
+    }
+  });
   langPicker($("lang"), currentLang, (code: Lang) => {
     setLang(code);
     fillTapeStyles();

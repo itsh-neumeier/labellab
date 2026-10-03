@@ -314,6 +314,7 @@
         <p class="muted" data-i18n="about.license"></p>
         <p class="muted small" data-i18n="about.thirdParty"></p>
         <p class="muted small" data-i18n="about.trademarks"></p>
+        <p><button type="button" id="btn-keys" data-i18n="keys.open"></button></p>
         <p id="splash-hint" class="muted small" data-i18n="about.close"></p>
       </div>
     </div>
@@ -443,6 +444,16 @@
         <div class="row end">
           <button value="cancel" data-i18n="wizard.cancel"></button>
           <button id="ie-apply" value="apply" class="primary" data-i18n="imgedit.apply"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="keys-dialog">
+      <form method="dialog" class="wizard">
+        <h2 data-i18n="keys.title"></h2>
+        <table id="keys-list" class="keys-list"></table>
+        <div class="row end">
+          <button value="close" data-i18n="series.close"></button>
         </div>
       </form>
     </dialog>
