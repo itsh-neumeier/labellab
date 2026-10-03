@@ -197,9 +197,28 @@ pub const MEDIA_TYPES: &[ColorCode] = &[
         code: 0x03,
         id: "non_laminated",
     },
+    // 0x04/0x13/0x14/0x15: from the open-source tool ptouch-print (GPL,
+    // facts only, no code taken); 0x14 seen on a PT-P710BT 2026-10-02/03.
+    // TODO(verify): 0x04, 0x13, 0x15 against real cassettes.
+    ColorCode {
+        code: 0x04,
+        id: "fabric",
+    },
     ColorCode {
         code: 0x11,
         id: "heat_shrink_2_1",
+    },
+    ColorCode {
+        code: 0x13,
+        id: "flexi",
+    },
+    ColorCode {
+        code: 0x14,
+        id: "flexible_id",
+    },
+    ColorCode {
+        code: 0x15,
+        id: "satin",
     },
     ColorCode {
         code: 0x17,

@@ -608,5 +608,9 @@
   "keys.wheel": "Rueda del ratón",
   "keys.whileDragging": "al arrastrar",
   "keys.cornerDrag": "al arrastrar una esquina",
-  "device.statusErrors": "Error de impresora: {errors}"
+  "device.statusErrors": "Error de impresora: {errors}",
+  "media.fabric": "Cinta de tela",
+  "media.flexi": "Cinta flexible",
+  "media.flexible_id": "Cinta ID flexible",
+  "media.satin": "Cinta satinada"
 }

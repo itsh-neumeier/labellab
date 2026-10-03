@@ -212,6 +212,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- Druckerinfo erkennt weitere Bandarten: Flex-ID (`0x14`), Stoff, Flexi, Satin
 - „Status lesen“ zeigt Druckerfehler im Klartext (z. B. „Akku schwach“, „Abdeckung offen“)
   statt nur der Fehlerbytes. Einen Akkustand meldet der PT-P710BT im Status nicht (geprüft)
 - Bandfarbe: meldet eine Kassette andere Farben als sie hat (z. B. kompatible Bänder), wird die

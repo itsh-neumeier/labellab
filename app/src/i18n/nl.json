@@ -608,5 +608,9 @@
   "keys.wheel": "Muiswiel",
   "keys.whileDragging": "tijdens slepen",
   "keys.cornerDrag": "hoek slepen",
-  "device.statusErrors": "Printerfout: {errors}"
+  "device.statusErrors": "Printerfout: {errors}",
+  "media.fabric": "Textieltape",
+  "media.flexi": "Flexibele tape",
+  "media.flexible_id": "Flexibele ID-tape",
+  "media.satin": "Satijntape"
 }

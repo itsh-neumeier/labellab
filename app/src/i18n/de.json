@@ -608,5 +608,9 @@
   "keys.wheel": "Mausrad",
   "keys.whileDragging": "beim Ziehen",
   "keys.cornerDrag": "Ecke ziehen",
-  "device.statusErrors": "Druckerfehler: {errors}"
+  "device.statusErrors": "Druckerfehler: {errors}",
+  "media.fabric": "Stoffband",
+  "media.flexi": "Flexi-Band",
+  "media.flexible_id": "Flex-ID-Band",
+  "media.satin": "Satinband"
 }

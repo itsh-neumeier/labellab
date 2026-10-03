@@ -608,5 +608,9 @@
   "keys.wheel": "Mouse wheel",
   "keys.whileDragging": "while dragging",
   "keys.cornerDrag": "dragging a corner",
-  "device.statusErrors": "Printer error: {errors}"
+  "device.statusErrors": "Printer error: {errors}",
+  "media.fabric": "Fabric tape",
+  "media.flexi": "Flexi tape",
+  "media.flexible_id": "Flexible ID tape",
+  "media.satin": "Satin tape"
 }
