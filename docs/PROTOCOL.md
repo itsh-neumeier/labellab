@@ -123,10 +123,11 @@ Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); 
   Bandfarbe `0x90` (Weiß Flex-ID) und Schriftfarbe `0x08` (Schwarz). Die Kassettenkennung
   stimmt hier also nicht mit dem Band überein (vermutlich kompatible Kassette, unverifiziert) –
   die App merkt sich deshalb eine vom Nutzer korrigierte Bandfarbe je gemeldetem Code-Paar.
-- TODO(verify): Status-Byte für Akkustand vorhanden? Der Vergleich BT/USB sagt dazu nichts,
-  entscheidend ist der Stromzustand: einmal mit eingestecktem Ladekabel, einmal nur Akku
-  (Kabel ab, über Bluetooth lesen). Bisher in keinem Byte ein Unterschied. Dokumentiert ist nur
-  das Fehlerbit „Akku schwach“ (Byte 8, `0x08`). (siehe `docs/PROGRESS.md` → Hardware-Tests offen)
+- Akkustand: zweiter Vergleich des Nutzers (2026-10-03, Bluetooth ohne Kabel = Akku gegenüber
+  USB = Netz, Zuordnung laut Nachfrage angenommen): **wieder byte-gleich**. Ergebnis: Der
+  PT-P710BT meldet im 32-Byte-Status **keinen Akkustand** (Annahme aus Hardware-Test, mit
+  vollem bzw. normalem Akku). Bleibt nur das dokumentierte Fehlerbit „Akku schwach“ (Byte 8,
+  `0x08`, TODO(verify): bei fast leerem Akku prüfen); die App zeigt Fehlerbits jetzt im Klartext.
 - TODO(verify): Code-Bedeutung Medientyp `0x01`, Bandfarbe `0x01`, Schriftfarbe `0x08` (vermutlich
   laminiert/schwarz auf weiß, gegen Brothers Farbcode-Tabelle prüfen)
 

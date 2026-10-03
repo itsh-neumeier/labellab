@@ -607,5 +607,6 @@
   "keys.click": "klik",
   "keys.wheel": "Kółko myszy",
   "keys.whileDragging": "podczas przeciągania",
-  "keys.cornerDrag": "przeciągając róg"
+  "keys.cornerDrag": "przeciągając róg",
+  "device.statusErrors": "Błąd drukarki: {errors}"
 }

@@ -607,5 +607,6 @@
   "keys.click": "clic",
   "keys.wheel": "Rueda del ratón",
   "keys.whileDragging": "al arrastrar",
-  "keys.cornerDrag": "al arrastrar una esquina"
+  "keys.cornerDrag": "al arrastrar una esquina",
+  "device.statusErrors": "Error de impresora: {errors}"
 }

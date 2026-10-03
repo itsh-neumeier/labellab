@@ -607,5 +607,6 @@
   "keys.click": "klik",
   "keys.wheel": "Muiswiel",
   "keys.whileDragging": "tijdens slepen",
-  "keys.cornerDrag": "hoek slepen"
+  "keys.cornerDrag": "hoek slepen",
+  "device.statusErrors": "Printerfout: {errors}"
 }

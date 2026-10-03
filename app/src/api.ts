@@ -236,6 +236,8 @@ export interface Status {
   has_error: boolean;
   error1: number;
   error2: number;
+  /** Ids of the set error bits, e.g. "weak_battery", "cover_open". */
+  errors: string[];
 }
 
 export const models = () => invoke<Model[]>("models");

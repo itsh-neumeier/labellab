@@ -250,6 +250,8 @@ struct StatusDto {
     has_error: bool,
     error1: u8,
     error2: u8,
+    /// Ids of the set error bits (`ll_protocol::status::ERROR_BITS`).
+    errors: Vec<&'static str>,
 }
 
 /// Connects and reads the tape status.
@@ -270,6 +272,7 @@ async fn query_status(connection: Connection) -> Result<StatusDto, AppError> {
         has_error: s.has_error(),
         error1: s.error1(),
         error2: s.error2(),
+        errors: s.error_ids(),
     })
 }
 

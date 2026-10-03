@@ -2342,7 +2342,12 @@ async function readStatus(): Promise<boolean> {
   try {
     const s = await api.queryStatus(connection);
     if (s.has_error) {
-      setStatus(t("device.statusError", { e1: hex(s.error1), e2: hex(s.error2) }), "error");
+      // Known bits in words ("Akku schwach"), else the raw bytes.
+      const known = s.errors.map((id) => t(`printerError.${id}`)).join(", ");
+      setStatus(
+        known ? t("device.statusErrors", { errors: known }) : t("device.statusError", { e1: hex(s.error1), e2: hex(s.error2) }),
+        "error",
+      );
       return false;
     }
     const model = state.models.find((m) => m.name === selectedModel());

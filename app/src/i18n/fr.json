@@ -607,5 +607,6 @@
   "keys.click": "clic",
   "keys.wheel": "Molette",
   "keys.whileDragging": "en glissant",
-  "keys.cornerDrag": "en tirant un coin"
+  "keys.cornerDrag": "en tirant un coin",
+  "device.statusErrors": "Erreur d'imprimante : {errors}"
 }

@@ -127,7 +127,8 @@
   - [x] Import von Dateien des Hersteller-Editors (`.lbx`, ZIP mit `label.xml`) in `.llabel`
     (Nutzerwunsch 2026-10-02; Beispieldateien des Nutzers nicht ins Repo). `ll_core::lbx`,
     „Öffnen …“, CLI `import-lbx`; Doku `docs/IMPORT-LBX.md`, ADR-038
-  - [ ] Akkustand: Statusbyte per Rohdaten-Vergleich (Ladekabel/Akku) ermitteln, dann anzeigen
+  - [x] Akkustand: Rohdaten-Vergleich (Akku/Netz) ohne Unterschied → kein Akkustand im Status;
+    Fehlerbits (u. a. „Akku schwach“) werden beim Statuslesen im Klartext angezeigt
   - [x] Knopf „Wach halten“ (Keep-alive per Statusabfrage alle 2 min, beim Start aus)
   - [x] Ausrichten am Label (links/Mitte/rechts, oben/Mitte/unten), Seitenverhältnis
     beim Skalieren fixieren, Element sperren (nicht verschiebbar)
@@ -156,11 +157,11 @@
 |---|---|---|---|
 
 ## Nächste Schritte
-- Offene Nutzerwünsche (Stand 2026-10-02 abends): Akkuanzeige (wartet auf zweiten Rohdaten-Block), Hardware-Tests (USB/usbprint, Schnitt,
+- Offene Nutzerwünsche (Stand 2026-10-03): Akkuanzeige erledigt (kein Akkustand im Status, nur Fehlerbit), Hardware-Tests (USB/usbprint, Schnitt,
   Länge). Erledigt: Auto-Speichern, Ebenen, Hochformat, Deko-Rahmen, Schnittoptionen, CSV-Beispiel,
   Code-Assistent, Sicherungskasten-Felder verbinden + „Vorlage bearbeiten“, Vorlagen-Ziel.
 - Offene Nutzerwünsche (2026-10-02): dekorative Segment-Rahmen + Editor, senkrechte
-  Bandausrichtung im Editor, Akkuanzeige nach Rohdaten-Test, macOS-Build (Tauri kann es,
+  Bandausrichtung im Editor, macOS-Build (Tauri kann es,
   braucht macOS-Runner in CI + Bluetooth über CoreBluetooth/IOBluetooth — neuer Transport),
   Code-Signatur für Windows (braucht gekauftes Zertifikat oder Azure Trusted Signing).
 0. **Hardware-Test Länge/Schnitt:** Label mit fester Länge 100 mm und Rand links/rechts 4 mm
@@ -234,7 +235,8 @@
 - [ ] M4: Linux/BlueZ: `labellab pair`, `labellab devices`, `labellab status --bt --device <MAC>`
   und `print` — ist der SPP-Dienst auf RFCOMM-Kanal 1 (`TODO(verify)` in `ll-protocol`)?
 - [ ] Pin-Offsets/bedruckbare Pins je Bandbreite (3,5 / 6 / 9 / 12 / 18 / 24 mm) bestätigen
-- [ ] Status-Byte für Akkustand vorhanden?
+- [ ] Fehlerbit „Akku schwach“ (Byte 8 `0x08`) bei fast leerem Akku: wird es gesetzt, druckt der
+  Drucker dann noch? (Akkustand selbst steht nicht im Status, Vergleich 2026-10-03)
 - [ ] Half-Cut am PT-P710BT unterstützt? (vermutlich nein)
 - [ ] Maximale Bluetooth-Durchsatzrate / sinnvolle Blockgröße beim Senden der Rasterdaten
 - [ ] Medientyp-Code `0x01` (Byte 11), Bandfarbe `0x01` (Byte 24), Schriftfarbe `0x08` (Byte 25)
@@ -332,7 +334,8 @@
 - Nutzer schickte Statusblock über BT und USB: byte-gleich (auch zum 2026-10-02). Kassette meldet
   Flex-ID weiß/schwarz (`0x14`/`0x90`/`0x08`), eingelegt ist laut Nutzer laminiert transparent
   mit weißer Schrift → App merkt sich die Korrektur je Code-Paar (`labellab.tapeFix.*`).
-- Akku: weiterhin offen – nötig ist der Vergleich Ladekabel dran / nur Akku (nicht BT/USB).
+- Akku: zweiter Vergleich (Akku über BT / Netz über USB) wieder byte-gleich → kein Akkustand im
+  Statusblock. Statuslesen zeigt Fehlerbits jetzt übersetzt (z. B. „Akku schwach“).
 
 ### 2026-10-03 – Claude Code, autonome Features: Tabelle, Mehrfachauswahl, Inventarlabel
 - Nutzerwunsch: „Code checken und neue Features entwickeln, überraschen“.

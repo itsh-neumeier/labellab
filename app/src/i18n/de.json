@@ -607,5 +607,6 @@
   "keys.click": "Klick",
   "keys.wheel": "Mausrad",
   "keys.whileDragging": "beim Ziehen",
-  "keys.cornerDrag": "Ecke ziehen"
+  "keys.cornerDrag": "Ecke ziehen",
+  "device.statusErrors": "Druckerfehler: {errors}"
 }

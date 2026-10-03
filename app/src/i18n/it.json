@@ -607,5 +607,6 @@
   "keys.click": "clic",
   "keys.wheel": "Rotellina",
   "keys.whileDragging": "trascinando",
-  "keys.cornerDrag": "trascinando un angolo"
+  "keys.cornerDrag": "trascinando un angolo",
+  "device.statusErrors": "Errore stampante: {errors}"
 }

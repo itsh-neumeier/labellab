@@ -607,5 +607,6 @@
   "keys.click": "klik",
   "keys.wheel": "Kolečko myši",
   "keys.whileDragging": "při tažení",
-  "keys.cornerDrag": "tažením rohu"
+  "keys.cornerDrag": "tažením rohu",
+  "device.statusErrors": "Chyba tiskárny: {errors}"
 }
