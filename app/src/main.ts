@@ -1392,9 +1392,31 @@ function contentFields(item: Item): HTMLElement[] {
         item.edit = Object.keys(result).length ? result : undefined;
         changed(true);
       });
-      edit.disabled = !item.path;
+      // Source: a fixed file or a CSV column holding a path per record.
+      const column = /^\{\{\s*(.+?)\s*\}\}$/.exec(item.path)?.[1] ?? null;
+      edit.disabled = !item.path || column !== null;
       edit.classList.toggle("on", !!item.edit);
-      return [row, edit, invert, slider("brightness"), slider("contrast")];
+      const source = document.createElement("select");
+      source.add(new Option(t("elements.imageFile"), ""));
+      const columns = [...(state.csv?.headers ?? [])];
+      if (column && !columns.includes(column)) columns.push(column);
+      for (const c of columns) source.add(new Option(t("elements.imageColumn", { column: c }), c, false, c === column));
+      source.value = column ?? "";
+      source.addEventListener("change", () => {
+        item.path = source.value ? `{{${source.value}}}` : "";
+        item.edit = undefined;
+        changed(true);
+        renderProps();
+      });
+      const sourceRow = field("elements.imageSource", source);
+      sourceRow.title = t("elements.imageSourceHint");
+      if (column !== null) {
+        const hint = document.createElement("p");
+        hint.className = "muted hint";
+        hint.textContent = t("elements.imageSourceHint");
+        return [sourceRow, hint, invert, slider("brightness"), slider("contrast")];
+      }
+      return [sourceRow, row, edit, invert, slider("brightness"), slider("contrast")];
     }
     case "symbol": {
       const select = document.createElement("button");

@@ -610,5 +610,9 @@
   "media.satin": "Nastro satinato",
   "info.useAs": "Nastro inserito",
   "info.useAsHint": "La stampante conosce solo la codifica della cassetta; le cassette compatibili spesso indicano valori errati (nastri diversi persino la stessa codifica). Scegli qui il nastro inserito – resta finché non viene rilevata una cassetta con codifica diversa.",
-  "info.intro": "Valori dal blocco di stato della stampante. Nota: le cassette di terze parti indicano spesso un tipo o un colore di nastro diverso (ad es. «Nastro ID flessibile») – scegli il nastro reale in «Nastro inserito»."
+  "info.intro": "Valori dal blocco di stato della stampante. Nota: le cassette di terze parti indicano spesso un tipo o un colore di nastro diverso (ad es. «Nastro ID flessibile») – scegli il nastro reale in «Nastro inserito».",
+  "elements.imageSource": "Origine",
+  "elements.imageFile": "File immagine fisso",
+  "elements.imageColumn": "Colonna CSV «{column}»",
+  "elements.imageSourceHint": "Ogni riga del CSV indica in questa colonna il percorso dell'immagine (PNG, JPG, BMP, SVG); i percorsi relativi partono dalla cartella del file CSV. Cella vuota = nessuna immagine."
 }

@@ -610,5 +610,9 @@
   "media.satin": "Satinband",
   "info.useAs": "Eingelegtes Band",
   "info.useAsHint": "Der Drucker kennt nur die Kennung der Kassette; kompatible Kassetten melden oft Falsches (verschiedene Bänder sogar dieselbe Kennung). Hier das eingelegte Band wählen – es bleibt, bis eine Kassette mit anderer Kennung erkannt wird.",
-  "info.intro": "Werte aus dem Statusblock des Druckers. Hinweis: Kassetten von Drittherstellern melden oft eine abweichende Bandart oder Farbe (z. B. „Flex-ID-Band“) – unter „Eingelegtes Band“ das tatsächliche Band wählen."
+  "info.intro": "Werte aus dem Statusblock des Druckers. Hinweis: Kassetten von Drittherstellern melden oft eine abweichende Bandart oder Farbe (z. B. „Flex-ID-Band“) – unter „Eingelegtes Band“ das tatsächliche Band wählen.",
+  "elements.imageSource": "Quelle",
+  "elements.imageFile": "Feste Bilddatei",
+  "elements.imageColumn": "CSV-Spalte „{column}“",
+  "elements.imageSourceHint": "Jede Zeile der CSV liefert in dieser Spalte den Bildpfad (PNG, JPG, BMP, SVG); relative Pfade gelten ab dem Ordner der CSV-Datei. Leere Zelle = kein Bild."
 }

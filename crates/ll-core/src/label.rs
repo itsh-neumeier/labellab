@@ -544,11 +544,13 @@ impl Label {
         Ok(())
     }
 
-    /// Makes relative image paths absolute against `base`.
+    /// Makes relative image paths absolute against `base`. Paths from a
+    /// CSV column (`{{Bild}}`) stay as they are: they are resolved per
+    /// record against the CSV file's folder.
     pub fn resolve_paths(&mut self, base: &Path) {
         for item in &mut self.elements {
             if let Element::Image { path, .. } = &mut item.element {
-                if path.is_relative() {
+                if path.is_relative() && !is_unfilled_image(path) {
                     *path = base.join(&*path);
                 }
             }
@@ -783,6 +785,7 @@ fn render_flow_element(
             offset,
             ll_render::linear_barcode::MODULE_PX * canvas.scale,
         )?,
+        Element::Image { path, .. } if is_unfilled_image(path) => Bitmap::new(head, pins as u32),
         Element::Image {
             path,
             invert,
@@ -854,6 +857,13 @@ fn render_flow_element(
     })
 }
 
+/// Image path that is empty or still a placeholder (`{{Bild}}`, no CSV
+/// record filled in): rendered as an empty area instead of an error.
+fn is_unfilled_image(path: &Path) -> bool {
+    let p = path.to_string_lossy();
+    p.trim().is_empty() || p.contains("{{")
+}
+
 /// Renders one element into a box-local bitmap of `w` x `h` dots. Sets
 /// `overflow` if text had to be clipped.
 fn render_boxed_element(
@@ -893,6 +903,8 @@ fn render_boxed_element(
         }
         Element::Qr { data } => boxed::qr_in_box(data, w, h, QrErrorCorrection::Medium)?,
         Element::Barcode { symbology, data } => boxed::barcode_in_box(*symbology, data, w, h)?,
+        // Image from a CSV column without data (template editing): empty box.
+        Element::Image { path, .. } if is_unfilled_image(path) => Bitmap::new(h, w),
         Element::Image {
             path,
             invert,

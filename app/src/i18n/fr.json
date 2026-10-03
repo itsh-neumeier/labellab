@@ -610,5 +610,9 @@
   "media.satin": "Ruban satiné",
   "info.useAs": "Ruban inséré",
   "info.useAsHint": "L'imprimante ne connaît que le codage de la cassette ; les cassettes compatibles indiquent souvent de fausses valeurs (des rubans différents parfois le même codage). Choisissez ici le ruban inséré – il reste jusqu'à ce qu'une cassette au codage différent soit détectée.",
-  "info.intro": "Valeurs du bloc d'état de l'imprimante. Remarque : les cassettes d'autres fabricants indiquent souvent un type ou une couleur de ruban différents (p. ex. « Ruban ID flexible ») – choisissez le ruban réel sous « Ruban inséré »."
+  "info.intro": "Valeurs du bloc d'état de l'imprimante. Remarque : les cassettes d'autres fabricants indiquent souvent un type ou une couleur de ruban différents (p. ex. « Ruban ID flexible ») – choisissez le ruban réel sous « Ruban inséré ».",
+  "elements.imageSource": "Source",
+  "elements.imageFile": "Fichier image fixe",
+  "elements.imageColumn": "Colonne CSV « {column} »",
+  "elements.imageSourceHint": "Chaque ligne du CSV donne le chemin de l'image dans cette colonne (PNG, JPG, BMP, SVG) ; les chemins relatifs partent du dossier du fichier CSV. Cellule vide = pas d'image."
 }

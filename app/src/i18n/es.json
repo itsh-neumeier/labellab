@@ -610,5 +610,9 @@
   "media.satin": "Cinta satinada",
   "info.useAs": "Cinta insertada",
   "info.useAsHint": "La impresora solo conoce la codificación del casete; los casetes compatibles suelen indicar valores erróneos (cintas distintas incluso la misma). Elija aquí la cinta insertada: se mantiene hasta que se detecte un casete con otra codificación.",
-  "info.intro": "Valores del bloque de estado de la impresora. Nota: los casetes de otros fabricantes suelen indicar otro tipo o color de cinta (p. ej. «Cinta ID flexible»); elija la cinta real en «Cinta insertada»."
+  "info.intro": "Valores del bloque de estado de la impresora. Nota: los casetes de otros fabricantes suelen indicar otro tipo o color de cinta (p. ej. «Cinta ID flexible»); elija la cinta real en «Cinta insertada».",
+  "elements.imageSource": "Origen",
+  "elements.imageFile": "Archivo de imagen fijo",
+  "elements.imageColumn": "Columna CSV «{column}»",
+  "elements.imageSourceHint": "Cada fila del CSV indica en esta columna la ruta de la imagen (PNG, JPG, BMP, SVG); las rutas relativas parten de la carpeta del archivo CSV. Celda vacía = sin imagen."
 }

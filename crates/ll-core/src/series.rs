@@ -13,7 +13,7 @@
 //! Windows-1252 ("ANSI") as fallback when the bytes aren't valid UTF-8.
 
 use std::ops::RangeInclusive;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -31,12 +31,18 @@ pub const ROW_NUMBER_PLACEHOLDER: &str = "#";
 pub struct DataSet {
     pub headers: Vec<String>,
     pub rows: Vec<Vec<String>>,
+    /// Folder of the CSV file: relative image paths in the cells (e.g.
+    /// `bilder\\server1.png`) are taken from there.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_dir: Option<PathBuf>,
 }
 
 impl DataSet {
     /// Reads a CSV file, see the module docs for supported formats.
     pub fn load(path: &Path) -> Result<Self, CoreError> {
-        Self::from_bytes(&std::fs::read(path)?)
+        let mut data = Self::from_bytes(&std::fs::read(path)?)?;
+        data.base_dir = path.parent().map(Path::to_path_buf);
+        Ok(data)
     }
 
     /// Parses CSV bytes; the first record is the header line.
@@ -65,7 +71,11 @@ impl DataSet {
             row.resize(headers.len(), String::new());
             rows.push(row);
         }
-        Ok(Self { headers, rows })
+        Ok(Self {
+            headers,
+            rows,
+            base_dir: None,
+        })
     }
 
     /// Record numbers (1-based, inclusive) clamped to the data; `None`
@@ -282,7 +292,15 @@ pub fn apply(label: &Label, data: Option<&DataSet>, number: usize, numbering: Nu
             Element::Barcode { data, .. } => *data = f(data),
             Element::Image { path, .. } => {
                 if let Some(p) = path.to_str() {
-                    *path = f(p).into();
+                    let filled = PathBuf::from(f(p));
+                    // A path from a CSV cell may be relative to the CSV file.
+                    let from_cell = p.contains("{{") && filled.is_relative();
+                    *path = match data.and_then(|d| d.base_dir.as_ref()) {
+                        Some(base) if from_cell && !filled.as_os_str().is_empty() => {
+                            base.join(filled)
+                        }
+                        _ => filled,
+                    };
                 }
             }
             Element::Symbol { name, .. } => *name = f(name),
@@ -339,6 +357,28 @@ mod tests {
 
     fn data() -> DataSet {
         DataSet::from_bytes("Name;Raum\nServer 1;2.04\nSwitch;Keller\n".as_bytes()).unwrap()
+    }
+
+    #[test]
+    fn image_path_from_a_column_is_relative_to_the_csv() {
+        let mut d = DataSet::from_bytes("Name;Bild\nA;bilder/a.png\nB;/abs/b.png\nC;\n".as_bytes())
+            .unwrap();
+        d.base_dir = Some(PathBuf::from("/daten"));
+        let label = Label::single(Element::Image {
+            path: "{{Bild}}".into(),
+            invert: false,
+            brightness: 0,
+            contrast: 0,
+            edit: Default::default(),
+        });
+        let path = |n| match &apply(&label, Some(&d), n, Numbering::default()).elements[0].element {
+            Element::Image { path, .. } => path.clone(),
+            _ => unreachable!(),
+        };
+        assert_eq!(path(1), PathBuf::from("/daten/bilder/a.png"));
+        assert_eq!(path(2), PathBuf::from("/abs/b.png"));
+        // Empty cell: no image (rendered as an empty area).
+        assert_eq!(path(3), PathBuf::from(""));
     }
 
     #[test]

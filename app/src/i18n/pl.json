@@ -610,5 +610,9 @@
   "media.satin": "Taśma satynowa",
   "info.useAs": "Włożona taśma",
   "info.useAsHint": "Drukarka zna tylko oznaczenie kasety; kasety zamienne często podają błędne wartości (różne taśmy nawet to samo oznaczenie). Wybierz tu włożoną taśmę – pozostanie, dopóki nie zostanie wykryta kaseta z innym oznaczeniem.",
-  "info.intro": "Wartości z bloku stanu drukarki. Uwaga: kasety innych producentów często podają inny typ lub kolor taśmy (np. „Taśma Flexible ID”) – wybierz rzeczywistą taśmę w polu „Włożona taśma”."
+  "info.intro": "Wartości z bloku stanu drukarki. Uwaga: kasety innych producentów często podają inny typ lub kolor taśmy (np. „Taśma Flexible ID”) – wybierz rzeczywistą taśmę w polu „Włożona taśma”.",
+  "elements.imageSource": "Źródło",
+  "elements.imageFile": "Stały plik obrazu",
+  "elements.imageColumn": "Kolumna CSV „{column}”",
+  "elements.imageSourceHint": "Każdy wiersz CSV podaje w tej kolumnie ścieżkę obrazu (PNG, JPG, BMP, SVG); ścieżki względne liczą się od folderu pliku CSV. Pusta komórka = brak obrazu."
 }

@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- CSV: Bild aus einer Spalte – beim Bild-Element „Quelle: CSV-Spalte …“ wählen; jede Zeile liefert
+  ihren Bildpfad (relativ zum Ordner der CSV-Datei möglich), leere Zelle = kein Bild
 - Element „Tabelle“: Zeilen/Spalten, Zellen mehrzeilig mit Fett/Kursiv und Platzhaltern,
   relative Spaltenbreiten und Zeilenhöhen, Linienstärke, Außenrahmen, fette Kopfzeile.
   `.lbx`-Tabellen werden als Tabelle übernommen

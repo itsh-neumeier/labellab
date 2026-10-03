@@ -610,5 +610,9 @@
   "media.satin": "Satin tape",
   "info.useAs": "Inserted tape",
   "info.useAsHint": "The printer only knows the cassette's coding; compatible cassettes often report wrong values (different tapes even the same coding). Choose the inserted tape here – it stays until a cassette with another coding is detected.",
-  "info.intro": "Values from the printer's status block. Note: third-party cassettes often report a different tape type or colour (e.g. “Flexible ID tape”) – choose the actual tape under “Inserted tape”."
+  "info.intro": "Values from the printer's status block. Note: third-party cassettes often report a different tape type or colour (e.g. “Flexible ID tape”) – choose the actual tape under “Inserted tape”.",
+  "elements.imageSource": "Source",
+  "elements.imageFile": "Fixed image file",
+  "elements.imageColumn": "CSV column “{column}”",
+  "elements.imageSourceHint": "Each CSV row gives the image path in this column (PNG, JPG, BMP, SVG); relative paths start at the CSV file's folder. Empty cell = no image."
 }

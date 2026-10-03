@@ -610,5 +610,9 @@
   "media.satin": "Saténová páska",
   "info.useAs": "Vložená páska",
   "info.useAsHint": "Tiskárna zná jen kódování kazety; kompatibilní kazety často hlásí chybné hodnoty (různé pásky dokonce stejné kódování). Zde vyberte vloženou pásku – zůstane, dokud nebude rozpoznána kazeta s jiným kódováním.",
-  "info.intro": "Hodnoty ze stavového bloku tiskárny. Poznámka: kazety jiných výrobců často hlásí jiný typ nebo barvu pásky (např. „Páska Flexible ID“) – skutečnou pásku vyberte v části „Vložená páska“."
+  "info.intro": "Hodnoty ze stavového bloku tiskárny. Poznámka: kazety jiných výrobců často hlásí jiný typ nebo barvu pásky (např. „Páska Flexible ID“) – skutečnou pásku vyberte v části „Vložená páska“.",
+  "elements.imageSource": "Zdroj",
+  "elements.imageFile": "Pevný soubor obrázku",
+  "elements.imageColumn": "Sloupec CSV „{column}“",
+  "elements.imageSourceHint": "Každý řádek CSV uvádí v tomto sloupci cestu k obrázku (PNG, JPG, BMP, SVG); relativní cesty vycházejí ze složky souboru CSV. Prázdná buňka = bez obrázku."
 }

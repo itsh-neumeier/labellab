@@ -610,5 +610,9 @@
   "media.satin": "Satijntape",
   "info.useAs": "Geplaatste tape",
   "info.useAsHint": "De printer kent alleen de codering van de cassette; compatibele cassettes melden vaak verkeerde waarden (verschillende tapes zelfs dezelfde codering). Kies hier de geplaatste tape – die blijft tot een cassette met een andere codering wordt herkend.",
-  "info.intro": "Waarden uit het statusblok van de printer. Let op: cassettes van derden melden vaak een ander tapetype of andere kleur (bijv. „Flexibele ID-tape“) – kies de echte tape bij „Geplaatste tape“."
+  "info.intro": "Waarden uit het statusblok van de printer. Let op: cassettes van derden melden vaak een ander tapetype of andere kleur (bijv. „Flexibele ID-tape“) – kies de echte tape bij „Geplaatste tape“.",
+  "elements.imageSource": "Bron",
+  "elements.imageFile": "Vast afbeeldingsbestand",
+  "elements.imageColumn": "CSV-kolom „{column}“",
+  "elements.imageSourceHint": "Elke CSV-rij geeft in deze kolom het pad van de afbeelding (PNG, JPG, BMP, SVG); relatieve paden gelden vanaf de map van het CSV-bestand. Lege cel = geen afbeelding."
 }
