@@ -213,14 +213,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ### Behoben
 - Druckerinfo: neue Zeile „Eingelegtes Band“ – passt die Kennung der Kassette nicht zum Band,
-  dort das richtige wählen (wird für diese Kassette gemerkt). Akkustand-Zeile korrigiert: der
+  dort das richtige wählen. Akkustand-Zeile korrigiert: der
   Drucker meldet ihn nicht
 - Druckerinfo erkennt weitere Bandarten: Flex-ID (`0x14`), Stoff, Flexi, Satin
 - „Status lesen“ zeigt Druckerfehler im Klartext (z. B. „Akku schwach“, „Abdeckung offen“)
   statt nur der Fehlerbytes. Einen Akkustand meldet der PT-P710BT im Status nicht (geprüft)
-- Bandfarbe: meldet eine Kassette andere Farben als sie hat (z. B. kompatible Bänder), wird die
-  von Hand gewählte Bandfarbe für genau diese Kassettenkennung gemerkt und beim nächsten
-  „Status lesen“ nicht mehr überschrieben
+- Bandfarbe: „Status lesen“ setzt die Bandfarbe nur noch, wenn die Kassette eine andere Kennung
+  meldet als beim letzten Mal. Kompatible Kassetten melden oft falsche Farben (zwei verschiedene
+  24-mm-Bänder sogar dieselbe Kennung); die von Hand gewählte Bandfarbe bleibt so erhalten
 - Neues, unverändertes Dokument galt nach dem Start als „ungespeichert“ (gemerkte Felder,
   automatisch erkannte Bandbreite) – Schließen fragte unnötig nach
 - Änderungen während eines (Auto-)Speicherns galten als gespeichert und konnten verloren gehen

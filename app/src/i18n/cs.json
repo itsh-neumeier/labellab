@@ -614,5 +614,5 @@
   "media.flexible_id": "Páska Flexible ID",
   "media.satin": "Saténová páska",
   "info.useAs": "Vložená páska",
-  "info.useAsHint": "Tiskárna zná jen kódování kazety. Pokud neodpovídá pásce (např. kompatibilní kazety), vyberte zde správnou – LabelLab si ji pro tuto kazetu zapamatuje."
+  "info.useAsHint": "Tiskárna zná jen kódování kazety; kompatibilní kazety často hlásí chybné hodnoty (různé pásky dokonce stejné kódování). Zde vyberte vloženou pásku – zůstane, dokud nebude rozpoznána kazeta s jiným kódováním."
 }

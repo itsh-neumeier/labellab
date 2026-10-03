@@ -614,5 +614,5 @@
   "media.flexible_id": "Nastro ID flessibile",
   "media.satin": "Nastro satinato",
   "info.useAs": "Nastro inserito",
-  "info.useAsHint": "La stampante conosce solo la codifica della cassetta. Se non corrisponde al nastro (ad es. cassette compatibili), scegli qui quello giusto – LabelLab lo ricorda per questa cassetta."
+  "info.useAsHint": "La stampante conosce solo la codifica della cassetta; le cassette compatibili spesso indicano valori errati (nastri diversi persino la stessa codifica). Scegli qui il nastro inserito – resta finché non viene rilevata una cassetta con codifica diversa."
 }

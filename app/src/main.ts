@@ -492,33 +492,24 @@ function previewRow(): number | null {
 
 const TAPE_STYLE_KEY = "labellab.tapeStyle";
 /**
- * Colours the cassette reported at the last status read. Some cassettes
- * report other colours than they have (e.g. compatible tapes); a style the
- * user picks afterwards is remembered for exactly these codes.
+ * Colours the cassette reported at the last status read. Cassettes may
+ * report other colours than they have, and differently coloured cassettes
+ * may report the same codes (seen with compatible 24 mm tapes), so a status
+ * read only sets the tape style when the reported codes change; a style the
+ * user picked stays until another coding is inserted.
  */
-let detectedStyle: TapeStyle | null = null;
-const tapeFixKey = (st: TapeStyle) => `labellab.tapeFix.${styleKey(st)}`;
+const TAPE_REPORTED_KEY = "labellab.tapeReported";
 
-/** Tape style for colours the printer reported, with the user's remembered correction. */
-function correctedStyle(detected: TapeStyle): TapeStyle {
+/** Applies the reported colours unless the same codes were reported before. */
+function applyReportedTape(reported: TapeStyle): void {
+  let last = "";
   try {
-    const fix = parseStyleKey(getSetting(tapeFixKey(detected)) ?? "");
-    if (fix) return fix;
+    last = getSetting(TAPE_REPORTED_KEY) ?? "";
+    setSetting(TAPE_REPORTED_KEY, styleKey(reported));
   } catch {
-    // no correction stored
+    // not remembered: apply every time
   }
-  return detected;
-}
-
-/** The user changed the tape style: remember it for the codes the cassette reports. */
-function rememberTapeFix(): void {
-  if (!detectedStyle) return;
-  const chosen = $<HTMLSelectElement>("tape-style").value;
-  try {
-    setSetting(tapeFixKey(detectedStyle), chosen === styleKey(detectedStyle) ? "" : chosen);
-  } catch {
-    // not remembered
-  }
+  if (last !== styleKey(reported)) fillTapeStyles(reported);
 }
 
 function styleName(st: TapeStyle): string {
@@ -2360,8 +2351,7 @@ async function readStatus(): Promise<boolean> {
       tapeChanged();
     }
     if (s.tape_color_id && s.text_color_id && s.tape_color_id in TAPE_CSS && s.text_color_id in INK_CSS) {
-      detectedStyle = { tape: s.tape_color_id, ink: s.text_color_id };
-      fillTapeStyles(correctedStyle(detectedStyle));
+      applyReportedTape({ tape: s.tape_color_id, ink: s.text_color_id });
     }
     setStatus(t("device.statusOk", { width: s.width_mm }), "ok");
     return true;
@@ -2423,21 +2413,20 @@ async function showPrinterInfo(): Promise<void> {
     }
     // The printer only knows the cassette's coding: let the user say what is really inserted.
     if (i.tape_color_id && i.text_color_id) {
-      detectedStyle = { tape: i.tape_color_id, ink: i.text_color_id };
       const tr = document.createElement("tr");
       const th = document.createElement("th");
       th.textContent = t("info.useAs");
       const td = document.createElement("td");
       const select = document.createElement("select");
-      const current = styleKey(correctedStyle(detectedStyle));
-      const styles = TAPE_STYLES.some((st) => styleKey(st) === current) ? TAPE_STYLES : [correctedStyle(detectedStyle), ...TAPE_STYLES];
+      const current = $<HTMLSelectElement>("tape-style").value;
+      const shown = parseStyleKey(current);
+      const styles = TAPE_STYLES.some((st) => styleKey(st) === current) || !shown ? TAPE_STYLES : [shown, ...TAPE_STYLES];
       for (const st of styles) select.add(new Option(styleName(st), styleKey(st), false, styleKey(st) === current));
       select.addEventListener("change", () => {
         const tape = $<HTMLSelectElement>("tape-style");
         if (!Array.from(tape.options).some((o) => o.value === select.value)) fillTapeStyles(parseStyleKey(select.value) ?? undefined);
         tape.value = select.value;
         applyTapeStyle();
-        rememberTapeFix();
       });
       const hint = document.createElement("div");
       hint.className = "muted small";
@@ -4796,10 +4785,7 @@ function bindUi(): void {
   });
   $("zoom").addEventListener("input", layoutStage);
   bindWheelZoom();
-  $("tape-style").addEventListener("change", () => {
-    applyTapeStyle();
-    rememberTapeFix();
-  });
+  $("tape-style").addEventListener("change", applyTapeStyle);
   $("quality").addEventListener("change", schedulePreview);
   $("strips").addEventListener("change", () => {
     state.label.strips = Number($<HTMLSelectElement>("strips").value) || 1;

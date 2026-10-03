@@ -614,5 +614,5 @@
   "media.flexible_id": "Cinta ID flexible",
   "media.satin": "Cinta satinada",
   "info.useAs": "Cinta insertada",
-  "info.useAsHint": "La impresora solo conoce la codificación del casete. Si no coincide con la cinta (p. ej. casetes compatibles), elija aquí la correcta; LabelLab la recuerda para este casete."
+  "info.useAsHint": "La impresora solo conoce la codificación del casete; los casetes compatibles suelen indicar valores erróneos (cintas distintas incluso la misma). Elija aquí la cinta insertada: se mantiene hasta que se detecte un casete con otra codificación."
 }

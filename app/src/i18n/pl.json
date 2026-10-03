@@ -614,5 +614,5 @@
   "media.flexible_id": "Taśma Flexible ID",
   "media.satin": "Taśma satynowa",
   "info.useAs": "Włożona taśma",
-  "info.useAsHint": "Drukarka zna tylko oznaczenie kasety. Jeśli nie pasuje do taśmy (np. kasety zamienne), wybierz tu właściwą – LabelLab zapamięta ją dla tej kasety."
+  "info.useAsHint": "Drukarka zna tylko oznaczenie kasety; kasety zamienne często podają błędne wartości (różne taśmy nawet to samo oznaczenie). Wybierz tu włożoną taśmę – pozostanie, dopóki nie zostanie wykryta kaseta z innym oznaczeniem."
 }

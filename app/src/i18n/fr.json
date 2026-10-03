@@ -614,5 +614,5 @@
   "media.flexible_id": "Ruban ID flexible",
   "media.satin": "Ruban satiné",
   "info.useAs": "Ruban inséré",
-  "info.useAsHint": "L'imprimante ne connaît que le codage de la cassette. S'il ne correspond pas au ruban (p. ex. cassettes compatibles), choisissez le bon ici – LabelLab le retient pour cette cassette."
+  "info.useAsHint": "L'imprimante ne connaît que le codage de la cassette ; les cassettes compatibles indiquent souvent de fausses valeurs (des rubans différents parfois le même codage). Choisissez ici le ruban inséré – il reste jusqu'à ce qu'une cassette au codage différent soit détectée."
 }

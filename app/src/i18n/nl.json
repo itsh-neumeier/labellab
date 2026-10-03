@@ -614,5 +614,5 @@
   "media.flexible_id": "Flexibele ID-tape",
   "media.satin": "Satijntape",
   "info.useAs": "Geplaatste tape",
-  "info.useAsHint": "De printer kent alleen de codering van de cassette. Klopt die niet met de tape (bijv. compatibele cassettes), kies hier de juiste – LabelLab onthoudt dit voor deze cassette."
+  "info.useAsHint": "De printer kent alleen de codering van de cassette; compatibele cassettes melden vaak verkeerde waarden (verschillende tapes zelfs dezelfde codering). Kies hier de geplaatste tape – die blijft tot een cassette met een andere codering wordt herkend."
 }

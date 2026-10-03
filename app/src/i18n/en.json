@@ -614,5 +614,5 @@
   "media.flexible_id": "Flexible ID tape",
   "media.satin": "Satin tape",
   "info.useAs": "Inserted tape",
-  "info.useAsHint": "The printer only knows the cassette's coding. If it does not match the tape (e.g. compatible cassettes), choose the right one here – LabelLab remembers it for this cassette."
+  "info.useAsHint": "The printer only knows the cassette's coding; compatible cassettes often report wrong values (different tapes even the same coding). Choose the inserted tape here – it stays until a cassette with another coding is detected."
 }

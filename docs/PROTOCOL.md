@@ -125,7 +125,10 @@ Quelle: Raster Command Reference PT-E550W/P750W/P710BT v1.02, Tabellen (8)/(9); 
   „laminiert 24 mm, transparent“ mit weißer Schrift; die Kassette meldet aber Medientyp `0x14`,
   Bandfarbe `0x90` (Weiß Flex-ID) und Schriftfarbe `0x08` (Schwarz). Die Kassettenkennung
   stimmt hier also nicht mit dem Band überein (vermutlich kompatible Kassette, unverifiziert) –
-  die App merkt sich deshalb eine vom Nutzer korrigierte Bandfarbe je gemeldetem Code-Paar.
+  Zweite 24-mm-Kassette (laut Nutzer schwarz auf weiß, 2026-10-03): **identischer Block**.
+  Verschiedene Kassetten melden also dieselbe Kennung (vermutlich kompatible Kassetten mit
+  Flex-ID-Kodierung) – die Kennung ist kein verlässlicher Schlüssel. Die App setzt die
+  Bandfarbe daher nur, wenn sich die gemeldete Kennung gegenüber dem letzten Lesen ändert.
 - Akkustand: zweiter Vergleich des Nutzers (2026-10-03, Bluetooth ohne Kabel = Akku gegenüber
   USB = Netz, Zuordnung laut Nachfrage angenommen): **wieder byte-gleich**. Ergebnis: Der
   PT-P710BT meldet im 32-Byte-Status **keinen Akkustand** (Annahme aus Hardware-Test, mit

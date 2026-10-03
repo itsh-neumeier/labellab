@@ -333,7 +333,9 @@
 ### 2026-10-03 – Claude Code, Rohdaten BT/USB, Bandfarben-Korrektur
 - Nutzer schickte Statusblock über BT und USB: byte-gleich (auch zum 2026-10-02). Kassette meldet
   Flex-ID weiß/schwarz (`0x14`/`0x90`/`0x08`), eingelegt ist laut Nutzer laminiert transparent
-  mit weißer Schrift → App merkt sich die Korrektur je Code-Paar (`labellab.tapeFix.*`).
+  mit weißer Schrift; eine zweite Kassette (schwarz auf weiß) meldet denselben Block → Bandfarbe
+  wird nur bei geänderter Kennung gesetzt (`labellab.tapeReported`), Druckerinfo hat die Zeile
+  „Eingelegtes Band“ zum Korrigieren.
 - Akku: zweiter Vergleich (Akku über BT / Netz über USB) wieder byte-gleich → kein Akkustand im
   Statusblock. Statuslesen zeigt Fehlerbits jetzt übersetzt (z. B. „Akku schwach“).
 

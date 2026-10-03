@@ -614,5 +614,5 @@
   "media.flexible_id": "Flex-ID-Band",
   "media.satin": "Satinband",
   "info.useAs": "Eingelegtes Band",
-  "info.useAsHint": "Der Drucker kennt nur die Kennung der Kassette. Passt sie nicht zum Band (z. B. kompatible Kassetten), hier das richtige wählen – LabelLab merkt es sich für diese Kassette."
+  "info.useAsHint": "Der Drucker kennt nur die Kennung der Kassette; kompatible Kassetten melden oft Falsches (verschiedene Bänder sogar dieselbe Kennung). Hier das eingelegte Band wählen – es bleibt, bis eine Kassette mit anderer Kennung erkannt wird."
 }
