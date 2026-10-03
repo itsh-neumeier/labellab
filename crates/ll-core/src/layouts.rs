@@ -175,6 +175,16 @@ pub struct AssetTag {
     pub length_mm: f32,
 }
 
+/// Pipe marker per DIN 2403: one [`Element::PipeMarker`] over the whole
+/// label.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PipeMarkerLayout {
+    #[serde(flatten)]
+    pub marker: crate::pipe::PipeMarker,
+    /// Label length in mm.
+    pub length_mm: f32,
+}
+
 /// Which generator to run, tagged for JSON (GUI, CLI).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -186,6 +196,7 @@ pub enum Layout {
     TerminalBlock(TerminalBlock),
     FuseBox(FuseBox),
     AssetTag(AssetTag),
+    PipeMarker(PipeMarkerLayout),
 }
 
 fn text_item(text: &str, rect: Rect, rotation: u16) -> Item {
@@ -461,6 +472,27 @@ pub fn asset_tag(spec: &AssetTag, tape_mm: f32) -> Label {
     fixed_length(elements, length)
 }
 
+pub fn pipe_marker(spec: &PipeMarkerLayout, tape_mm: f32) -> Label {
+    // At least room for two tips and some text.
+    let length = spec.length_mm.max(tape_mm * 3.0);
+    let item = Item {
+        rect: Some(Rect {
+            x_mm: 0.0,
+            y_mm: 0.0,
+            w_mm: length,
+            h_mm: tape_mm,
+        }),
+        ..Element::PipeMarker {
+            marker: spec.marker.clone(),
+            size_pt: None,
+            font: None,
+            bold: true,
+        }
+        .into()
+    };
+    fixed_length(vec![item], length)
+}
+
 pub fn terminal_block(spec: &TerminalBlock, tape_mm: f32) -> Label {
     let count = spec.count.clamp(1, MAX_FIELDS);
     let pitch = spec.pitch_mm.max(1.0);
@@ -589,6 +621,7 @@ fn generate_plain(layout: &Layout, tape_mm: f32) -> Label {
         Layout::TerminalBlock(s) => terminal_block(s, tape_mm),
         Layout::FuseBox(s) => fuse_box(s, tape_mm),
         Layout::AssetTag(s) => asset_tag(s, tape_mm),
+        Layout::PipeMarker(s) => pipe_marker(s, tape_mm),
     }
 }
 
@@ -738,6 +771,38 @@ mod tests {
         );
         // Too short: at least a square for the text.
         assert!(label.min_length_mm.unwrap() >= 9.0);
+    }
+
+    #[test]
+    fn pipe_marker_fills_the_label_and_renders() {
+        let spec = PipeMarkerLayout {
+            marker: crate::pipe::PipeMarker {
+                text: "Trinkwasser".into(),
+                symbols: vec!["ghs:GHS07".into()],
+                direction: crate::pipe::PipeDirection::Both,
+                ..Default::default()
+            },
+            length_mm: 80.0,
+        };
+        let label = generate(&Layout::PipeMarker(spec.clone()), 15.0);
+        assert_eq!(label.min_length_mm, Some(80.0));
+        assert_eq!(label.elements[0].rect.unwrap().w_mm, 80.0);
+        let json = serde_json::to_string(&Layout::PipeMarker(spec)).unwrap();
+        assert!(json.contains(r#""kind":"pipe_marker""#) && json.contains(r#""direction":"both""#));
+        // Too short for two tips: lengthened.
+        let short = pipe_marker(
+            &PipeMarkerLayout {
+                marker: Default::default(),
+                length_mm: 5.0,
+            },
+            15.0,
+        );
+        assert_eq!(short.min_length_mm, Some(45.0));
+        if ll_render::fontsrc::load_default_font().is_ok() {
+            let model = p710();
+            let bitmap = render_label(&label, model, geometry_for(model, 18).unwrap()).unwrap();
+            assert!(bitmap.height_dots() > 500);
+        }
     }
 
     #[test]

@@ -4,6 +4,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Rohrleitungskennzeichnung nach DIN 2403 (Vorlagen → „Anlagen & Rohrleitungen“): Stoffgruppe
+  0–9 mit passender Bandfarbe, Medium mit Vorschlägen, Zusatzzeile, Fließrichtung (links,
+  rechts, beidseitig), Zusatzfarbe in den Spitzen (frei, gefüllt, schraffiert), Rand ausgefüllt
+  oder als Kontur, bis zu drei Gefahrensymbole (GHS). Vorschau im Assistenten in den
+  DIN-Farben; als Element nachträglich bearbeitbar; CLI `generate pipe-marker`
 - Neues Icon-Set „GHS-Gefahrenpiktogramme“ (GHS01–GHS09, gemeinfrei von Wikimedia Commons),
   z. B. für die Rohrleitungskennzeichnung
 - CSV: Bild aus einer Spalte – beim Bild-Element „Quelle: CSV-Spalte …“ wählen; jede Zeile liefert

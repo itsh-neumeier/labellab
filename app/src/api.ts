@@ -62,6 +62,13 @@ export type Element =
       bold?: boolean;
       italic?: boolean;
     }
+  | ({
+      type: "pipe_marker";
+      size_pt?: number | null;
+      font?: string | null;
+      /** Main text bold; absent = true. */
+      bold?: boolean;
+    } & PipeMarkerFields)
   | {
       type: "table";
       /** Rows from the top edge, each a list of cell texts. */
@@ -124,8 +131,22 @@ export interface Numbering {
 
 export type AssetCode = "qr" | "code128" | "none";
 
+/** Pipe marker content (`ll_core::pipe::PipeMarker`). */
+export interface PipeMarkerFields {
+  text: string;
+  sub_text?: string;
+  direction?: "right" | "left" | "both";
+  tips?: "none" | "solid" | "hatched";
+  frame?: "filled" | "outline";
+  /** Symbol names, e.g. "ghs:GHS02" (max. 3). */
+  symbols?: string[];
+  /** DIN 2403 substance group 0–9. */
+  group?: number | null;
+}
+
 export type Layout =
   | { kind: "asset_tag"; owner: string; number: string; code: AssetCode; code_data: string; length_mm: number }
+  | ({ kind: "pipe_marker"; length_mm: number } & PipeMarkerFields)
   | { kind: "cable_flag"; text: string; diameter_mm: number; flag_mm: number; center_mark?: boolean }
   | { kind: "cable_wrap"; text: string; diameter_mm: number; repeats: number | null; vertical: boolean }
   | {

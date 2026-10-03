@@ -29,6 +29,7 @@ use ll_render::{
 use serde::{Deserialize, Serialize};
 
 use crate::fusebox::{self, FuseField, FuseSeparator};
+pub use crate::pipe::PipeMarker;
 pub use crate::table::Table;
 use crate::CoreError;
 
@@ -436,6 +437,19 @@ pub enum Element {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         italic: bool,
     },
+    /// Pipe marker per DIN 2403 (see [`crate::pipe`]).
+    PipeMarker {
+        #[serde(flatten)]
+        marker: PipeMarker,
+        /// Main text size; `None` = largest that fits.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        size_pt: Option<f32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        font: Option<String>,
+        /// Main text bold (DIN markers use a bold sans serif).
+        #[serde(default = "yes_bool", skip_serializing_if = "is_true_bool")]
+        bold: bool,
+    },
     /// Grid of cells with text (see [`crate::table`]).
     Table {
         #[serde(flatten)]
@@ -456,6 +470,17 @@ pub enum Element {
         italic: bool,
     },
 }
+
+fn yes_bool() -> bool {
+    true
+}
+
+fn is_true_bool(v: &bool) -> bool {
+    *v
+}
+
+/// Length of a pipe marker in the flow layout (no box), in tape heights.
+const PIPE_FLOW_LENGTH: f32 = 5.0;
 
 /// Column width of a table in the flow layout (no box), mm.
 const TABLE_FLOW_COL_MM: f32 = 10.0;
@@ -558,9 +583,12 @@ impl Label {
     }
 
     fn has_text(&self) -> bool {
-        self.elements
-            .iter()
-            .any(|i| matches!(i.element, Element::Text { .. } | Element::Table { .. }))
+        self.elements.iter().any(|i| {
+            matches!(
+                i.element,
+                Element::Text { .. } | Element::Table { .. } | Element::PipeMarker { .. }
+            )
+        })
     }
 }
 
@@ -837,6 +865,13 @@ fn render_flow_element(
             out.blit(&local, offset as i32, 0, offset..offset + pins);
             out
         }
+        Element::PipeMarker { .. } => {
+            let len = ((pins as f32) * PIPE_FLOW_LENGTH) as u32;
+            let local = render_pipe_marker(element, len, pins, canvas, fonts, overflow)?;
+            let mut out = Bitmap::new(head, len);
+            out.blit(&local, offset as i32, 0, offset..offset + pins);
+            out
+        }
         Element::Table { table, .. } => {
             // Natural length: 10 mm per column.
             let len = canvas.mm(TABLE_FLOW_COL_MM * table.cols() as f32).max(1);
@@ -932,12 +967,50 @@ fn render_boxed_element(
         Element::Table { .. } => {
             render_table_element(element, w, h, valign, canvas, fonts, overflow)?
         }
+        Element::PipeMarker { .. } => render_pipe_marker(element, w, h, canvas, fonts, overflow)?,
         Element::Fill => {
             let mut b = Bitmap::new(h, w);
             b.fill();
             b
         }
     })
+}
+
+/// Renders an [`Element::PipeMarker`] into a `w` x `h` dot box.
+fn render_pipe_marker(
+    element: &Element,
+    w: u32,
+    h: u16,
+    canvas: &Canvas,
+    fonts: &mut FontCache,
+    overflow: &mut bool,
+) -> Result<Bitmap, CoreError> {
+    let Element::PipeMarker {
+        marker,
+        size_pt,
+        font,
+        bold,
+    } = element
+    else {
+        return Ok(Bitmap::new(h, w));
+    };
+    let all = format!("{}\n{}", marker.text, marker.sub_text);
+    let faces = fonts.faces(font, *bold, false, &all)?;
+    let sub_faces = fonts.faces(font, false, false, &all)?;
+    let (faces, sub_faces) = (face_set(&faces), face_set(&sub_faces));
+    let (bitmap, clipped) = crate::pipe::render_marker(
+        marker,
+        w,
+        h,
+        &crate::pipe::MarkerStyle {
+            faces: &faces,
+            sub_faces: &sub_faces,
+            size_px: size_pt.map(|pt| canvas.pt(pt)),
+        },
+        &|name, size| boxed::symbol_in_box(name, size, size.min(u16::MAX as u32) as u16, false),
+    )?;
+    *overflow |= clipped;
+    Ok(bitmap)
 }
 
 /// Renders an [`Element::Table`] into a `w` x `h` dot box.

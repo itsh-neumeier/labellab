@@ -725,3 +725,18 @@ Vorlage:
   steht der Text in der ersten Zelle, Hinweis `table_merge`).
 - Konsequenzen: `.lbx`-Tabellen werden als ein bearbeitbares Element übernommen. Verbundene
   Zellen wären eine spätere Erweiterung (`spans` je Zelle).
+
+## ADR-041: Rohrleitungskennzeichnung (DIN 2403) als Element, GHS-Icon-Set
+- Datum / Status: 2026-10-03 · angenommen (Entwurf vom Nutzer freigegeben, `docs/ENTWURF-DIN2403.md`)
+- Kontext: Rohrleitungen nach DIN 2403 kennzeichnen (farbige Pfeile mit Medium, Fließrichtung,
+  Zusatzfarbe, Gefahrensymbole) – mit einem Drucker, der nur eine Farbe druckt.
+- Entscheidung: Neues Element `Element::PipeMarker` (`ll_core::pipe`): Bandfarbe = Stofffarbe,
+  gedruckt wird alles außer der Pfeilform (Rand in Druckfarbe, wahlweise nur Kontur), Trennstriche
+  zwischen Spitze und Körper, Spitzen frei/gefüllt/schraffiert (Zusatzfarbe; Rot ist einfarbig
+  nicht druckbar → frei oder schraffiert), Medium + Zusatzzeile über den Textpfad, bis zu drei
+  Symbole über die Icon-Sets. Vorlage `Layout::PipeMarker`, Assistenten-Kachel mit den Stoffgruppen
+  0–9 (`app/src/pipes.ts`: Farben, empfohlene Kassette, typische Medien und GHS-Symbole), Vorschau
+  im Assistenten in den RAL-Farben, nach dem Erzeugen Vorschau-Bandstil der Gruppe. CLI
+  `generate pipe-marker`. Neues mitgeliefertes Icon-Set `ghs` (GHS01–GHS09 von Wikimedia Commons,
+  gemeinfrei, `tools/iconsets/ghs`).
+- Konsequenzen: Grau, Violett, Braun gibt es meist nicht als Kassette (Hinweis im Assistenten).

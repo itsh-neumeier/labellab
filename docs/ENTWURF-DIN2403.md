@@ -1,4 +1,4 @@
-# Entwurf: Rohrleitungskennzeichnung nach DIN 2403 (wartet auf Freigabe des Nutzers)
+# Rohrleitungskennzeichnung nach DIN 2403 (Entwurf, freigegeben und umgesetzt: ADR-041)
 
 Stand: 2026-10-03. Nutzerwunsch: Vorlagen-Assistent für Rohrleitungskennzeichnung, Pfeilrichtung
 immer wählbar, Gefahrensymbole wie in der DIN; erst Entwurf, nach Freigabe umsetzen. Später:

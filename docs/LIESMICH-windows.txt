@@ -128,3 +128,9 @@ Bandkassetten von Drittherstellern
   verschiedene Bänder sogar mit derselben Kennung). Die Bandbreite stimmt trotzdem.
   In "Druckerinfo ..." unter "Eingelegtes Band" (oder oben bei "Band") das echte Band
   wählen; die Auswahl bleibt, bis eine Kassette mit anderer Kennung erkannt wird.
+
+Rohrleitungskennzeichnung (DIN 2403)
+- "Vorlagen ..." -> "Anlagen & Rohrleitungen" -> "Rohrleitung (DIN 2403)": Stoffgruppe waehlen
+  (z. B. 1 Wasser), Medium, Fliessrichtung, ggf. Gefahrensymbole (GHS). Passende Kassette
+  einlegen (z. B. weiss auf gruen fuer Wasser): der Pfeil zeigt die Bandfarbe, Rand und Schrift
+  werden gedruckt.

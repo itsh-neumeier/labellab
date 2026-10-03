@@ -314,6 +314,10 @@ pub fn apply(label: &Label, data: Option<&DataSet>, number: usize, numbering: Nu
                     *cell = f(cell);
                 }
             }
+            Element::PipeMarker { marker, .. } => {
+                marker.text = f(&marker.text);
+                marker.sub_text = f(&marker.sub_text);
+            }
             Element::Fill | Element::Shape { .. } => {}
         }
     }
@@ -345,6 +349,10 @@ pub fn placeholders(label: &Label) -> Vec<String> {
             Element::Symbol { name, .. } => scan(name),
             Element::FuseBox { fields, .. } => fields.iter().for_each(|f| scan(&f.text)),
             Element::Table { table, .. } => table.cells.iter().flatten().for_each(|c| scan(c)),
+            Element::PipeMarker { marker, .. } => {
+                scan(&marker.text);
+                scan(&marker.sub_text);
+            }
             Element::Fill | Element::Shape { .. } => {}
         }
     }
