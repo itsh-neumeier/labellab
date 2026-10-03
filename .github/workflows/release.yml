@@ -5,14 +5,16 @@ name: Release
 # - Windows x64: portable ZIP (LabelLab.exe, labellab-cli.exe, LIESMICH.txt)
 # - Linux x64: AppImage and .deb (GUI) plus a CLI archive with the udev rule
 # Release notes come from the matching section of CHANGELOG.md.
-# Manual runs build an existing tag again (e.g. after a failed job).
+# Manual runs (Actions -> Release -> Run workflow on main) build the selected
+# branch's commit and create the tag there if it does not exist yet; this is
+# also how a release is made without pushing a tag.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to build, e.g. v1.0.0"
+        description: "Tag to release, e.g. v1.0.0 (created on the selected branch's commit if missing)"
         required: true
 
 permissions:
@@ -28,8 +30,6 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
       - name: tag matches the version in all manifests
         id: version
         run: |
@@ -48,8 +48,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -84,8 +82,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
       - name: install build dependencies
         run: >
           sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev
@@ -131,8 +127,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
       - uses: actions/download-artifact@v4
         with:
           path: out
@@ -150,6 +144,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
           name: LabelLab ${{ needs.check.outputs.version }}
           body_path: notes.md
           files: out/*
