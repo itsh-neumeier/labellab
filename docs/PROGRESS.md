@@ -200,6 +200,8 @@
    (aktuelle Werte: `0x01`/`0x01`/`0x08`, siehe `docs/PROTOCOL.md`).
 
 ## Hardware-Tests offen
+- [ ] Rohrleitung DIN 2403 auf farbigem Band (z. B. weiß auf grün, schwarz auf gelb): Pfeil in
+  Bandfarbe, Rand/Trennstriche sauber, Schraffur in den Spitzen erkennbar, GHS-Symbole lesbar
 - **A4-Druck unter Windows (2026-10-02):** „A4-Druck …“ → „Testseite drucken“ auf einem
   normalen Drucker mit „Tatsächliche Größe“: Sind die Lineale 100 mm? (Unter Linux/WebKitGTK
   94 %.) Danach Labels auf A4 drucken und nachmessen.
@@ -330,10 +332,22 @@
   verifiziert (Nutzer hatte keinen Code128-Scanner zur Hand) — bleibt offen.
 
 ## Session-Log
+### 2026-10-03 – Claude Code, CSV-Bildspalte, GHS-Icon-Set, Rohrleitung DIN 2403 (ADR-041)
+- CSV: Bild-Element mit Quelle „CSV-Spalte“ (`{{Spalte}}` als Pfad, relativ zum CSV-Ordner,
+  leere Zelle = kein Bild; `DataSet::base_dir`, `Label::resolve_paths` lässt Platzhalter stehen).
+- GHS-Icon-Set (GHS01–09, Commons, gemeinfrei) über `tools/iconsets/ghs`, im Workflow „Icon sets“.
+- Rohrleitungskennzeichnung: Entwurf (`docs/ENTWURF-DIN2403.md`) vom Nutzer freigegeben, umgesetzt
+  als Element `pipe_marker` + Vorlage + Assistent + CLI. Offen: Hardware-Test auf farbigem Band
+  (Rand/Pfeil-Optik, Schraffur-Lesbarkeit), echte Kassettenfarben grau/violett/braun.
+- Geprüft: fmt/clippy/Tests (neu: Pfeilgeometrie, Spitzen, Vorlage, CSV-Bildpfad), App-Build, GUI
+  unter Xvfb (Assistent Gruppen 1/5, Farbvorschau, Element-Eigenschaften, Richtung beidseitig).
+
 ### 2026-10-03 – Claude Code, Rohdaten BT/USB, Bandfarben-Korrektur
 - Nutzer schickte Statusblock über BT und USB: byte-gleich (auch zum 2026-10-02). Kassette meldet
   Flex-ID weiß/schwarz (`0x14`/`0x90`/`0x08`), eingelegt ist laut Nutzer laminiert transparent
-  mit weißer Schrift → App merkt sich die Korrektur je Code-Paar (`labellab.tapeFix.*`).
+  mit weißer Schrift; eine zweite Kassette (schwarz auf weiß) meldet denselben Block → Bandfarbe
+  wird nur bei geänderter Kennung gesetzt (`labellab.tapeReported`), Druckerinfo hat die Zeile
+  „Eingelegtes Band“ zum Korrigieren.
 - Akku: zweiter Vergleich (Akku über BT / Netz über USB) wieder byte-gleich → kein Akkustand im
   Statusblock. Statuslesen zeigt Fehlerbits jetzt übersetzt (z. B. „Akku schwach“).
 

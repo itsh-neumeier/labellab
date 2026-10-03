@@ -4,6 +4,15 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 ### Hinzugefügt
+- Rohrleitungskennzeichnung nach DIN 2403 (Vorlagen → „Anlagen & Rohrleitungen“): Stoffgruppe
+  0–9 mit passender Bandfarbe, Medium mit Vorschlägen, Zusatzzeile, Fließrichtung (links,
+  rechts, beidseitig), Zusatzfarbe in den Spitzen (frei, gefüllt, schraffiert), Rand ausgefüllt
+  oder als Kontur, bis zu drei Gefahrensymbole (GHS). Vorschau im Assistenten in den
+  DIN-Farben; als Element nachträglich bearbeitbar; CLI `generate pipe-marker`
+- Neues Icon-Set „GHS-Gefahrenpiktogramme“ (GHS01–GHS09, gemeinfrei von Wikimedia Commons),
+  z. B. für die Rohrleitungskennzeichnung
+- CSV: Bild aus einer Spalte – beim Bild-Element „Quelle: CSV-Spalte …“ wählen; jede Zeile liefert
+  ihren Bildpfad (relativ zum Ordner der CSV-Datei möglich), leere Zelle = kein Bild
 - Element „Tabelle“: Zeilen/Spalten, Zellen mehrzeilig mit Fett/Kursiv und Platzhaltern,
   relative Spaltenbreiten und Zeilenhöhen, Linienstärke, Außenrahmen, fette Kopfzeile.
   `.lbx`-Tabellen werden als Tabelle übernommen
@@ -212,12 +221,16 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   Eingabefelder bleiben markierbar
 
 ### Behoben
+- Druckerinfo: neue Zeile „Eingelegtes Band“ zum Wählen des tatsächlichen Bands; Hinweis, dass
+  Kassetten von Drittherstellern oft abweichende Bandart/Farbe melden (z. B. Flex-ID).
+  Akkustand-Zeile, Akkutest-Hinweis und „(unbestätigt)“-Vermerke entfernt (der Drucker meldet
+  keinen Akkustand)
 - Druckerinfo erkennt weitere Bandarten: Flex-ID (`0x14`), Stoff, Flexi, Satin
 - „Status lesen“ zeigt Druckerfehler im Klartext (z. B. „Akku schwach“, „Abdeckung offen“)
   statt nur der Fehlerbytes. Einen Akkustand meldet der PT-P710BT im Status nicht (geprüft)
-- Bandfarbe: meldet eine Kassette andere Farben als sie hat (z. B. kompatible Bänder), wird die
-  von Hand gewählte Bandfarbe für genau diese Kassettenkennung gemerkt und beim nächsten
-  „Status lesen“ nicht mehr überschrieben
+- Bandfarbe: „Status lesen“ setzt die Bandfarbe nur noch, wenn die Kassette eine andere Kennung
+  meldet als beim letzten Mal. Kompatible Kassetten melden oft falsche Farben (zwei verschiedene
+  24-mm-Bänder sogar dieselbe Kennung); die von Hand gewählte Bandfarbe bleibt so erhalten
 - Neues, unverändertes Dokument galt nach dem Start als „ungespeichert“ (gemerkte Felder,
   automatisch erkannte Bandbreite) – Schließen fragte unnötig nach
 - Änderungen während eines (Auto-)Speicherns galten als gespeichert und konnten verloren gehen

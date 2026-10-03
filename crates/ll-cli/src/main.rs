@@ -5,8 +5,8 @@ use std::path::Path;
 
 use ll_core::label::{Element, Label};
 use ll_core::layouts::{
-    self, AssetCode, AssetTag, CableFlag, CableWrap, FuseBox, Layout, PatchPanel, SingleFlag,
-    TerminalBlock,
+    self, AssetCode, AssetTag, CableFlag, CableWrap, FuseBox, Layout, PatchPanel, PipeMarkerLayout,
+    SingleFlag, TerminalBlock,
 };
 use ll_core::series::{self, DataSet, Numbering};
 use ll_protocol::status::{StatusBlock, StatusType};
@@ -357,6 +357,30 @@ enum Command {
 
 #[derive(Subcommand)]
 enum GenerateKind {
+    /// Rohrleitungskennzeichnung nach DIN 2403: Pfeil mit Medium, Richtung,
+    /// Zusatzfarbe in den Spitzen und GHS-Symbolen (Bandfarbe = Stofffarbe).
+    PipeMarker {
+        /// Medium, z. B. "Trinkwasser".
+        text: String,
+        /// Zusatzzeile, z. B. "80 °C · PN 10".
+        #[arg(long, default_value = "")]
+        sub: String,
+        /// Fließrichtung: right, left oder both.
+        #[arg(long, default_value = "right")]
+        direction: String,
+        /// Spitzen: none, solid oder hatched.
+        #[arg(long, default_value = "none")]
+        tips: String,
+        /// Gefahrensymbol (mehrfach, max. 3), z. B. ghs:GHS02.
+        #[arg(long = "symbol")]
+        symbols: Vec<String>,
+        /// Stoffgruppe 0–9 (nur als Hinweis gespeichert).
+        #[arg(long)]
+        group: Option<u8>,
+        /// Länge in mm.
+        #[arg(long, default_value_t = 90.0)]
+        length: f32,
+    },
     /// Inventarlabel: Code (QR oder Barcode), Besitzer und Inventarnummer,
     /// z. B. `--number "INV-{{n:05}}"` und dann mit `--count` drucken.
     AssetTag {
@@ -1206,6 +1230,44 @@ fn generate(
     let geometry = ll_core::label::geometry_for(model, width_mm)?;
     let tape_mm = ll_protocol::model::dots_to_mm(geometry.printable_pins as u32);
     let layout = match kind {
+        GenerateKind::PipeMarker {
+            text,
+            sub,
+            direction,
+            tips,
+            symbols,
+            group,
+            length,
+        } => {
+            use ll_core::pipe::{PipeDirection, PipeMarker, TipFill};
+            Layout::PipeMarker(PipeMarkerLayout {
+                marker: PipeMarker {
+                    text,
+                    sub_text: sub,
+                    direction: match direction.as_str() {
+                        "right" => PipeDirection::Right,
+                        "left" => PipeDirection::Left,
+                        "both" => PipeDirection::Both,
+                        other => anyhow::bail!("Unbekannte Richtung '{other}' (right, left, both)"),
+                    },
+                    tips: match tips.as_str() {
+                        "none" => TipFill::None,
+                        "solid" => TipFill::Solid,
+                        "hatched" => TipFill::Hatched,
+                        other => {
+                            anyhow::bail!("Unbekannte Spitzen '{other}' (none, solid, hatched)")
+                        }
+                    },
+                    symbols: symbols
+                        .into_iter()
+                        .take(ll_core::pipe::MAX_SYMBOLS)
+                        .collect(),
+                    group,
+                    ..Default::default()
+                },
+                length_mm: length,
+            })
+        }
         GenerateKind::AssetTag {
             number,
             owner,

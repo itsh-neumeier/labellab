@@ -1,0 +1,26 @@
+{
+  "format": "llabel-iconset",
+  "version": 1,
+  "id": "ghs",
+  "name": {
+    "de": "GHS-Gefahrenpiktogramme",
+    "en": "GHS hazard pictograms"
+  },
+  "description": {
+    "de": "Die neun Gefahrenpiktogramme des Global Harmonisierten Systems (GHS01–GHS09), z. B. für die Rohrleitungskennzeichnung nach DIN 2403. Grafiken von Wikimedia Commons, dort als gemeinfrei gekennzeichnet; Quelle und Urheber je Piktogramm in den Icon-Daten.",
+    "en": "The nine hazard pictograms of the Globally Harmonized System (GHS01–GHS09), e.g. for pipe marking per DIN 2403. Artwork from Wikimedia Commons, marked public domain there; source and author per pictogram in the icon data."
+  },
+  "license": "Public domain (Wikimedia Commons, per pictogram)",
+  "source": "https://de.wikipedia.org/wiki/Global_harmonisiertes_System_zur_Einstufung_und_Kennzeichnung_von_Chemikalien",
+  "halftone": "threshold",
+  "categories": [
+    {
+      "id": "ghs",
+      "name": {
+        "de": "Gefahrenpiktogramme",
+        "en": "Hazard pictograms"
+      }
+    }
+  ],
+  "icons": []
+}

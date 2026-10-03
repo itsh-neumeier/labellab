@@ -17,6 +17,7 @@ pub mod layouts;
 pub mod lbx;
 pub mod pasted;
 pub mod paths;
+pub mod pipe;
 pub mod print;
 pub mod series;
 pub mod settings;

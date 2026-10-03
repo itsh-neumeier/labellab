@@ -15,6 +15,7 @@ import { BOLD_MARK, ITALIC_MARK, stripMarkup, toggleMark } from "./richtext";
 import { buildCode, emptyFields, parseCode, type CodeFields, type CodeKind } from "./codes";
 import { applyLang, applyStatic, currentLang, errorText, loadLang, setLang, t, type Lang } from "./i18n";
 import { langInfo, langPicker } from "./langs";
+import { PIPE_CSS, PIPE_GROUPS, pipeGroup, pipeLength, type PipeGroup } from "./pipes";
 import { getSetting, initSettings, setSetting } from "./settings";
 import { buildPages, labelPng, printPages, RENDER_SCALE, testPage, type A4Label, type A4Options } from "./a4print";
 import { handleEdges, resizeRect, roundRect, snapMove, snapResize, targets, type Guides } from "./snap";
@@ -492,33 +493,24 @@ function previewRow(): number | null {
 
 const TAPE_STYLE_KEY = "labellab.tapeStyle";
 /**
- * Colours the cassette reported at the last status read. Some cassettes
- * report other colours than they have (e.g. compatible tapes); a style the
- * user picks afterwards is remembered for exactly these codes.
+ * Colours the cassette reported at the last status read. Cassettes may
+ * report other colours than they have, and differently coloured cassettes
+ * may report the same codes (seen with compatible 24 mm tapes), so a status
+ * read only sets the tape style when the reported codes change; a style the
+ * user picked stays until another coding is inserted.
  */
-let detectedStyle: TapeStyle | null = null;
-const tapeFixKey = (st: TapeStyle) => `labellab.tapeFix.${styleKey(st)}`;
+const TAPE_REPORTED_KEY = "labellab.tapeReported";
 
-/** Tape style for colours the printer reported, with the user's remembered correction. */
-function correctedStyle(detected: TapeStyle): TapeStyle {
+/** Applies the reported colours unless the same codes were reported before. */
+function applyReportedTape(reported: TapeStyle): void {
+  let last = "";
   try {
-    const fix = parseStyleKey(getSetting(tapeFixKey(detected)) ?? "");
-    if (fix) return fix;
+    last = getSetting(TAPE_REPORTED_KEY) ?? "";
+    setSetting(TAPE_REPORTED_KEY, styleKey(reported));
   } catch {
-    // no correction stored
+    // not remembered: apply every time
   }
-  return detected;
-}
-
-/** The user changed the tape style: remember it for the codes the cassette reports. */
-function rememberTapeFix(): void {
-  if (!detectedStyle) return;
-  const chosen = $<HTMLSelectElement>("tape-style").value;
-  try {
-    setSetting(tapeFixKey(detectedStyle), chosen === styleKey(detectedStyle) ? "" : chosen);
-  } catch {
-    // not remembered
-  }
+  if (last !== styleKey(reported)) fillTapeStyles(reported);
 }
 
 function styleName(st: TapeStyle): string {
@@ -590,6 +582,8 @@ function boxCaption(item: Item): string {
       return item.fields.map((f) => stripMarkup(f.text).replace(/\n/g, " ")).join(" | ") || elementTitle(item);
     case "table":
       return `${elementTitle(item)}: ${(item.cells[0] ?? []).map((c) => stripMarkup(c).replace(/\n/g, " ")).join(" | ")}`;
+    case "pipe_marker":
+      return `${elementTitle(item)}: ${item.text}`;
   }
 }
 
@@ -792,11 +786,11 @@ function newRect(type: Element["type"]): Rect {
   if (portrait()) {
     // Tape-wide boxes stacked down the label.
     const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
-    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h, fuse_box: fuse, table: 20 }[type];
+    const len = { text: 8, qr: h, barcode: 12, image: h, symbol: h, fill: 0.5, shape: h, fuse_box: fuse, table: 20, pipe_marker: pipeLength(h) }[type];
     return roundRect({ x_mm: 0, y_mm: start, w_mm: h, h_mm: len });
   }
   const fuse = FUSE_DEFAULT_COUNT * FUSE_DEFAULT_PITCH_MM;
-  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5, fuse_box: fuse, table: 40 }[type];
+  const w = { text: 25, qr: h, barcode: 30, image: h * 1.5, symbol: h, fill: 0.5, shape: h * 1.5, fuse_box: fuse, table: 40, pipe_marker: pipeLength(h) }[type];
   return roundRect({ x_mm: start, y_mm: 0, w_mm: w, h_mm: h });
 }
 
@@ -1108,6 +1102,163 @@ function fuseBoxFields(item: FuseBoxItem): HTMLElement[] {
   return [sizeRow, sepRow, optRow, style, sizeField, list];
 }
 
+type PipeItem = Extract<Item, { type: "pipe_marker" }>;
+
+/** Recommended cassette of a DIN 2403 group, e.g. "Weiß auf Grün". */
+function pipeTapeText(g: PipeGroup): string {
+  const tape = t("pipe.tapeHint", { ink: t(`color.${g.ink}`), tape: t(`color.${g.tape}`) });
+  const extra = g.extra ? ` ${t(`pipe.extra.${g.extra}`)}` : "";
+  return g.style ? tape + extra : `${tape} ${t("pipe.noCassette")}${extra}`;
+}
+
+/**
+ * Controls shared by the element properties and the wizard: substance
+ * group, text, second line, direction, tips, frame and hazard pictograms.
+ * `onChange(structural)` is called after every edit.
+ */
+function pipeControls(m: api.PipeMarkerFields, onChange: (structural: boolean) => void): HTMLElement[] {
+  const group = document.createElement("select");
+  group.add(new Option(t("pipe.groupNone"), ""));
+  for (const g of PIPE_GROUPS) group.add(new Option(`${g.id} – ${t(g.name)}`, String(g.id), false, g.id === m.group));
+  const info = document.createElement("p");
+  info.className = "muted hint";
+  const showInfo = () => {
+    const g = pipeGroup(m.group);
+    info.textContent = g ? pipeTapeText(g) : "";
+    info.hidden = !g;
+  };
+  showInfo();
+  const media = document.createElement("datalist");
+  media.id = `pipe-media-${Math.random().toString(36).slice(2)}`;
+  const fillMedia = () => media.replaceChildren(...(pipeGroup(m.group)?.media ?? PIPE_GROUPS.flatMap((g) => g.media)).map((v) => new Option(v)));
+  fillMedia();
+  const text = document.createElement("input");
+  text.type = "text";
+  text.value = m.text;
+  text.setAttribute("list", media.id);
+  text.addEventListener("input", () => {
+    m.text = text.value;
+    onChange(false);
+  });
+  const sub = document.createElement("input");
+  sub.type = "text";
+  sub.value = m.sub_text ?? "";
+  sub.placeholder = t("pipe.subHint");
+  sub.addEventListener("input", () => {
+    m.sub_text = sub.value || undefined;
+    onChange(false);
+  });
+  const tips = document.createElement("select");
+  for (const v of ["none", "solid", "hatched"] as const) tips.add(new Option(t(`pipe.tips.${v}`), v, false, v === (m.tips ?? "none")));
+  tips.addEventListener("change", () => {
+    m.tips = tips.value as api.PipeMarkerFields["tips"];
+    onChange(false);
+  });
+  group.addEventListener("change", () => {
+    m.group = group.value === "" ? null : Number(group.value);
+    const g = pipeGroup(m.group);
+    if (g) {
+      m.tips = g.tips;
+      tips.value = g.tips;
+      if (!m.symbols?.length && g.symbols.length) m.symbols = [...g.symbols];
+      if (!m.text.trim() || PIPE_GROUPS.some((x) => x.media.includes(m.text))) {
+        m.text = g.media[0];
+        text.value = m.text;
+      }
+    }
+    showInfo();
+    fillMedia();
+    renderSymbols();
+    onChange(true);
+  });
+  // Direction: three toggle buttons, one always on.
+  const dirRow = document.createElement("div");
+  dirRow.className = "row pipe-dir";
+  const dirLabel = document.createElement("span");
+  dirLabel.textContent = t("pipe.direction");
+  dirRow.append(dirLabel);
+  const dirButtons = (["left", "both", "right"] as const).map((d) => {
+    const b = makeButton({ left: "◀", both: "◀▶", right: "▶" }[d], t(`pipe.dir.${d}`), () => {
+      m.direction = d;
+      dirButtons.forEach((x) => x.classList.toggle("on", x === b));
+      onChange(false);
+    });
+    b.type = "button";
+    b.classList.add("toggle");
+    b.classList.toggle("on", (m.direction ?? "right") === d);
+    return b;
+  });
+  dirRow.append(...dirButtons);
+  const frame = document.createElement("select");
+  for (const v of ["filled", "outline"] as const) frame.add(new Option(t(`pipe.frame.${v}`), v, false, v === (m.frame ?? "filled")));
+  frame.addEventListener("change", () => {
+    m.frame = frame.value as api.PipeMarkerFields["frame"];
+    onChange(false);
+  });
+  // Hazard pictograms: up to three, chosen in the symbol dialog.
+  const symbols = document.createElement("div");
+  symbols.className = "row pipe-symbols";
+  function renderSymbols(): void {
+    symbols.replaceChildren();
+    const label = document.createElement("span");
+    label.textContent = t("pipe.symbols");
+    symbols.append(label);
+    (m.symbols ?? []).forEach((name, i) => {
+      const found = findIcon(name);
+      const chip = makeButton("", `${symbolLabel(name)} – ${t("pipe.symbolRemove")}`, () => {
+        m.symbols = (m.symbols ?? []).filter((_, k) => k !== i);
+        renderSymbols();
+        onChange(true);
+      });
+      chip.type = "button";
+      chip.className = "symbol-chip";
+      if (found) {
+        const img = document.createElement("img");
+        img.src = svgUrl(found.icon.svg);
+        img.alt = "";
+        chip.append(img);
+      } else {
+        chip.textContent = name;
+      }
+      symbols.append(chip);
+    });
+    if ((m.symbols ?? []).length < 3) {
+      const add = makeButton("＋", t("pipe.symbolAdd"), () => {
+        openSymbolPicker((m.symbols ?? []).at(-1) ?? "ghs:GHS07", (name) => {
+          m.symbols = [...(m.symbols ?? []), name];
+          renderSymbols();
+          onChange(true);
+        });
+      });
+      add.type = "button";
+      symbols.append(add);
+    }
+  }
+  renderSymbols();
+  const opts = document.createElement("div");
+  opts.className = "row";
+  opts.append(field("pipe.tips", tips), field("pipe.frame", frame));
+  return [field("pipe.group", group), info, field("pipe.text", text), media, field("pipe.sub", sub), dirRow, opts, symbols];
+}
+
+/** Properties of a pipe marker element. */
+function pipeFields(item: PipeItem): HTMLElement[] {
+  const size = numberInput(item.size_pt, 0.5, t("layout.auto"), (v) => {
+    item.size_pt = v && v > 0 ? v : null;
+  });
+  const font = fontPicker(item.font ?? null, (family) => {
+    item.font = family;
+    changed(true);
+  });
+  const row = document.createElement("div");
+  row.className = "row";
+  row.append(field("elements.size", size), field("elements.font", font));
+  return [...pipeControls(item, (structural) => {
+    syncBoxCaption();
+    changed(structural);
+  }), row];
+}
+
 type TableItem = Extract<Item, { type: "table" }>;
 
 const TABLE_MAX = 50;
@@ -1267,6 +1418,8 @@ function contentFields(item: Item): HTMLElement[] {
       return fuseBoxFields(item);
     case "table":
       return tableFields(item);
+    case "pipe_marker":
+      return pipeFields(item);
     case "text": {
       const area = document.createElement("textarea");
       area.rows = Math.min(4, Math.max(2, item.text.split("\n").length));
@@ -1401,9 +1554,31 @@ function contentFields(item: Item): HTMLElement[] {
         item.edit = Object.keys(result).length ? result : undefined;
         changed(true);
       });
-      edit.disabled = !item.path;
+      // Source: a fixed file or a CSV column holding a path per record.
+      const column = /^\{\{\s*(.+?)\s*\}\}$/.exec(item.path)?.[1] ?? null;
+      edit.disabled = !item.path || column !== null;
       edit.classList.toggle("on", !!item.edit);
-      return [row, edit, invert, slider("brightness"), slider("contrast")];
+      const source = document.createElement("select");
+      source.add(new Option(t("elements.imageFile"), ""));
+      const columns = [...(state.csv?.headers ?? [])];
+      if (column && !columns.includes(column)) columns.push(column);
+      for (const c of columns) source.add(new Option(t("elements.imageColumn", { column: c }), c, false, c === column));
+      source.value = column ?? "";
+      source.addEventListener("change", () => {
+        item.path = source.value ? `{{${source.value}}}` : "";
+        item.edit = undefined;
+        changed(true);
+        renderProps();
+      });
+      const sourceRow = field("elements.imageSource", source);
+      sourceRow.title = t("elements.imageSourceHint");
+      if (column !== null) {
+        const hint = document.createElement("p");
+        hint.className = "muted hint";
+        hint.textContent = t("elements.imageSourceHint");
+        return [sourceRow, hint, invert, slider("brightness"), slider("contrast")];
+      }
+      return [sourceRow, row, edit, invert, slider("brightness"), slider("contrast")];
     }
     case "symbol": {
       const select = document.createElement("button");
@@ -1909,6 +2084,8 @@ function defaultElement(type: Element["type"]): Element {
         pitch_mm: FUSE_DEFAULT_PITCH_MM,
         separator: "frame",
       };
+    case "pipe_marker":
+      return { type, text: "Wasser", group: 1 };
     case "table":
       return {
         type,
@@ -2360,8 +2537,7 @@ async function readStatus(): Promise<boolean> {
       tapeChanged();
     }
     if (s.tape_color_id && s.text_color_id && s.tape_color_id in TAPE_CSS && s.text_color_id in INK_CSS) {
-      detectedStyle = { tape: s.tape_color_id, ink: s.text_color_id };
-      fillTapeStyles(correctedStyle(detectedStyle));
+      applyReportedTape({ tape: s.tape_color_id, ink: s.text_color_id });
     }
     setStatus(t("device.statusOk", { width: s.width_mm }), "ok");
     return true;
@@ -2399,18 +2575,16 @@ async function showPrinterInfo(): Promise<void> {
   msg.textContent = t("device.reading");
   try {
     const i = await api.printerInfo(connection);
-    msg.textContent = t("info.unverified");
-    const unverified = ` ${t("info.unverifiedMark")}`;
+    msg.textContent = t("info.intro");
     const errors = i.errors.length ? i.errors.map((e) => codeName("printerError", e, 0)).join(", ") : t("info.noErrors");
     const rows: [string, string][] = [
       ["info.model", i.model ?? `${t("info.unknownCode")} (0x${hexByte(i.series_byte)} 0x${hexByte(i.model_byte)})`],
       ["info.width", `${i.width_mm} mm`],
-      ["info.mediaType", codeName("media", i.media_type_id, i.media_type) + unverified],
+      ["info.mediaType", codeName("media", i.media_type_id, i.media_type)],
       ["info.tapeColor", codeName("color", i.tape_color_id, i.raw[24])],
       ["info.textColor", codeName("color", i.text_color_id, i.raw[25])],
-      ["info.errors", `${errors} (0x${hexByte(i.error1)} 0x${hexByte(i.error2)})${unverified}`],
+      ["info.errors", `${errors} (0x${hexByte(i.error1)} 0x${hexByte(i.error2)})`],
       ["info.statusType", `0x${hexByte(i.status_type)} · ${t("info.phase")} 0x${hexByte(i.phase)}`],
-      ["info.battery", t("info.batteryUnknown")],
     ];
     for (const [key, value] of rows) {
       const tr = document.createElement("tr");
@@ -2418,6 +2592,30 @@ async function showPrinterInfo(): Promise<void> {
       th.textContent = t(key);
       const td = document.createElement("td");
       td.textContent = value;
+      tr.append(th, td);
+      table.append(tr);
+    }
+    // The printer only knows the cassette's coding: let the user say what is really inserted.
+    if (i.tape_color_id && i.text_color_id) {
+      const tr = document.createElement("tr");
+      const th = document.createElement("th");
+      th.textContent = t("info.useAs");
+      const td = document.createElement("td");
+      const select = document.createElement("select");
+      const current = $<HTMLSelectElement>("tape-style").value;
+      const shown = parseStyleKey(current);
+      const styles = TAPE_STYLES.some((st) => styleKey(st) === current) || !shown ? TAPE_STYLES : [shown, ...TAPE_STYLES];
+      for (const st of styles) select.add(new Option(styleName(st), styleKey(st), false, styleKey(st) === current));
+      select.addEventListener("change", () => {
+        const tape = $<HTMLSelectElement>("tape-style");
+        if (!Array.from(tape.options).some((o) => o.value === select.value)) fillTapeStyles(parseStyleKey(select.value) ?? undefined);
+        tape.value = select.value;
+        applyTapeStyle();
+      });
+      const hint = document.createElement("div");
+      hint.className = "muted small";
+      hint.textContent = t("info.useAsHint");
+      td.append(select, hint);
       tr.append(th, td);
       table.append(tr);
     }
@@ -3725,6 +3923,8 @@ const TEMPLATES: { id: string; kind: api.Layout["kind"]; name: string; cat: stri
     svg: '<rect x="2" y="8" width="68" height="16"/><path d="M8.8 8v16M15.6 8v16M22.4 8v16M29.2 8v16M36 8v16M42.8 8v16M49.6 8v16M56.4 8v16M63.2 8v16"/>' },
   { id: "asset_tag", kind: "asset_tag", name: "wizard.assetTag", cat: "wizard.catOffice",
     svg: '<rect x="2" y="4" width="68" height="24" rx="2"/><path d="M7 9h5v5H7zM15 9h3M7 17h3v6H7zM14 18h4v5M18 14v3"/><path d="M26 12h22" stroke-width="1"/><path d="M26 21h38" stroke-width="3.5"/>' },
+  { id: "pipe_marker", kind: "pipe_marker", name: "wizard.pipeMarker", cat: "wizard.catPlant",
+    svg: '<path d="M2 8h52l14 8-14 8H2z"/><path d="M54 8v16" /><path d="M10 16h36" stroke-width="3"/>' },
   { id: "lsa_strip", kind: "fuse_box", name: "wizard.lsaStrip", cat: "wizard.catSpecial",
     svg: '<rect x="2" y="8" width="68" height="16"/><path d="M15.6 8v3M29.2 8v3M42.8 8v3M56.4 8v3M15.6 21v3M29.2 21v3M42.8 21v3M56.4 21v3"/><path d="M8 13h3v6M21 13h4v3h-4v3h4M35 13h4v6h-4M48 13h4M50 13v6"/>' },
 ];
@@ -3784,6 +3984,7 @@ const FIELD_DEFAULTS: Record<string, { count: number; pitch: number; prefix: str
 };
 
 function applyFieldDefaults(tile: string): void {
+  if (tile === "pipe_marker") $<HTMLInputElement>("wz-pipe-length").value = String(pipeLength(labelHeightMm()));
   const d = FIELD_DEFAULTS[tile];
   if (!d) return;
   $<HTMLInputElement>("wz-count").value = String(d.count);
@@ -3898,6 +4099,12 @@ function fillWizard(layout: api.Layout): void {
     check("wz-separators", layout.separators);
   }
   if (layout.kind === "terminal_block") $<HTMLSelectElement>("wz-rows").value = String(layout.rows);
+  if (layout.kind === "pipe_marker") {
+    const { kind: _kind, length_mm, ...fields } = layout;
+    wizardPipe = { ...fields, symbols: [...(fields.symbols ?? [])] };
+    set("wz-pipe-length", length_mm);
+    renderWizardPipe();
+  }
   if (layout.kind === "asset_tag") {
     set("wz-owner", layout.owner);
     set("wz-number", layout.number);
@@ -3921,6 +4128,8 @@ function wizardLayout(): api.Layout {
   const text = $<HTMLInputElement>("wz-text").value;
   const diameter_mm = Math.max(0.5, num("wz-diameter"));
   switch (kind) {
+    case "pipe_marker":
+      return { kind, ...wizardPipe, length_mm: Math.min(1000, Math.max(20, num("wz-pipe-length"))) };
     case "asset_tag":
       return {
         kind,
@@ -3963,6 +4172,13 @@ function wizardLayout(): api.Layout {
     default:
       return { kind: "patch_panel", ...fieldSpec() };
   }
+}
+
+/** Pipe marker being set up in the wizard. */
+let wizardPipe: api.PipeMarkerFields = { text: "Trinkwasser", group: 1 };
+
+function renderWizardPipe(): void {
+  $("wz-pipe").replaceChildren(...pipeControls(wizardPipe, () => updateWizard()));
 }
 
 // ---------------------------------------------------------------- code wizard
@@ -4166,9 +4382,25 @@ function updateWizard(): void {
     try {
       const label = await api.generateLayout(layout, selectedModel(), selectedWidth());
       // First label of the series: placeholders like {{n:05}} show a real number.
-      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), 1, numbering(), 2);
+      // Pipe markers are shown in colour, which needs the 720 dpi raster of the A4/PNG path.
+      const scale = layout.kind === "pipe_marker" && pipeGroup(layout.group) ? RENDER_SCALE : 2;
+      const preview = await api.renderPreview(label, selectedModel(), selectedWidth(), 1, numbering(), scale);
       if (seq !== wizardSeq) return;
-      $<HTMLImageElement>("wz-preview-img").src = `data:image/png;base64,${preview.png}`;
+      const group = layout.kind === "pipe_marker" ? pipeGroup(layout.group) : undefined;
+      if (group) {
+        // In the group's colours, as it looks on the matching cassette.
+        const width = selectedWidth();
+        const tape = state.models.find((m) => m.name === selectedModel())?.tapes.find((tp) => tp.width_mm === width);
+        const url = await labelPng(
+          { name: "", png: preview.png, tapeMm: width, printableMm: tape?.printable_mm ?? width },
+          PIPE_CSS[group.tape],
+          PIPE_CSS[group.ink],
+        );
+        if (seq !== wizardSeq) return;
+        $<HTMLImageElement>("wz-preview-img").src = url;
+      } else {
+        $<HTMLImageElement>("wz-preview-img").src = `data:image/png;base64,${preview.png}`;
+      }
       const length = label.min_length_mm ?? 0;
       info.textContent = [info.textContent, t("wizard.length", { length: length.toFixed(1) })].filter(Boolean).join(" · ");
     } catch (err) {
@@ -4181,6 +4413,7 @@ function bindWizard(): void {
   const dialog = $<HTMLDialogElement>("wizard");
   const openWizard = (layout: api.Layout | null) => {
     if (layout) fillWizard(layout);
+    else renderWizardPipe();
     $<HTMLSelectElement>("wz-target").value = defaultWizardTarget($<HTMLInputElement>("wz-kind").value, !!layout);
     renderGallery();
     renderFbFields();
@@ -4200,7 +4433,16 @@ function bindWizard(): void {
   $("wz-create").addEventListener("click", async (e) => {
     e.preventDefault();
     try {
-      const label = await api.generateLayout(wizardLayout(), selectedModel(), selectedWidth());
+      const layout = wizardLayout();
+      const label = await api.generateLayout(layout, selectedModel(), selectedWidth());
+      // Pipe markers: show the preview in the recommended cassette's colours.
+      const style = layout.kind === "pipe_marker" ? pipeGroup(layout.group)?.style : null;
+      const st = style ? parseStyleKey(style) : null;
+      if (st) {
+        fillTapeStyles(st);
+        $<HTMLSelectElement>("tape-style").value = style!;
+        applyTapeStyle();
+      }
       for (const item of label.elements) {
         if (item.rect) item.rect = roundRect(item.rect);
       }
@@ -4771,10 +5013,7 @@ function bindUi(): void {
   });
   $("zoom").addEventListener("input", layoutStage);
   bindWheelZoom();
-  $("tape-style").addEventListener("change", () => {
-    applyTapeStyle();
-    rememberTapeFix();
-  });
+  $("tape-style").addEventListener("change", applyTapeStyle);
   $("quality").addEventListener("change", schedulePreview);
   $("strips").addEventListener("change", () => {
     state.label.strips = Number($<HTMLSelectElement>("strips").value) || 1;
